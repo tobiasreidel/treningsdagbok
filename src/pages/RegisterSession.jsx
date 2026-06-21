@@ -1,0 +1,174 @@
+import { useMemo, useState } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { Segmented, useOnline } from '../components/ui'
+import DetailsFields from '../components/form/DetailsFields'
+import RoutesEditor from '../components/form/RoutesEditor'
+import NotesPhoto from '../components/form/NotesPhoto'
+import { emptyForm, isOutdoorClimbing } from '../lib/formState'
+import { SPORTS, SUBTYPES, LOCATIONS } from '../lib/constants'
+import { createSession } from '../lib/sessions'
+import { notifySessionsChanged } from '../App'
+
+export default function RegisterSession() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const online = useOnline()
+  const [form, setForm] = useState(() => {
+    const f = emptyForm()
+    if (location.state?.date) f.date = location.state.date
+    return f
+  })
+  const [step, setStep] = useState(0)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+
+  const update = (patch) => setForm((f) => ({ ...f, ...patch }))
+  const updateExtra = (patch) =>
+    setForm((f) => ({ ...f, extra: { ...f.extra, ...patch } }))
+
+  // Step list is dynamic: routes only appear for outdoor climbing.
+  const steps = useMemo(() => {
+    const s = ['sport', 'subtype', 'details']
+    if (isOutdoorClimbing(form)) s.push('routes')
+    s.push('notes')
+    return s
+  }, [form.sport, form.location])
+
+  const current = steps[Math.min(step, steps.length - 1)]
+  const isLast = step >= steps.length - 1
+
+  const selectSport = (sport) => {
+    // Reset sport-specific bits when (re)choosing a sport, keep the date.
+    setForm((f) => ({ ...emptyForm(), date: f.date, sport }))
+    setStep(1)
+  }
+
+  const canAdvance = () => {
+    if (current === 'sport') return !!form.sport
+    if (current === 'subtype') {
+      if (!form.subtype) return false
+      if (form.sport === 'climbing' && !form.location) return false
+      return true
+    }
+    return true
+  }
+
+  const back = () => {
+    if (step === 0) navigate('/')
+    else setStep((s) => Math.max(0, s - 1))
+  }
+
+  const next = () => setStep((s) => Math.min(steps.length - 1, s + 1))
+
+  const save = async () => {
+    setSaving(true)
+    setError(null)
+    try {
+      const res = await createSession(form)
+      notifySessionsChanged()
+      navigate('/', {
+        state: { toast: res.pending ? 'Saved offline — will sync when online' : 'Session saved' },
+      })
+    } catch (err) {
+      setError(err.message || 'Could not save')
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="page">
+      <header className="wizard-head">
+        <button className="icon-btn" onClick={back} aria-label="Back">
+          ‹
+        </button>
+        <div className="wizard-title">
+          <h1>Register session</h1>
+          {!online && <span className="offline-tag">offline</span>}
+        </div>
+        <div className="wizard-progress">
+          {steps.map((s, i) => (
+            <span key={s} className={`dot ${i <= step ? 'is-done' : ''}`} />
+          ))}
+        </div>
+      </header>
+
+      <main className="wizard-body">
+        {current === 'sport' && (
+          <section>
+            <h2 className="step-q">What did you do?</h2>
+            <Segmented
+              options={Object.values(SPORTS)}
+              value={form.sport}
+              onChange={selectSport}
+              columns={2}
+            />
+          </section>
+        )}
+
+        {current === 'subtype' && (
+          <section className="stack">
+            <div>
+              <h2 className="step-q">Type</h2>
+              <Segmented
+                options={SUBTYPES[form.sport]}
+                value={form.subtype}
+                onChange={(v) => update({ subtype: v })}
+                columns={form.sport === 'climbing' ? 3 : 2}
+              />
+            </div>
+            {form.sport === 'climbing' && (
+              <div>
+                <h2 className="step-q">Where</h2>
+                <Segmented
+                  options={LOCATIONS}
+                  value={form.location}
+                  onChange={(v) => update({ location: v })}
+                  columns={2}
+                />
+              </div>
+            )}
+          </section>
+        )}
+
+        {current === 'details' && (
+          <section>
+            <h2 className="step-q">Details</h2>
+            <DetailsFields form={form} update={update} updateExtra={updateExtra} />
+          </section>
+        )}
+
+        {current === 'routes' && (
+          <section>
+            <h2 className="step-q">Routes &amp; boulders</h2>
+            <RoutesEditor form={form} update={update} />
+          </section>
+        )}
+
+        {current === 'notes' && (
+          <section>
+            <h2 className="step-q">Notes &amp; photo</h2>
+            <NotesPhoto form={form} update={update} />
+          </section>
+        )}
+
+        {error && <p className="auth-error">{error}</p>}
+      </main>
+
+      <footer className="wizard-foot">
+        {!isLast ? (
+          <button
+            className="btn btn-primary btn-block"
+            onClick={next}
+            disabled={!canAdvance()}
+          >
+            Next
+          </button>
+        ) : (
+          <button className="btn btn-primary btn-block" onClick={save} disabled={saving}>
+            {saving ? 'Saving…' : 'Save session'}
+          </button>
+        )}
+      </footer>
+    </div>
+  )
+}

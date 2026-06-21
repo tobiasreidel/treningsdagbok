@@ -1,0 +1,52 @@
+import { useEffect } from 'react'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { isConfigured } from './lib/supabase'
+import { useAuth } from './context/AuthContext'
+import { flushOutbox } from './lib/sessions'
+import SetupNeeded from './components/SetupNeeded'
+import Login from './components/Login'
+import Dashboard from './pages/Dashboard'
+import RegisterSession from './pages/RegisterSession'
+import EditSession from './pages/EditSession'
+
+// Broadcast helper so views can refresh after the outbox is flushed.
+export function notifySessionsChanged() {
+  window.dispatchEvent(new Event('sessions:changed'))
+}
+
+export default function App() {
+  const { session, loading } = useAuth()
+
+  // Flush any queued offline sessions on load and whenever we come back online.
+  useEffect(() => {
+    if (!session) return
+    const sync = async () => {
+      const n = await flushOutbox().catch(() => 0)
+      if (n > 0) notifySessionsChanged()
+    }
+    sync()
+    window.addEventListener('online', sync)
+    return () => window.removeEventListener('online', sync)
+  }, [session])
+
+  if (!isConfigured) return <SetupNeeded />
+
+  if (loading) {
+    return (
+      <div className="splash">
+        <div className="spinner" />
+      </div>
+    )
+  }
+
+  if (!session) return <Login />
+
+  return (
+    <Routes>
+      <Route path="/" element={<Dashboard />} />
+      <Route path="/new" element={<RegisterSession />} />
+      <Route path="/session/:id" element={<EditSession />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  )
+}
