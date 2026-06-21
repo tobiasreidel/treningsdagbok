@@ -13,12 +13,16 @@ export default function RegisterSession() {
   const navigate = useNavigate()
   const location = useLocation()
   const online = useOnline()
+  // An imported intervals.icu ride arrives as a fully-shaped, pre-filled form.
+  const prefill = location.state?.prefill
   const [form, setForm] = useState(() => {
+    if (prefill) return { ...emptyForm(), ...prefill, extra: { ...prefill.extra } }
     const f = emptyForm()
     if (location.state?.date) f.date = location.state.date
     return f
   })
-  const [step, setStep] = useState(0)
+  // Skip sport/subtype for imports — jump straight to the details step.
+  const [step, setStep] = useState(prefill ? 2 : 0)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
 

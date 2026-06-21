@@ -726,6 +726,43 @@ textarea {
   white-space: nowrap;
 }
 
+/* ----- header actions + import ----- */
+.head-actions {
+  display: flex;
+  gap: 8px;
+}
+.btn-import {
+  margin-top: -8px;
+  font-size: 0.9rem;
+}
+.import-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
+}
+.import-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.import-name {
+  font-weight: 600;
+}
+.import-meta {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.import-arrow {
+  font-size: 1.4rem;
+  color: var(--text-muted);
+}
+
 /* ----- toast ----- */
 .toast {
   position: fixed;

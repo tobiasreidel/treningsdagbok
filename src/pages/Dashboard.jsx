@@ -54,13 +54,27 @@ export default function Dashboard() {
           <h1>Treningsdagbok</h1>
           {!online && <span className="offline-tag">offline</span>}
         </div>
-        <button className="icon-btn" onClick={signOut} title="Sign out" aria-label="Sign out">
-          ⎋
-        </button>
+        <div className="head-actions">
+          <button
+            className="icon-btn"
+            onClick={() => navigate('/settings')}
+            title="Settings"
+            aria-label="Settings"
+          >
+            ⚙
+          </button>
+          <button className="icon-btn" onClick={signOut} title="Sign out" aria-label="Sign out">
+            ⎋
+          </button>
+        </div>
       </header>
 
       <button className="btn btn-primary btn-register" onClick={() => navigate('/new')}>
         + Register session
+      </button>
+
+      <button className="btn btn-ghost btn-block btn-import" onClick={() => navigate('/import')}>
+        ⬇ Import rides from intervals.icu
       </button>
 
       {loading ? (
