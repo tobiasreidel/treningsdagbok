@@ -410,6 +410,17 @@ textarea {
 .dash-head {
   justify-content: space-between;
 }
+.dash-head > div:first-child {
+  min-width: 0;
+}
+.dash-head h1 {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.head-actions {
+  flex: none;
+}
 .wizard-head {
   margin-bottom: 8px;
 }
@@ -877,6 +888,55 @@ textarea {
   color: var(--text);
   box-shadow: var(--shadow);
 }
+.pill-badge {
+  display: inline-block;
+  margin-left: 5px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 0 6px;
+  line-height: 1.4;
+}
+
+/* ----- friends ----- */
+.feed-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.feed-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.feed-who {
+  font-weight: 700;
+}
+.feed-body {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.feed-summary {
+  text-transform: capitalize;
+}
+.friend-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+}
+.friend-name {
+  font-weight: 600;
+}
+.friend-actions {
+  display: inline-flex;
+  gap: 8px;
+}
 
 /* ----- chart cards ----- */
 .chart-card {
@@ -912,6 +972,11 @@ textarea {
 .chart-xlabel {
   fill: var(--text-muted);
   font-size: 10px;
+}
+.chart-vlabel {
+  fill: var(--text);
+  font-size: 9px;
+  font-weight: 700;
 }
 .chart-empty {
   color: var(--text-muted);

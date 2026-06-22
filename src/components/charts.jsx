@@ -3,13 +3,19 @@
 
 const VW = 320 // viewBox width (uniform scale → no text distortion)
 
+// Tidy number: drop trailing .0, keep one decimal otherwise.
+function fmtNum(v) {
+  const r = Math.round((v || 0) * 10) / 10
+  return Number.isInteger(r) ? String(r) : r.toFixed(1)
+}
+
 function ChartEmpty({ label = 'No data yet' }) {
   return <div className="chart-empty">{label}</div>
 }
 
 // Vertical bars. `data` = [{label, value, color?}] or
 // [{label, segments:[{value,color}]}] for stacked bars.
-export function Bars({ data, height = 150, color = 'var(--primary)' }) {
+export function Bars({ data, height = 170, color = 'var(--primary)' }) {
   const n = data.length
   if (!n) return <ChartEmpty />
   const norm = data.map((d) => ({
@@ -18,12 +24,12 @@ export function Bars({ data, height = 150, color = 'var(--primary)' }) {
   }))
   const totals = norm.map((d) => d.segments.reduce((a, s) => a + (s.value || 0), 0))
   const max = Math.max(1, ...totals)
-  const top = 8
+  const top = 18 // headroom for value labels
   const bottom = 22
   const plotH = height - top - bottom
   const slot = VW / n
-  const bw = Math.max(2, slot * 0.62)
-  const labelEvery = Math.ceil(n / 6)
+  const bw = Math.max(2, slot * 0.6)
+  const labelEvery = Math.ceil(n / 7)
 
   return (
     <svg viewBox={`0 0 ${VW} ${height}`} className="chart" role="img">
@@ -39,6 +45,20 @@ export function Bars({ data, height = 150, color = 'var(--primary)' }) {
           )
         })
       })}
+      {/* value on top of each (non-zero) bar */}
+      {totals.map((t, i) =>
+        t > 0 ? (
+          <text
+            key={`v${i}`}
+            x={i * slot + slot / 2}
+            y={top + plotH - (t / max) * plotH - 4}
+            className="chart-vlabel"
+            textAnchor="middle"
+          >
+            {fmtNum(t)}
+          </text>
+        ) : null,
+      )}
       {norm.map((d, i) =>
         i % labelEvery === 0 ? (
           <text key={`l${i}`} x={i * slot + slot / 2} y={height - 6} className="chart-xlabel" textAnchor="middle">
@@ -51,11 +71,11 @@ export function Bars({ data, height = 150, color = 'var(--primary)' }) {
 }
 
 // Line chart with a soft area fill. `data` = [{label, value}].
-export function Line({ data, height = 150, color = 'var(--primary)' }) {
+export function Line({ data, height = 170, color = 'var(--primary)' }) {
   const n = data.length
   if (!n) return <ChartEmpty />
   const max = Math.max(1, ...data.map((d) => d.value || 0))
-  const top = 8
+  const top = 18
   const bottom = 22
   const plotH = height - top - bottom
   const x = (i) => (n === 1 ? VW / 2 : (i / (n - 1)) * VW)
@@ -74,6 +94,14 @@ export function Line({ data, height = 150, color = 'var(--primary)' }) {
       {data.map((d, i) => (
         <circle key={i} cx={x(i)} cy={y(d.value)} r="2.5" fill={color} />
       ))}
+      {/* value labels (sparse, non-zero) so the line reads as numbers too */}
+      {data.map((d, i) =>
+        i % labelEvery === 0 && d.value > 0 ? (
+          <text key={`v${i}`} x={x(i)} y={y(d.value) - 7} className="chart-vlabel" textAnchor="middle">
+            {fmtNum(d.value)}
+          </text>
+        ) : null,
+      )}
       {data.map((d, i) =>
         i % labelEvery === 0 ? (
           <text key={`l${i}`} x={x(i)} y={height - 6} className="chart-xlabel" textAnchor="middle">

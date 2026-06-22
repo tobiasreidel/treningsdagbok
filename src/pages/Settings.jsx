@@ -1,22 +1,27 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Field } from '../components/ui'
+import { Field, Segmented } from '../components/ui'
 import { getSettings, saveSettings, fetchCyclingActivities } from '../lib/intervals'
+import { getMyProfile, setDisplayName, getShareSetting, setShareSetting } from '../lib/friends'
 
 export default function Settings() {
   const navigate = useNavigate()
   const [athleteId, setAthleteId] = useState('')
   const [apiKey, setApiKey] = useState('')
+  const [displayName, setDisplayNameState] = useState('')
+  const [share, setShare] = useState(true)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [test, setTest] = useState(null) // {ok, msg}
+  const [test, setTest] = useState(null)
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    getSettings()
-      .then((s) => {
+    Promise.all([getSettings(), getMyProfile().catch(() => ({})), getShareSetting().catch(() => true)])
+      .then(([s, profile, shareVal]) => {
         setAthleteId(s.athleteId)
         setApiKey(s.apiKey)
+        setDisplayNameState(profile?.display_name || '')
+        setShare(shareVal)
       })
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -36,8 +41,12 @@ export default function Settings() {
     setSaving(true)
     setError(null)
     try {
+      // Profile/privacy are best-effort: they depend on friends.sql having been
+      // run, and shouldn't block saving the intervals.icu connection.
+      await setDisplayName(displayName).catch(() => {})
+      await setShareSetting(share).catch(() => {})
       await saveSettings({ athleteId, apiKey })
-      navigate('/', { state: { toast: 'intervals.icu connected' } })
+      navigate('/', { state: { toast: 'Settings saved' } })
     } catch (err) {
       setError(err.message || 'Could not save')
       setSaving(false)
@@ -66,16 +75,35 @@ export default function Settings() {
 
       <main className="wizard-body stack">
         <section className="stack">
+          <h2 className="step-q">Profile</h2>
+          <Field label="Display name" hint="Shown to friends">
+            <input
+              type="text"
+              value={displayName}
+              onChange={(e) => setDisplayNameState(e.target.value)}
+              placeholder="Your name"
+            />
+          </Field>
+          <Field label="Activity privacy">
+            <Segmented
+              options={[
+                { key: 'on', label: 'Friends can see' },
+                { key: 'off', label: 'Private' },
+              ]}
+              value={share ? 'on' : 'off'}
+              onChange={(v) => setShare(v === 'on')}
+              columns={2}
+            />
+          </Field>
+        </section>
+
+        <section className="stack">
           <h2 className="step-q">Connect intervals.icu</h2>
           <p className="muted small">
             Pull your rides in automatically. Your Garmin device syncs to
             intervals.icu, and this app imports from there.
           </p>
-
-          <Field
-            label="API key"
-            hint="intervals.icu → Settings → Developer Settings (bottom of the page)"
-          >
+          <Field label="API key" hint="intervals.icu → Settings → Developer Settings (bottom of the page)">
             <input
               type="password"
               value={apiKey}
@@ -84,12 +112,7 @@ export default function Settings() {
               autoComplete="off"
             />
           </Field>
-
-          <Field
-            label="Athlete ID"
-            hint="The number in your intervals.icu URL. Leave blank to use your own account."
-            optional
-          >
+          <Field label="Athlete ID" hint="Leave blank to use your own account." optional>
             <input
               type="text"
               inputMode="numeric"
@@ -98,7 +121,6 @@ export default function Settings() {
               placeholder="0"
             />
           </Field>
-
           <button
             type="button"
             className="btn btn-secondary btn-block"
@@ -107,16 +129,16 @@ export default function Settings() {
           >
             {test?.pending ? 'Testing…' : 'Test connection'}
           </button>
-
           {test && !test.pending && (
             <p className={test.ok ? 'auth-notice' : 'auth-error'}>{test.msg}</p>
           )}
-          {error && <p className="auth-error">{error}</p>}
         </section>
+
+        {error && <p className="auth-error">{error}</p>}
       </main>
 
       <footer className="wizard-foot">
-        <button className="btn btn-primary btn-block" onClick={save} disabled={saving || !apiKey}>
+        <button className="btn btn-primary btn-block" onClick={save} disabled={saving}>
           {saving ? 'Saving…' : 'Save'}
         </button>
       </footer>

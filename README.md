@@ -3,24 +3,26 @@
 A personal training diary for **cycling** and **climbing**, built as an installable
 **PWA** (Add to Home Screen on iPhone). React + Vite frontend, Supabase backend.
 
-> **Status: Phase 1** — data model, manual session logging, and the landing
-> dashboard (calendar + week table + summary cards). Built multi-user-ready and
-> offline-resilient from day one. Phases 2–4 (stats, intervals.icu import,
-> friends) are scoped in the build spec but not yet implemented.
+> **Status: Phases 1–4 implemented.** Logging + dashboard, stats dashboards,
+> automatic intervals.icu cycling import, and friends (feed/leaderboard/privacy).
+> Built multi-user-ready and offline-resilient from day one.
 
 ---
 
-## What's in Phase 1
+## Features
 
-- **Email + password auth** (Supabase) — single user now, multi-user ready.
-- **Register session** wizard: sport → type/location → details → routes → notes/photo.
-  Fast, one-handed, with a step for the outdoor-climbing route log.
-- **Dashboard**: month calendar (color-coded), last-week table, and summary cards
-  (hours this week/month split by sport, session count, cycling distance/elevation).
-- **Edit & delete** any session.
-- **Offline-safe**: a session logged with no signal is saved to an on-device
-  outbox (IndexedDB) and synced automatically when you're back online.
-- **Metric units throughout**, dark mode follows your system setting.
+- **Email + password auth** (Supabase) — multi-user ready.
+- **Register session** wizard: sport → type/location → details → routes → notes/photo,
+  with the outdoor-climbing route log. Tap any session for a detail view; edit & delete.
+- **Dashboard**: color-coded month calendar, last-week table, summary cards.
+- **Stats** (`/stats`): date-range Overview / Cycling / Climbing dashboards —
+  training load, distance/elevation, speed & feeling trends, discipline split,
+  grade pyramid, send rate.
+- **intervals.icu import** (`/import`): pulls rides (synced from Garmin), pre-fills
+  distance/elevation/power/cadence/load/etc., de-dupes, one-tap add.
+- **Friends** (`/friends`): requests by email, shared feed, weekly leaderboard,
+  with a per-account privacy toggle.
+- **Offline-safe** writes (IndexedDB outbox), **metric units**, **dark mode**.
 
 ---
 
@@ -32,10 +34,13 @@ A personal training diary for **cycling** and **climbing**, built as an installa
 ## 2. Set up Supabase
 
 1. Create a new project at [supabase.com](https://supabase.com) (no credit card needed).
-2. In the dashboard, open **SQL Editor → New query**, paste the contents of
-   [`supabase/schema.sql`](supabase/schema.sql), and run it. This creates the
-   `sessions` and `routes` tables, Row Level Security policies, and the private
-   `session-photos` storage bucket.
+2. In the dashboard, open **SQL Editor → New query** and run these in order:
+   - [`supabase/schema.sql`](supabase/schema.sql) — `sessions` + `routes` tables,
+     Row Level Security, and the private `session-photos` storage bucket.
+   - [`supabase/intervals.sql`](supabase/intervals.sql) — `user_settings`
+     (intervals.icu credentials), for the cycling import.
+   - [`supabase/friends.sql`](supabase/friends.sql) — profiles, friendships,
+     cross-user visibility policies, and the privacy toggle (Phase 4).
 3. **Auth setting (recommended for a personal app):** go to
    **Authentication → Providers → Email** and turn **off** "Confirm email".
    This lets you create your account and sign in immediately. (If you leave it
@@ -100,13 +105,16 @@ npm run icons
 
 ```
 src/
-  lib/         supabase client, data access, offline outbox, formatting, constants
+  lib/         supabase client, data access, offline outbox, intervals.icu,
+               friends, stats aggregations, formatting, constants
   context/     AuthContext (email/password session)
-  components/  UI controls, dashboard widgets (Calendar, SummaryCards, WeekTable)
-    form/      shared session-form sections (details, routes, notes/photo)
-  pages/       Dashboard, RegisterSession (wizard), EditSession
+  components/  UI controls, dashboard widgets, charts (svg), form/ sections
+  pages/       Dashboard, RegisterSession, SessionDetail, EditSession,
+               Stats, ImportRides, Friends, Settings
 supabase/
-  schema.sql   tables + RLS + storage bucket
+  schema.sql     sessions + routes + RLS + storage bucket
+  intervals.sql  user_settings (intervals.icu credentials)
+  friends.sql    profiles, friendships, cross-user visibility, privacy
 scripts/
   generate_icons.py
 ```
@@ -124,9 +132,9 @@ scripts/
 
 ## Roadmap (from the spec)
 
-- **Phase 2** — Stats & dashboards (climbing-first: discipline split, grade
-  pyramid, send-rate; cycling distance/elevation/load; streaks & trends).
-- **Phase 3** — Automatic cycling import via [intervals.icu](https://intervals.icu)
-  (free API), pre-filling objective fields and avoiding duplicates.
-- **Phase 4** — Friends: connections, shared feed/leaderboard, privacy controls.
-```
+- ✅ **Phase 1** — Data model, manual logging, landing dashboard.
+- ✅ **Phase 2** — Stats & dashboards (discipline split, grade pyramid, send-rate;
+  cycling distance/elevation/load; streaks & trends).
+- ✅ **Phase 3** — Automatic cycling import via [intervals.icu](https://intervals.icu),
+  pre-filling objective fields and avoiding duplicates.
+- ✅ **Phase 4** — Friends: connections, shared feed/leaderboard, privacy controls.

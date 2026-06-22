@@ -57,6 +57,14 @@ export default function Dashboard() {
         <div className="head-actions">
           <button
             className="icon-btn"
+            onClick={() => navigate('/friends')}
+            title="Friends"
+            aria-label="Friends"
+          >
+            👥
+          </button>
+          <button
+            className="icon-btn"
             onClick={() => navigate('/stats')}
             title="Stats"
             aria-label="Stats"
