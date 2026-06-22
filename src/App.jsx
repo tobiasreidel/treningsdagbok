@@ -7,9 +7,11 @@ import SetupNeeded from './components/SetupNeeded'
 import Login from './components/Login'
 import Dashboard from './pages/Dashboard'
 import RegisterSession from './pages/RegisterSession'
+import SessionDetail from './pages/SessionDetail'
 import EditSession from './pages/EditSession'
 import Settings from './pages/Settings'
 import ImportRides from './pages/ImportRides'
+import Stats from './pages/Stats'
 
 // Broadcast helper so views can refresh after the outbox is flushed.
 export function notifySessionsChanged() {
@@ -47,9 +49,11 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Dashboard />} />
       <Route path="/new" element={<RegisterSession />} />
-      <Route path="/session/:id" element={<EditSession />} />
+      <Route path="/session/:id" element={<SessionDetail />} />
+      <Route path="/session/:id/edit" element={<EditSession />} />
       <Route path="/import" element={<ImportRides />} />
       <Route path="/settings" element={<Settings />} />
+      <Route path="/stats" element={<Stats />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

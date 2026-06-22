@@ -47,7 +47,7 @@ export default function EditSession() {
     try {
       await updateSession(id, form)
       notifySessionsChanged()
-      navigate('/', { state: { toast: 'Session updated' } })
+      navigate(`/session/${id}`, { state: { toast: 'Session updated' } })
     } catch (err) {
       setError(err.message || 'Could not save')
       setSaving(false)
@@ -105,7 +105,7 @@ export default function EditSession() {
   return (
     <div className="page">
       <header className="wizard-head">
-        <button className="icon-btn" onClick={() => navigate('/')} aria-label="Back">
+        <button className="icon-btn" onClick={() => navigate(`/session/${id}`)} aria-label="Back">
           ‹
         </button>
         <div className="wizard-title">

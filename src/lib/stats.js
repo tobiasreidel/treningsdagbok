@@ -1,0 +1,157 @@
+// Aggregations for the stats dashboards (Phase 2). Pure functions over the
+// session list; charts just render what these return.
+import {
+  startOfWeek,
+  addWeeks,
+  startOfMonth,
+  addMonths,
+  subDays,
+  format,
+  differenceInCalendarDays,
+} from 'date-fns'
+import { asDate } from './format'
+
+const WEEK_OPTS = { weekStartsOn: 1 }
+const num = (v) => Number(v) || 0
+
+export const RANGES = [
+  { key: '4w', label: '4W', days: 28, grain: 'week' },
+  { key: '3m', label: '3M', days: 91, grain: 'week' },
+  { key: '6m', label: '6M', days: 182, grain: 'month' },
+  { key: '1y', label: '1Y', days: 365, grain: 'month' },
+  { key: 'all', label: 'All', days: null, grain: 'month' },
+]
+
+export function rangeConfig(key) {
+  return RANGES.find((r) => r.key === key) || RANGES[1]
+}
+
+export function windowStart(key, sessions) {
+  const cfg = rangeConfig(key)
+  if (cfg.days == null) {
+    // earliest session date (sessions are newest-first)
+    const earliest = sessions.length ? sessions[sessions.length - 1].date : null
+    return earliest ? asDate(earliest) : subDays(new Date(), 30)
+  }
+  return subDays(new Date(), cfg.days)
+}
+
+export function inWindow(sessions, start) {
+  return sessions.filter((s) => asDate(s.date) >= start)
+}
+
+// ---- time bucketing --------------------------------------------------------
+export function buckets(sessions, start, grain) {
+  const end = new Date()
+  const out = []
+  if (grain === 'month') {
+    let m = startOfMonth(start)
+    while (m <= end) {
+      out.push({ start: new Date(m), label: format(m, 'MMM'), sessions: [] })
+      m = addMonths(m, 1)
+    }
+    const first = out[0]?.start
+    for (const s of sessions) {
+      const d = asDate(s.date)
+      const idx = (d.getFullYear() - first.getFullYear()) * 12 + (d.getMonth() - first.getMonth())
+      if (idx >= 0 && idx < out.length) out[idx].sessions.push(s)
+    }
+  } else {
+    const first = startOfWeek(start, WEEK_OPTS)
+    let w = first
+    while (w <= end) {
+      out.push({ start: new Date(w), label: format(w, 'd/M'), sessions: [] })
+      w = addWeeks(w, 1)
+    }
+    for (const s of sessions) {
+      const idx = Math.floor(differenceInCalendarDays(asDate(s.date), first) / 7)
+      if (idx >= 0 && idx < out.length) out[idx].sessions.push(s)
+    }
+  }
+  return out
+}
+
+// ---- per-array aggregates --------------------------------------------------
+export const sumHours = (arr) => arr.reduce((a, s) => a + num(s.duration), 0) / 60
+export const sumMinutes = (arr) => arr.reduce((a, s) => a + num(s.duration), 0)
+export const sumDistance = (arr) =>
+  arr.reduce((a, s) => a + num(s.extra?.distance_km), 0)
+export const sumElevation = (arr) =>
+  arr.reduce((a, s) => a + num(s.extra?.elevation_m), 0)
+export const sumLoad = (arr) => arr.reduce((a, s) => a + num(s.extra?.training_load), 0)
+
+export function avgFeeling(arr) {
+  const vals = arr.map((s) => num(s.feeling)).filter(Boolean)
+  if (!vals.length) return 0
+  return vals.reduce((a, b) => a + b, 0) / vals.length
+}
+
+export const bySport = (arr, sport) => arr.filter((s) => s.sport === sport)
+
+// ---- climbing breakdowns ---------------------------------------------------
+export function disciplineSplit(climbing) {
+  const m = { bouldering: 0, sport: 0, trad: 0 }
+  for (const s of climbing) if (m[s.subtype] != null) m[s.subtype] += 1
+  return m
+}
+
+export function locationSplit(climbing) {
+  const m = { indoor: 0, outdoor: 0 }
+  for (const s of climbing) if (s.location && m[s.location] != null) m[s.location] += 1
+  return m
+}
+
+// Rank a French grade (route or boulder) so they order by difficulty across
+// both scales — e.g. 5c < 6a < 6a+ < 6b.
+function gradeRank(g) {
+  const m = /^(\d+)\s*([abc])?\s*(\+)?$/i.exec(String(g).trim())
+  if (!m) return 999
+  const n = parseInt(m[1], 10)
+  const letter = m[2] ? { a: 0, b: 1, c: 2 }[m[2].toLowerCase()] : -1
+  return n * 10 + (letter + 1) * 2 + (m[3] ? 0.5 : 0)
+}
+
+// Grade pyramid built from the route log, ordered low→high.
+export function gradePyramid(climbing) {
+  const counts = {}
+  for (const s of climbing) {
+    for (const r of s.routes || []) {
+      if (r.grade) counts[r.grade] = (counts[r.grade] || 0) + 1
+    }
+  }
+  return Object.keys(counts)
+    .sort((a, b) => gradeRank(a) - gradeRank(b))
+    .map((grade) => ({ label: grade, value: counts[grade] }))
+}
+
+export function sendStats(climbing) {
+  const m = { onsight: 0, flash: 0, redpoint: 0, attempt: 0 }
+  for (const s of climbing) {
+    for (const r of s.routes || []) if (m[r.send_type] != null) m[r.send_type] += 1
+  }
+  return m
+}
+
+// ---- general ---------------------------------------------------------------
+export function currentStreak(sessions) {
+  const days = new Set(sessions.map((s) => s.date))
+  let streak = 0
+  let d = new Date()
+  while (days.has(format(d, 'yyyy-MM-dd'))) {
+    streak += 1
+    d = subDays(d, 1)
+  }
+  return streak
+}
+
+export function restBalance(sessions, start) {
+  const total = Math.max(1, differenceInCalendarDays(new Date(), start) + 1)
+  const active = new Set(inWindow(sessions, start).map((s) => s.date)).size
+  return { active, rest: Math.max(0, total - active), total }
+}
+
+export function longestRide(cycling) {
+  return cycling.reduce((m, s) => Math.max(m, num(s.extra?.distance_km)), 0)
+}
+
+export const round1 = (n) => Math.round(n * 10) / 10
