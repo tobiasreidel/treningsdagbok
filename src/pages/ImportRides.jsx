@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { formatDay } from '../lib/format'
-import { fetchSessions } from '../lib/sessions'
+import { fetchSessions, createSession } from '../lib/sessions'
+import { notifySessionsChanged } from '../App'
 import {
   getSettings,
   hasCredentials,
@@ -13,6 +14,8 @@ import {
 export default function ImportRides() {
   const navigate = useNavigate()
   const [state, setState] = useState({ status: 'loading' })
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     let alive = true
@@ -51,10 +54,41 @@ export default function ImportRides() {
     }
   }, [])
 
-  const importOne = (activity) => {
-    // Hand the pre-filled objective data to the register wizard; the user
-    // adds the subjective fields and saves.
-    navigate('/new', { state: { prefill: activityToForm(activity) } })
+  // Add a single ride immediately (objective fields only; edit later).
+  const addOne = async (activity) => {
+    setBusy(true)
+    setError(null)
+    try {
+      await createSession(activityToForm(activity))
+      notifySessionsChanged()
+      setState((s) => ({
+        ...s,
+        items: s.items.filter((i) => i.activity.id !== activity.id),
+      }))
+    } catch (err) {
+      setError(err.message || 'Could not import that ride')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Add every listed ride, then return to the dashboard.
+  const addAll = async () => {
+    setBusy(true)
+    setError(null)
+    const n = state.items.length
+    try {
+      for (const { activity } of state.items) {
+        await createSession(activityToForm(activity))
+      }
+      notifySessionsChanged()
+      navigate('/', {
+        state: { toast: `Imported ${n} ride${n === 1 ? '' : 's'} — add feeling & notes anytime` },
+      })
+    } catch (err) {
+      setError(err.message || 'Some rides could not be imported')
+      setBusy(false)
+    }
   }
 
   return (
@@ -111,28 +145,42 @@ export default function ImportRides() {
           </div>
         )}
 
-        {state.status === 'ready' &&
-          state.items.map(({ activity, maybeDup }) => (
-            <button
-              key={activity.id}
-              className="import-card card"
-              onClick={() => importOne(activity)}
-            >
-              <div className="import-main">
-                <span className="import-name">
-                  🚴 {activity.name || 'Ride'}
-                </span>
-                <span className="import-meta">
-                  {formatDay((activity.start_date_local || '').slice(0, 10))} ·{' '}
-                  {activitySummary(activity)}
-                </span>
-                {maybeDup && (
-                  <span className="pending-badge">possible duplicate — already a ride that day</span>
-                )}
-              </div>
-              <span className="import-arrow">›</span>
+        {state.status === 'ready' && state.items.length > 0 && (
+          <>
+            <button className="btn btn-primary btn-block" onClick={addAll} disabled={busy}>
+              {busy ? 'Importing…' : `Import all ${state.items.length} rides`}
             </button>
-          ))}
+            <p className="muted small">
+              Objective data is filled in automatically — tap a session afterwards
+              to add feeling, RPE and notes.
+            </p>
+            {error && <p className="auth-error">{error}</p>}
+
+            {state.items.map(({ activity, maybeDup }) => (
+              <div key={activity.id} className="import-card card">
+                <div className="import-main">
+                  <span className="import-name">🚴 {activity.name || 'Ride'}</span>
+                  <span className="import-meta">
+                    {formatDay((activity.start_date_local || '').slice(0, 10))} ·{' '}
+                    {activitySummary(activity)}
+                  </span>
+                  {maybeDup && (
+                    <span className="pending-badge">
+                      possible duplicate — already a ride that day
+                    </span>
+                  )}
+                </div>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => addOne(activity)}
+                  disabled={busy}
+                >
+                  + Add
+                </button>
+              </div>
+            ))}
+          </>
+        )}
       </main>
     </div>
   )

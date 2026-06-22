@@ -105,8 +105,17 @@ export function activityToForm(a) {
       distance_km: a.distance != null ? round(a.distance / 1000, 1) : null,
       elevation_m: round(a.total_elevation_gain),
       avg_speed: a.average_speed != null ? round(a.average_speed * 3.6, 1) : null,
+      max_speed: a.max_speed != null ? round(a.max_speed * 3.6, 1) : null,
       avg_hr: round(a.average_heartrate),
-      avg_power: round(a.average_watts),
+      max_hr: round(a.max_heartrate),
+      avg_power: round(a.average_watts ?? a.icu_average_watts),
+      norm_power: round(a.icu_weighted_avg_watts ?? a.weighted_average_watts),
+      cadence: round(a.average_cadence),
+      training_load: round(a.icu_training_load),
+      if_factor: round(a.icu_intensity, 2),
+      work_kj: a.icu_joules != null ? round(a.icu_joules / 1000) : round(a.kilojoules),
+      calories: round(a.calories),
+      indoor: a.trainer === true || /virtual/i.test(a.type || ''),
       intervals_id: String(a.id),
       intervals_name: a.name || null,
       intervals_type: a.type || null,
@@ -123,5 +132,7 @@ export function activitySummary(a) {
   const km = a.distance != null ? `${round(a.distance / 1000, 1)} km` : null
   const elev = a.total_elevation_gain ? `${round(a.total_elevation_gain)} m` : null
   const mins = a.moving_time ? `${Math.round(a.moving_time / 60)} min` : null
-  return [km, elev, mins].filter(Boolean).join(' · ')
+  const power = a.average_watts ?? a.icu_average_watts
+  const w = power ? `${round(power)} W` : null
+  return [km, elev, mins, w].filter(Boolean).join(' · ')
 }

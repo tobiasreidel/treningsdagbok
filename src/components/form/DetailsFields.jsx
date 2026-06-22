@@ -1,4 +1,4 @@
-import { Field, Scale, NumberField, Chips } from '../ui'
+import { Field, Scale, NumberField, Chips, Segmented } from '../ui'
 import { FEELING_LABELS, gradesFor } from '../../lib/constants'
 import { avgSpeedFrom } from '../../lib/format'
 
@@ -66,6 +66,18 @@ function CyclingFields({ form, updateExtra }) {
   const suggested = avgSpeedFrom(e.distance_km, form.duration)
   return (
     <>
+      <Field label="Ride location">
+        <Segmented
+          options={[
+            { key: 'outdoor', label: 'Outdoor' },
+            { key: 'indoor', label: 'Indoor / trainer' },
+          ]}
+          value={e.indoor ? 'indoor' : 'outdoor'}
+          onChange={(v) => updateExtra({ indoor: v === 'indoor' })}
+          columns={2}
+        />
+      </Field>
+
       <div className="two-col">
         <Field label="Distance">
           <NumberField
@@ -106,6 +118,47 @@ function CyclingFields({ form, updateExtra }) {
       </Field>
 
       <div className="two-col">
+        <Field label="Max speed" optional>
+          <NumberField
+            value={e.max_speed}
+            onChange={(v) => updateExtra({ max_speed: v })}
+            placeholder="0"
+            unit="km/h"
+          />
+        </Field>
+        <Field label="Cadence" optional>
+          <NumberField
+            value={e.cadence}
+            onChange={(v) => updateExtra({ cadence: v })}
+            placeholder="0"
+            unit="rpm"
+            step="1"
+          />
+        </Field>
+      </div>
+
+      <div className="two-col">
+        <Field label="Avg power" optional>
+          <NumberField
+            value={e.avg_power}
+            onChange={(v) => updateExtra({ avg_power: v })}
+            placeholder="0"
+            unit="W"
+            step="1"
+          />
+        </Field>
+        <Field label="Norm power" optional>
+          <NumberField
+            value={e.norm_power}
+            onChange={(v) => updateExtra({ norm_power: v })}
+            placeholder="0"
+            unit="W"
+            step="1"
+          />
+        </Field>
+      </div>
+
+      <div className="two-col">
         <Field label="Avg HR" optional>
           <NumberField
             value={e.avg_hr}
@@ -115,12 +168,53 @@ function CyclingFields({ form, updateExtra }) {
             step="1"
           />
         </Field>
-        <Field label="Avg power" optional>
+        <Field label="Max HR" optional>
           <NumberField
-            value={e.avg_power}
-            onChange={(v) => updateExtra({ avg_power: v })}
+            value={e.max_hr}
+            onChange={(v) => updateExtra({ max_hr: v })}
             placeholder="0"
-            unit="W"
+            unit="bpm"
+            step="1"
+          />
+        </Field>
+      </div>
+
+      <div className="two-col">
+        <Field label="Training load" optional>
+          <NumberField
+            value={e.training_load}
+            onChange={(v) => updateExtra({ training_load: v })}
+            placeholder="0"
+            unit="TSS"
+            step="1"
+          />
+        </Field>
+        <Field label="Intensity (IF)" optional>
+          <NumberField
+            value={e.if_factor}
+            onChange={(v) => updateExtra({ if_factor: v })}
+            placeholder="0.00"
+            step="0.01"
+          />
+        </Field>
+      </div>
+
+      <div className="two-col">
+        <Field label="Work" optional>
+          <NumberField
+            value={e.work_kj}
+            onChange={(v) => updateExtra({ work_kj: v })}
+            placeholder="0"
+            unit="kJ"
+            step="1"
+          />
+        </Field>
+        <Field label="Calories" optional>
+          <NumberField
+            value={e.calories}
+            onChange={(v) => updateExtra({ calories: v })}
+            placeholder="0"
+            unit="kcal"
             step="1"
           />
         </Field>
