@@ -166,14 +166,20 @@ async function deletePhoto(path) {
   await supabase.storage.from(PHOTO_BUCKET).remove([path])
 }
 
-// Fetch all of the user's sessions (small, single-user dataset in Phase 1),
-// newest first, with their route logs joined in.
+// Fetch *your own* sessions, newest first, with their route logs joined in.
+// Must scope to the current user explicitly: once you have friends, RLS also
+// permits selecting their shared sessions, so an unscoped select would pull a
+// friend's sessions into your personal dashboard/stats. (The friends feed
+// fetches friends' sessions separately, on purpose.)
 export async function fetchSessions() {
-  const { data, error } = await supabase
+  const userId = await currentUserId()
+  let query = supabase
     .from('sessions')
     .select('*, routes(*)')
     .order('date', { ascending: false })
     .order('created_at', { ascending: false })
+  if (userId) query = query.eq('user_id', userId)
+  const { data, error } = await query
   if (error) throw error
   // Sort joined routes by their stored position.
   for (const s of data) {
