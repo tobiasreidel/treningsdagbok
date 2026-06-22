@@ -2,6 +2,7 @@
 -- Treningsdagbok — Phase 4: friends, shared feed/leaderboard, privacy
 -- ============================================================================
 -- Run in the Supabase SQL editor (after schema.sql + intervals.sql).
+-- Safe to re-run.
 --
 -- Model:
 --   * profiles      — public-ish display name/email per user (auth.users isn't
@@ -11,10 +12,13 @@
 --   * privacy       — user_settings.share_activities toggles whether accepted
 --                     friends can see your sessions. Default on; only ever
 --                     visible to *accepted* friends, never strangers.
+--
+-- NOTE: tables are created first, then policies — a policy that references
+-- another table (profiles → friendships) needs that table to already exist.
 -- ============================================================================
 
 -- ---------------------------------------------------------------------------
--- profiles
+-- 1. tables
 -- ---------------------------------------------------------------------------
 create table if not exists public.profiles (
   id           uuid primary key references auth.users (id) on delete cascade,
@@ -23,8 +27,42 @@ create table if not exists public.profiles (
   created_at   timestamptz not null default now()
 );
 
-alter table public.profiles enable row level security;
+create table if not exists public.friendships (
+  id         uuid primary key default gen_random_uuid(),
+  requester  uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  addressee  uuid not null references auth.users (id) on delete cascade,
+  status     text not null default 'pending' check (status in ('pending', 'accepted')),
+  created_at timestamptz not null default now(),
+  unique (requester, addressee)
+);
+create index if not exists friendships_addressee_idx on public.friendships (addressee);
 
+alter table public.profiles    enable row level security;
+alter table public.friendships enable row level security;
+
+-- ---------------------------------------------------------------------------
+-- 2. friendships policies
+-- ---------------------------------------------------------------------------
+drop policy if exists "see own friendships" on public.friendships;
+create policy "see own friendships" on public.friendships
+  for select using (auth.uid() in (requester, addressee));
+
+drop policy if exists "create own requests" on public.friendships;
+create policy "create own requests" on public.friendships
+  for insert with check (requester = auth.uid());
+
+drop policy if exists "respond to own friendships" on public.friendships;
+create policy "respond to own friendships" on public.friendships
+  for update using (auth.uid() in (requester, addressee))
+  with check (auth.uid() in (requester, addressee));
+
+drop policy if exists "delete own friendships" on public.friendships;
+create policy "delete own friendships" on public.friendships
+  for delete using (auth.uid() in (requester, addressee));
+
+-- ---------------------------------------------------------------------------
+-- 3. profiles policies (these reference friendships, so it must already exist)
+-- ---------------------------------------------------------------------------
 -- See your own profile, and profiles of anyone you share a friendship row with
 -- (pending or accepted) so request/friend lists can show names.
 drop policy if exists "profiles visible to self and connections" on public.profiles;
@@ -46,7 +84,9 @@ drop policy if exists "insert own profile" on public.profiles;
 create policy "insert own profile" on public.profiles
   for insert with check (id = auth.uid());
 
--- Auto-create a profile when a user signs up.
+-- ---------------------------------------------------------------------------
+-- 4. profile auto-create on signup + backfill existing users
+-- ---------------------------------------------------------------------------
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
@@ -61,51 +101,18 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- Backfill profiles for users that already exist.
 insert into public.profiles (id, email, display_name)
 select id, email, split_part(email, '@', 1) from auth.users
 on conflict (id) do nothing;
 
 -- ---------------------------------------------------------------------------
--- friendships
--- ---------------------------------------------------------------------------
-create table if not exists public.friendships (
-  id         uuid primary key default gen_random_uuid(),
-  requester  uuid not null default auth.uid() references auth.users (id) on delete cascade,
-  addressee  uuid not null references auth.users (id) on delete cascade,
-  status     text not null default 'pending' check (status in ('pending', 'accepted')),
-  created_at timestamptz not null default now(),
-  unique (requester, addressee)
-);
-create index if not exists friendships_addressee_idx on public.friendships (addressee);
-
-alter table public.friendships enable row level security;
-
-drop policy if exists "see own friendships" on public.friendships;
-create policy "see own friendships" on public.friendships
-  for select using (auth.uid() in (requester, addressee));
-
-drop policy if exists "create own requests" on public.friendships;
-create policy "create own requests" on public.friendships
-  for insert with check (requester = auth.uid());
-
-drop policy if exists "respond to own friendships" on public.friendships;
-create policy "respond to own friendships" on public.friendships
-  for update using (auth.uid() in (requester, addressee))
-  with check (auth.uid() in (requester, addressee));
-
-drop policy if exists "delete own friendships" on public.friendships;
-create policy "delete own friendships" on public.friendships
-  for delete using (auth.uid() in (requester, addressee));
-
--- ---------------------------------------------------------------------------
--- privacy toggle
+-- 5. privacy toggle
 -- ---------------------------------------------------------------------------
 alter table public.user_settings
   add column if not exists share_activities boolean not null default true;
 
 -- ---------------------------------------------------------------------------
--- visibility: can `viewer` see `owner`'s activities?
+-- 6. visibility: can `viewer` see `owner`'s activities?
 -- SECURITY DEFINER so it can read friendships + settings past their RLS.
 -- ---------------------------------------------------------------------------
 create or replace function public.can_view_activities(viewer uuid, owner uuid)
@@ -129,7 +136,7 @@ create policy "friends can view shared routes" on public.routes
   for select using (public.can_view_activities(auth.uid(), user_id));
 
 -- ---------------------------------------------------------------------------
--- send a friend request by email (looks up auth.users → definer)
+-- 7. send a friend request by email (looks up auth.users → definer)
 -- returns: 'ok' | 'not_found' | 'self' | 'exists'
 -- ---------------------------------------------------------------------------
 create or replace function public.send_friend_request(target_email text)
