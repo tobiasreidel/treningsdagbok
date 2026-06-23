@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { Segmented, useOnline } from '../components/ui'
 import DetailsFields from '../components/form/DetailsFields'
 import RoutesEditor from '../components/form/RoutesEditor'
+import StrengthFields from '../components/form/StrengthFields'
 import NotesPhoto from '../components/form/NotesPhoto'
 import { emptyForm, isOutdoorClimbing } from '../lib/formState'
 import { SPORTS, SUBTYPES, LOCATIONS } from '../lib/constants'
@@ -30,10 +31,15 @@ export default function RegisterSession() {
   const updateExtra = (patch) =>
     setForm((f) => ({ ...f, extra: { ...f.extra, ...patch } }))
 
-  // Step list is dynamic: routes only appear for outdoor climbing.
+  // Step list is dynamic:
+  //   • strength       → no subtype; a strength + finger step
+  //   • outdoor climbing → a routes step
+  //   • indoor climbing  → an (optional) strength + finger step
   const steps = useMemo(() => {
+    if (form.sport === 'strength') return ['sport', 'details', 'strength', 'notes']
     const s = ['sport', 'subtype', 'details']
     if (isOutdoorClimbing(form)) s.push('routes')
+    else if (form.sport === 'climbing' && form.location === 'indoor') s.push('strength')
     s.push('notes')
     return s
   }, [form.sport, form.location])
@@ -104,7 +110,7 @@ export default function RegisterSession() {
               options={Object.values(SPORTS)}
               value={form.sport}
               onChange={selectSport}
-              columns={2}
+              columns={3}
             />
           </section>
         )}
@@ -145,6 +151,15 @@ export default function RegisterSession() {
           <section>
             <h2 className="step-q">Routes &amp; boulders</h2>
             <RoutesEditor form={form} update={update} />
+          </section>
+        )}
+
+        {current === 'strength' && (
+          <section>
+            <h2 className="step-q">
+              {form.sport === 'strength' ? 'Training' : 'Strength training'}
+            </h2>
+            <StrengthFields form={form} updateExtra={updateExtra} />
           </section>
         )}
 

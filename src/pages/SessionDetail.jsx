@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { SPORTS, SEND_TYPES, FEELING_LABELS } from '../lib/constants'
+import { SPORTS, SEND_TYPES, FEELING_LABELS, exerciseLabel } from '../lib/constants'
 import { formatDay, formatDuration } from '../lib/format'
 import { getSession, getSignedPhotoUrl } from '../lib/sessions'
 
@@ -93,6 +93,10 @@ export default function SessionDetail() {
 
   const grades = e.grades || []
   const routes = session.routes || []
+  const exercises = e.strength || []
+  const finger = e.finger || {}
+  const hangs = finger.hangboard || []
+  const hasFinger = finger.campus || hangs.length > 0
 
   return (
     <Shell
@@ -159,6 +163,41 @@ export default function SessionDetail() {
         </div>
       )}
 
+      {exercises.length > 0 && (
+        <div className="detail-block">
+          <h2 className="section-title">Strength</h2>
+          <div className="stack">
+            {exercises.map((ex, i) => (
+              <div className="route-line" key={i}>
+                <span className="route-line-name">{exerciseLabel(ex.exercise)}</span>
+                <span className="route-line-meta">{fmtExercise(ex)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {hasFinger && (
+        <div className="detail-block">
+          <h2 className="section-title">Finger training</h2>
+          <div className="stack">
+            {finger.campus && (
+              <div className="route-line">
+                <span className="route-line-name">Campus board</span>
+              </div>
+            )}
+            {hangs.map((h, i) => (
+              <div className="route-line" key={i}>
+                <span className="route-line-name">
+                  Hangboard · {h.hands === 'one' ? 'one hand' : 'two hands'}
+                </span>
+                <span className="route-line-meta">{fmtHangWeight(h.weight)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {session.notes && (
         <div className="detail-block">
           <h2 className="section-title">Notes</h2>
@@ -177,6 +216,26 @@ export default function SessionDetail() {
 
 function sendLabel(key) {
   return SEND_TYPES.find((s) => s.key === key)?.label || key
+}
+
+// "3 × 10" plus a weight suffix when one was logged.
+function fmtExercise(ex) {
+  const sets = num(ex.sets)
+  const reps = num(ex.reps)
+  const w = num(ex.weight)
+  const parts = []
+  if (sets && reps) parts.push(`${sets} × ${reps}`)
+  else if (reps) parts.push(`${reps} reps`)
+  else if (sets) parts.push(`${sets} sets`)
+  if (w) parts.push(`+${w} kg`)
+  return parts.join(' · ')
+}
+
+// Hangboard added weight: + added, − assisted, blank = bodyweight.
+function fmtHangWeight(weight) {
+  const w = num(weight)
+  if (!w) return 'bodyweight'
+  return w > 0 ? `+${w} kg` : `−${Math.abs(w)} kg assisted`
 }
 
 function Shell({ onBack, title, children, footer }) {

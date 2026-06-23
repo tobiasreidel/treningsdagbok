@@ -160,6 +160,16 @@ export default function Settings() {
           {test && !test.pending && (
             <p className={test.ok ? 'auth-notice' : 'auth-error'}>{test.msg}</p>
           )}
+          <button
+            type="button"
+            className="btn btn-ghost btn-block"
+            onClick={() => navigate('/import')}
+          >
+            ⬇ Import rides from intervals.icu
+          </button>
+          <p className="muted small">
+            Rides also import automatically each time you open the app.
+          </p>
         </section>
 
         {error && <p className="auth-error">{error}</p>}

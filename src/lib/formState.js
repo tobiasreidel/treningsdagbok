@@ -50,6 +50,22 @@ export function isOutdoorClimbing(form) {
   return form.sport === 'climbing' && form.location === 'outdoor'
 }
 
+// The strength + finger-training module is shown for standalone strength
+// sessions and (optionally) for indoor climbing sessions.
+export function usesStrengthModule(form) {
+  return form.sport === 'strength' || (form.sport === 'climbing' && form.location === 'indoor')
+}
+
 export function emptyRoute() {
   return { name: '', grade: null, send_type: null, attempts: '' }
+}
+
+export function emptyExercise() {
+  return { exercise: 'pullups', sets: '', reps: '', weight: '' }
+}
+
+// A hangboard hang: one or two hands. One-hand weight may be negative
+// (assisted via pulley); two-hand weight is added weight only.
+export function emptyHang() {
+  return { hands: 'two', weight: '' }
 }

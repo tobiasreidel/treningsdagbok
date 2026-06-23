@@ -4,6 +4,22 @@
 export const SPORTS = {
   cycling: { key: 'cycling', label: 'Cycling', emoji: '🚴', color: 'var(--cycling)' },
   climbing: { key: 'climbing', label: 'Climbing', emoji: '🧗', color: 'var(--climbing)' },
+  strength: { key: 'strength', label: 'Strength', emoji: '💪', color: 'var(--strength)' },
+}
+
+// Strength exercises offered in the picker (each logs sets · reps · weight).
+export const STRENGTH_EXERCISES = [
+  { key: 'pullups', label: 'Pull-ups' },
+  { key: 'pushups', label: 'Push-ups' },
+  { key: 'flies', label: 'Flies' },
+  { key: 'superman', label: 'Superman' },
+  { key: 'squats', label: 'Squats' },
+  { key: 'deadlift', label: 'Deadlift' },
+  { key: 'shoulderpress', label: 'Shoulder press' },
+]
+
+export function exerciseLabel(key) {
+  return STRENGTH_EXERCISES.find((e) => e.key === key)?.label || key
 }
 
 export const SUBTYPES = {

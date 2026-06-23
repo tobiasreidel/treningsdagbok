@@ -13,15 +13,15 @@ const WEEK_OPTS = { weekStartsOn: 1 } // Monday
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 // Color-coded month calendar:
-//   rest = empty · climbing = blue · cycling = amber · both = green
+//   rest = empty · climbing = blue · cycling = amber · strength = violet
+//   2+ sports on one day = green
 export default function Calendar({ monthRef, sessions, onPrev, onNext, onSelectDay }) {
   // Index which sports happened on each day.
   const byDay = {}
   for (const s of sessions) {
     const key = s.date
-    if (!byDay[key]) byDay[key] = { cycling: false, climbing: false }
-    if (s.sport === 'cycling') byDay[key].cycling = true
-    if (s.sport === 'climbing') byDay[key].climbing = true
+    if (!byDay[key]) byDay[key] = { cycling: false, climbing: false, strength: false }
+    if (byDay[key][s.sport] != null) byDay[key][s.sport] = true
   }
 
   const gridStart = startOfWeek(startOfMonth(monthRef), WEEK_OPTS)
@@ -52,13 +52,10 @@ export default function Calendar({ monthRef, sessions, onPrev, onNext, onSelectD
         {days.map((day) => {
           const key = format(day, 'yyyy-MM-dd')
           const marks = byDay[key]
-          const sport = marks
-            ? marks.cycling && marks.climbing
-              ? 'both'
-              : marks.climbing
-                ? 'climbing'
-                : 'cycling'
-            : null
+          const active = marks
+            ? ['cycling', 'climbing', 'strength'].filter((k) => marks[k])
+            : []
+          const sport = active.length === 0 ? null : active.length > 1 ? 'both' : active[0]
           const dim = !isSameMonth(day, monthRef)
           return (
             <button
@@ -78,7 +75,8 @@ export default function Calendar({ monthRef, sessions, onPrev, onNext, onSelectD
       <div className="cal-legend">
         <span><i className="dot-climbing" /> Climbing</span>
         <span><i className="dot-cycling" /> Cycling</span>
-        <span><i className="dot-both" /> Both</span>
+        <span><i className="dot-strength" /> Strength</span>
+        <span><i className="dot-both" /> Multiple</span>
       </div>
     </div>
   )

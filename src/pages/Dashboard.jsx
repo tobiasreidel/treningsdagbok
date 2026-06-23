@@ -91,10 +91,6 @@ export default function Dashboard() {
         + Register session
       </button>
 
-      <button className="btn btn-ghost btn-block btn-import" onClick={() => navigate('/import')}>
-        ⬇ Import rides from intervals.icu
-      </button>
-
       {loading ? (
         <div className="splash inline">
           <div className="spinner" />

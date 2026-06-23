@@ -21,8 +21,8 @@ create table if not exists public.sessions (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null default auth.uid() references auth.users (id) on delete cascade,
   date        date not null,
-  sport       text not null check (sport in ('cycling', 'climbing')),
-  -- cycling: road | gravel    climbing: bouldering | sport | trad
+  sport       text not null check (sport in ('cycling', 'climbing', 'strength')),
+  -- cycling: road | gravel    climbing: bouldering | sport | trad    strength: (none)
   subtype     text,
   -- climbing only: indoor | outdoor
   location    text check (location in ('indoor', 'outdoor')),

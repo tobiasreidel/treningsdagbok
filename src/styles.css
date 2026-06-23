@@ -14,6 +14,7 @@
   --primary-ink: #ffffff;
   --cycling: #f59e0b;
   --climbing: #3b82f6;
+  --strength: #a855f7;
   --both: #22c55e;
   --danger: #ef4444;
   --radius: 16px;
@@ -244,6 +245,11 @@ textarea {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+}
+.three-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
 }
 .inline-row {
   display: flex;
@@ -600,6 +606,10 @@ textarea {
   background: var(--cycling);
   color: #3a2a00;
 }
+.cal-day.is-strength {
+  background: var(--strength);
+  color: #fff;
+}
 .cal-day.is-both {
   background: var(--both);
   color: #06310f;
@@ -618,6 +628,7 @@ textarea {
 }
 .dot-climbing,
 .dot-cycling,
+.dot-strength,
 .dot-both {
   width: 10px;
   height: 10px;
@@ -629,6 +640,9 @@ textarea {
 }
 .dot-cycling {
   background: var(--cycling);
+}
+.dot-strength {
+  background: var(--strength);
 }
 .dot-both {
   background: var(--both);

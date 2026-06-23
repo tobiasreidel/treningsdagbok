@@ -71,7 +71,7 @@ export default function WeekTable({ sessions, onSelect }) {
 }
 
 function labelFor(s) {
-  const parts = [s.subtype]
+  const parts = [s.subtype || SPORTS[s.sport]?.label]
   if (s.sport === 'climbing' && s.location) parts.push(s.location === 'indoor' ? 'in' : 'out')
   return parts.filter(Boolean).join(' · ')
 }

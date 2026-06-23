@@ -5,6 +5,7 @@ import { avgSpeedFrom } from '../../lib/format'
 // Step 3 fields: subjective ratings, duration, and sport-specific numbers.
 export default function DetailsFields({ form, update, updateExtra }) {
   const isCycling = form.sport === 'cycling'
+  const isClimbing = form.sport === 'climbing'
 
   return (
     <div className="stack">
@@ -48,11 +49,8 @@ export default function DetailsFields({ form, update, updateExtra }) {
         />
       </Field>
 
-      {isCycling ? (
-        <CyclingFields form={form} updateExtra={updateExtra} />
-      ) : (
-        <ClimbingFields form={form} updateExtra={updateExtra} />
-      )}
+      {isCycling && <CyclingFields form={form} updateExtra={updateExtra} />}
+      {isClimbing && <ClimbingFields form={form} updateExtra={updateExtra} />}
     </div>
   )
 }

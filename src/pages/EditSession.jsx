@@ -3,8 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Segmented } from '../components/ui'
 import DetailsFields from '../components/form/DetailsFields'
 import RoutesEditor from '../components/form/RoutesEditor'
+import StrengthFields from '../components/form/StrengthFields'
 import NotesPhoto from '../components/form/NotesPhoto'
-import { sessionToForm, isOutdoorClimbing } from '../lib/formState'
+import { sessionToForm, isOutdoorClimbing, usesStrengthModule } from '../lib/formState'
 import { SPORTS, SUBTYPES, LOCATIONS } from '../lib/constants'
 import { getSession, updateSession, deleteSession, getSignedPhotoUrl } from '../lib/sessions'
 import { notifySessionsChanged } from '../App'
@@ -119,15 +120,17 @@ export default function EditSession() {
       </header>
 
       <main className="wizard-body stack">
-        <section>
-          <h2 className="step-q">Type</h2>
-          <Segmented
-            options={SUBTYPES[form.sport]}
-            value={form.subtype}
-            onChange={(v) => update({ subtype: v })}
-            columns={form.sport === 'climbing' ? 3 : 2}
-          />
-        </section>
+        {SUBTYPES[form.sport] && (
+          <section>
+            <h2 className="step-q">Type</h2>
+            <Segmented
+              options={SUBTYPES[form.sport]}
+              value={form.subtype}
+              onChange={(v) => update({ subtype: v })}
+              columns={form.sport === 'climbing' ? 3 : 2}
+            />
+          </section>
+        )}
 
         {form.sport === 'climbing' && (
           <section>
@@ -150,6 +153,15 @@ export default function EditSession() {
           <section>
             <h2 className="step-q">Routes &amp; boulders</h2>
             <RoutesEditor form={form} update={update} />
+          </section>
+        )}
+
+        {usesStrengthModule(form) && (
+          <section>
+            <h2 className="step-q">
+              {form.sport === 'strength' ? 'Training' : 'Strength training'}
+            </h2>
+            <StrengthFields form={form} updateExtra={updateExtra} />
           </section>
         )}
 

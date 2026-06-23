@@ -6,6 +6,7 @@ function aggregate(sessions, range) {
     minutes: 0,
     cyclingMin: 0,
     climbingMin: 0,
+    strengthMin: 0,
     distance: 0,
     elevation: 0,
   }
@@ -20,6 +21,8 @@ function aggregate(sessions, range) {
       acc.elevation += Number(s.extra?.elevation_m) || 0
     } else if (s.sport === 'climbing') {
       acc.climbingMin += mins
+    } else if (s.sport === 'strength') {
+      acc.strengthMin += mins
     }
   }
   return acc
@@ -46,6 +49,9 @@ function PeriodCard({ title, data }) {
       <div className="stat-split">
         <span><i className="dot-cycling" /> {toHours(data.cyclingMin)}h</span>
         <span><i className="dot-climbing" /> {toHours(data.climbingMin)}h</span>
+        {data.strengthMin > 0 && (
+          <span><i className="dot-strength" /> {toHours(data.strengthMin)}h</span>
+        )}
       </div>
       <span className="stat-sub">{data.count} session{data.count === 1 ? '' : 's'}</span>
     </div>
