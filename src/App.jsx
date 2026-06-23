@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { isConfigured } from './lib/supabase'
 import { useAuth } from './context/AuthContext'
 import { flushOutbox } from './lib/sessions'
+import { autoImportNewRides } from './lib/intervals'
 import SetupNeeded from './components/SetupNeeded'
 import Login from './components/Login'
 import Dashboard from './pages/Dashboard'
@@ -28,6 +29,10 @@ export default function App() {
     const sync = async () => {
       const n = await flushOutbox().catch(() => 0)
       if (n > 0) notifySessionsChanged()
+      // Pull any new rides from intervals.icu so they appear without a manual
+      // visit to the import screen. Best-effort; failures are ignored.
+      const imported = await autoImportNewRides().catch(() => 0)
+      if (imported > 0) notifySessionsChanged()
     }
     sync()
     window.addEventListener('online', sync)

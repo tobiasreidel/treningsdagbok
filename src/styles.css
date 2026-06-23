@@ -1045,3 +1045,90 @@ textarea {
     transform: translate(-50%, 8px);
   }
 }
+
+/* ----- day sheet (tap a calendar day) ----- */
+.sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 60;
+  animation: sheet-fade 0.15s ease;
+}
+.sheet {
+  width: 100%;
+  max-width: 480px;
+  background: var(--surface);
+  border-radius: 18px 18px 0 0;
+  padding: 16px 16px calc(env(safe-area-inset-bottom) + 16px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.3);
+  animation: sheet-up 0.2s ease;
+}
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 1.05rem;
+}
+.sheet-empty {
+  padding: 8px 2px;
+}
+.sheet-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sheet-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.sheet-item:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+.sheet-item-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sheet-item-emoji {
+  font-size: 1.15rem;
+}
+@keyframes sheet-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes sheet-up {
+  from {
+    transform: translateY(12px);
+  }
+}
+
+/* ----- input with a unit suffix ----- */
+.input-suffix {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.input-suffix .suffix {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}

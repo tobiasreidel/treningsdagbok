@@ -6,6 +6,9 @@ import {
   endOfWeek,
   startOfMonth,
   endOfMonth,
+  startOfDay,
+  endOfDay,
+  subDays,
   isWithinInterval,
 } from 'date-fns'
 
@@ -41,6 +44,11 @@ export function weekRange(ref = new Date()) {
 
 export function monthRange(ref = new Date()) {
   return { start: startOfMonth(ref), end: endOfMonth(ref) }
+}
+
+// Rolling window: the last n calendar days, inclusive of today.
+export function lastNDaysRange(n, ref = new Date()) {
+  return { start: startOfDay(subDays(ref, n - 1)), end: endOfDay(ref) }
 }
 
 export function inRange(value, range) {

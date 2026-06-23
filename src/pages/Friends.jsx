@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { HBars } from '../components/charts'
 import { SPORTS } from '../lib/constants'
-import { weekRange, inRange, formatDayShort, formatDuration } from '../lib/format'
+import { lastNDaysRange, inRange, formatDayShort, formatDuration } from '../lib/format'
 import { fetchSessions } from '../lib/sessions'
 import {
   loadConnections,
@@ -121,7 +121,7 @@ function Feed({ feed }) {
 }
 
 function Leaderboard({ data }) {
-  const wk = weekRange()
+  const wk = lastNDaysRange(7)
   const hours = (arr) =>
     arr.filter((s) => inRange(s.date, wk)).reduce((a, s) => a + (Number(s.duration) || 0), 0) / 60
   const dist = (arr) =>
@@ -142,7 +142,7 @@ function Leaderboard({ data }) {
     return (
       <div className="card empty-state">
         <p>Nothing to rank yet.</p>
-        <p className="muted small">Add friends to compare this week.</p>
+        <p className="muted small">Add friends to compare the last 7 days.</p>
       </div>
     )
   }
@@ -158,13 +158,13 @@ function Leaderboard({ data }) {
     <div className="stack">
       <div className="card chart-card">
         <div className="chart-card-head">
-          <span className="chart-card-title">Hours this week</span>
+          <span className="chart-card-title">Hours · last 7 days</span>
         </div>
         <HBars data={hoursBoard} unit="h" color="var(--both)" />
       </div>
       <div className="card chart-card">
         <div className="chart-card-head">
-          <span className="chart-card-title">Distance this week</span>
+          <span className="chart-card-title">Distance · last 7 days</span>
         </div>
         <HBars data={distBoard} unit=" km" color="var(--cycling)" />
       </div>

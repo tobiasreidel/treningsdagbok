@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Field, Segmented } from '../components/ui'
 import { getSettings, saveSettings, fetchCyclingActivities } from '../lib/intervals'
 import { getMyProfile, setDisplayName, getShareSetting, setShareSetting } from '../lib/friends'
+import { getHideRidesUnderKm, setHideRidesUnderKm } from '../lib/prefs'
 
 export default function Settings() {
   const navigate = useNavigate()
@@ -10,6 +11,10 @@ export default function Settings() {
   const [apiKey, setApiKey] = useState('')
   const [displayName, setDisplayNameState] = useState('')
   const [share, setShare] = useState(true)
+  const [hideKm, setHideKm] = useState(() => {
+    const v = getHideRidesUnderKm()
+    return v > 0 ? String(v) : ''
+  })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [test, setTest] = useState(null)
@@ -45,6 +50,7 @@ export default function Settings() {
       // run, and shouldn't block saving the intervals.icu connection.
       await setDisplayName(displayName).catch(() => {})
       await setShareSetting(share).catch(() => {})
+      setHideRidesUnderKm(hideKm)
       await saveSettings({ athleteId, apiKey })
       navigate('/', { state: { toast: 'Settings saved' } })
     } catch (err) {
@@ -94,6 +100,28 @@ export default function Settings() {
               onChange={(v) => setShare(v === 'on')}
               columns={2}
             />
+          </Field>
+        </section>
+
+        <section className="stack">
+          <h2 className="step-q">Dashboard</h2>
+          <Field
+            label="Hide short rides"
+            hint="Keep short commutes out of the “Last 7 days” list. Leave blank to show all."
+            optional
+          >
+            <div className="input-suffix">
+              <input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="1"
+                value={hideKm}
+                onChange={(e) => setHideKm(e.target.value)}
+                placeholder="e.g. 10"
+              />
+              <span className="suffix">km</span>
+            </div>
           </Field>
         </section>
 

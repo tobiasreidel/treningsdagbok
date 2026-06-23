@@ -106,7 +106,7 @@ export default function ImportRides() {
           aria-label="Settings"
           title="Settings"
         >
-          ⚙
+          ⚙️
         </button>
       </header>
 

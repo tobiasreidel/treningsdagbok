@@ -3,6 +3,7 @@
 // password = your personal key), so no server proxy is needed.
 import { supabase } from './supabase'
 import { format, subDays } from 'date-fns'
+import { fetchSessions, createSession } from './sessions'
 
 const API_BASE = 'https://intervals.icu/api/v1'
 
@@ -125,6 +126,35 @@ export function activityToForm(a) {
     photoUrl: null,
     removePhoto: false,
   }
+}
+
+// Best-effort background import, run on app open so rides show up without a
+// trip to the import screen. Silently adds any cycling activity not already
+// logged (matched by intervals_id) and returns how many were added. Safe to
+// call repeatedly — the de-dupe makes it idempotent.
+export async function autoImportNewRides({ sinceDays = 60 } = {}) {
+  const settings = await getSettings()
+  if (!hasCredentials(settings)) return 0
+
+  const [activities, sessions] = await Promise.all([
+    fetchCyclingActivities({ ...settings, sinceDays }),
+    fetchSessions().catch(() => []),
+  ])
+  const importedIds = new Set(
+    sessions.map((s) => s.extra?.intervals_id).filter(Boolean),
+  )
+
+  let added = 0
+  for (const a of activities) {
+    if (importedIds.has(String(a.id))) continue
+    try {
+      await createSession(activityToForm(a))
+      added += 1
+    } catch {
+      // Skip a single bad ride rather than aborting the whole batch.
+    }
+  }
+  return added
 }
 
 // A short human label for the import list.

@@ -1,20 +1,30 @@
-import { subDays } from 'date-fns'
 import { SPORTS } from '../lib/constants'
-import { asDate, formatDayShort, formatDuration } from '../lib/format'
+import { asDate, formatDayShort, formatDuration, lastNDaysRange } from '../lib/format'
+import { getHideRidesUnderKm } from '../lib/prefs'
 import { PendingBadge } from './ui'
 
-// "Last week" = the most recent 7 days, newest first.
+// The most recent 7 days, newest first. Short cycling commutes can be hidden
+// via the dashboard preference (Settings → Dashboard).
 export default function WeekTable({ sessions, onSelect }) {
-  const cutoff = subDays(new Date(), 7)
+  const { start } = lastNDaysRange(7)
+  const minKm = getHideRidesUnderKm()
   const recent = sessions
-    .filter((s) => asDate(s.date) >= cutoff)
+    .filter((s) => asDate(s.date) >= start)
+    .filter(
+      (s) =>
+        !(s.sport === 'cycling' && minKm > 0 && (Number(s.extra?.distance_km) || 0) < minKm),
+    )
     .sort((a, b) => b.date.localeCompare(a.date))
 
   if (recent.length === 0) {
     return (
       <div className="card empty-state">
-        <p>No sessions in the last week.</p>
-        <p className="muted small">Tap “Register session” to log one.</p>
+        <p>No sessions in the last 7 days.</p>
+        <p className="muted small">
+          {minKm > 0
+            ? `Short rides under ${minKm} km are hidden — change this in Settings.`
+            : 'Tap “Register session” to log one.'}
+        </p>
       </div>
     )
   }

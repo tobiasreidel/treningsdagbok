@@ -1,4 +1,4 @@
-import { weekRange, monthRange, inRange, toHours } from '../lib/format'
+import { lastNDaysRange, monthRange, inRange, toHours } from '../lib/format'
 
 function aggregate(sessions, range) {
   const acc = {
@@ -26,12 +26,12 @@ function aggregate(sessions, range) {
 }
 
 export default function SummaryCards({ sessions }) {
-  const week = aggregate(sessions, weekRange())
+  const week = aggregate(sessions, lastNDaysRange(7))
   const month = aggregate(sessions, monthRange())
 
   return (
     <div className="summary-grid">
-      <PeriodCard title="This week" data={week} />
+      <PeriodCard title="Last 7 days" data={week} />
       <PeriodCard title="This month" data={month} />
       <CyclingCard data={month} />
     </div>

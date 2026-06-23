@@ -7,6 +7,7 @@ import { useOnline } from '../components/ui'
 import Calendar from '../components/Calendar'
 import SummaryCards from '../components/SummaryCards'
 import WeekTable from '../components/WeekTable'
+import DaySheet from '../components/DaySheet'
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -16,6 +17,7 @@ export default function Dashboard() {
 
   const [sessions, setSessions] = useState([])
   const [monthRef, setMonthRef] = useState(new Date())
+  const [dayView, setDayView] = useState(null)
   const [loading, setLoading] = useState(true)
   const [softError, setSoftError] = useState(false)
   const [toast, setToast] = useState(location.state?.toast || null)
@@ -77,10 +79,10 @@ export default function Dashboard() {
             title="Settings"
             aria-label="Settings"
           >
-            ⚙
+            ⚙️
           </button>
           <button className="icon-btn" onClick={signOut} title="Sign out" aria-label="Sign out">
-            ⎋
+            🚪
           </button>
         </div>
       </header>
@@ -112,14 +114,24 @@ export default function Dashboard() {
             sessions={sessions}
             onPrev={() => setMonthRef((m) => addMonths(m, -1))}
             onNext={() => setMonthRef((m) => addMonths(m, 1))}
-            onSelectDay={(date) => navigate('/new', { state: { date } })}
+            onSelectDay={(date) => setDayView(date)}
           />
 
           <section className="section">
-            <h2 className="section-title">Last week</h2>
+            <h2 className="section-title">Last 7 days</h2>
             <WeekTable sessions={sessions} onSelect={(s) => navigate(`/session/${s.id}`)} />
           </section>
         </>
+      )}
+
+      {dayView && (
+        <DaySheet
+          date={dayView}
+          sessions={sessions}
+          onClose={() => setDayView(null)}
+          onSelect={(s) => navigate(`/session/${s.id}`)}
+          onAdd={(date) => navigate('/new', { state: { date } })}
+        />
       )}
 
       {toast && <div className="toast">{toast}</div>}
