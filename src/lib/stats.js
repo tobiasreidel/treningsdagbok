@@ -154,4 +154,87 @@ export function longestRide(cycling) {
   return cycling.reduce((m, s) => Math.max(m, num(s.extra?.distance_km)), 0)
 }
 
+// ---- strength + finger -------------------------------------------------------
+// Strength/finger data lives in extra and can ride on a standalone strength
+// session OR an indoor climbing session, so these scan extra rather than sport.
+const fmtShort = (d) => format(asDate(d), 'd/M')
+
+function exerciseEntries(session, key) {
+  return (session.extra?.strength || []).filter((ex) => ex.exercise === key)
+}
+
+export function hasFingerData(s) {
+  const f = s.extra?.finger
+  return Boolean(f && (f.campus || (f.hangboard || []).length > 0))
+}
+
+// Distinct exercise keys logged, in first-seen order.
+export function exercisesLogged(sessions) {
+  const seen = []
+  for (const s of sessions)
+    for (const ex of s.extra?.strength || [])
+      if (ex.exercise && !seen.includes(ex.exercise)) seen.push(ex.exercise)
+  return seen
+}
+
+// Total reps (Σ sets × reps) over all strength exercises in the array.
+export function totalReps(arr) {
+  let r = 0
+  for (const s of arr) for (const ex of s.extra?.strength || []) r += num(ex.sets) * num(ex.reps)
+  return r
+}
+
+// Sessions in the array that include any strength or finger work.
+export function strengthSessionCount(arr) {
+  return arr.filter((s) => (s.extra?.strength || []).length > 0 || hasFingerData(s)).length
+}
+
+export function campusCount(sessions) {
+  return sessions.filter((s) => s.extra?.finger?.campus).length
+}
+
+// Per-session series for one exercise, oldest→newest.
+//   metric: 'weight' (heaviest kg) | 'reps' (best single set) | 'volume' (Σ sets×reps)
+export function exerciseSeries(sessions, key, metric) {
+  const rows = sessions
+    .filter((s) => exerciseEntries(s, key).length > 0)
+    .slice()
+    .sort((a, b) => a.date.localeCompare(b.date))
+  return rows.map((s) => {
+    const entries = exerciseEntries(s, key)
+    let value
+    if (metric === 'reps') value = Math.max(0, ...entries.map((e) => num(e.reps)))
+    else if (metric === 'volume') value = entries.reduce((a, e) => a + num(e.sets) * num(e.reps), 0)
+    else value = Math.max(0, ...entries.map((e) => num(e.weight)))
+    return { label: fmtShort(s.date), value: round1(value) }
+  })
+}
+
+export function exerciseBest(sessions, key) {
+  let maxWeight = 0
+  let maxReps = 0
+  let count = 0
+  for (const s of sessions) {
+    const entries = exerciseEntries(s, key)
+    if (entries.length) count += 1
+    for (const e of entries) {
+      maxWeight = Math.max(maxWeight, num(e.weight))
+      maxReps = Math.max(maxReps, num(e.reps))
+    }
+  }
+  return { maxWeight, maxReps, sessions: count }
+}
+
+// Hangboard progression: heaviest two-hand added weight per session (oldest→newest).
+export function hangboardSeries(sessions) {
+  const rows = sessions
+    .filter((s) => (s.extra?.finger?.hangboard || []).some((h) => h.hands === 'two'))
+    .slice()
+    .sort((a, b) => a.date.localeCompare(b.date))
+  return rows.map((s) => {
+    const two = (s.extra.finger.hangboard || []).filter((h) => h.hands === 'two')
+    return { label: fmtShort(s.date), value: round1(Math.max(0, ...two.map((h) => num(h.weight)))) }
+  })
+}
+
 export const round1 = (n) => Math.round(n * 10) / 10

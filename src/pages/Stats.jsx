@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { fetchSessions } from '../lib/sessions'
 import { Bars, Line, HBars } from '../components/charts'
+import { exerciseLabel } from '../lib/constants'
 import * as S from '../lib/stats'
 
 const CYCLING = 'var(--cycling)'
 const CLIMBING = 'var(--climbing)'
+const STRENGTH = 'var(--strength)'
 
 export default function Stats() {
   const navigate = useNavigate()
@@ -31,6 +33,7 @@ export default function Stats() {
       buckets: S.buckets(windowed, start, grain),
       cycling: S.bySport(windowed, 'cycling'),
       climbing: S.bySport(windowed, 'climbing'),
+      strength: S.bySport(windowed, 'strength'),
     }
   }, [sessions, range])
 
@@ -57,6 +60,7 @@ export default function Stats() {
             { key: 'overview', label: 'Overview' },
             { key: 'cycling', label: '🚴 Cycling' },
             { key: 'climbing', label: '🧗 Climbing' },
+            { key: 'strength', label: '💪 Strength' },
           ]}
           value={tab}
           onChange={setTab}
@@ -75,8 +79,10 @@ export default function Stats() {
           <Overview view={view} />
         ) : tab === 'cycling' ? (
           <Cycling view={view} />
-        ) : (
+        ) : tab === 'climbing' ? (
           <Climbing view={view} />
+        ) : (
+          <Strength view={view} />
         )}
       </main>
     </div>
@@ -137,9 +143,11 @@ function Overview({ view }) {
     segments: [
       { value: S.sumHours(S.bySport(b.sessions, 'cycling')), color: CYCLING },
       { value: S.sumHours(S.bySport(b.sessions, 'climbing')), color: CLIMBING },
+      { value: S.sumHours(S.bySport(b.sessions, 'strength')), color: STRENGTH },
     ],
   }))
   const feelingLine = buckets.map((b) => ({ label: b.label, value: S.round1(S.avgFeeling(b.sessions)) }))
+  const strengthH = S.round1(S.sumHours(S.bySport(windowed, 'strength')))
 
   return (
     <>
@@ -151,7 +159,12 @@ function Overview({ view }) {
           { label: 'Active days', value: rest.active, sub: `/ ${rest.total}` },
         ]}
       />
-      <Card title="Training hours" value={`🚴 ${S.round1(S.sumHours(cycling))}h · 🧗 ${S.round1(S.sumHours(climbing))}h`}>
+      <Card
+        title="Training hours"
+        value={`🚴 ${S.round1(S.sumHours(cycling))}h · 🧗 ${S.round1(S.sumHours(climbing))}h${
+          strengthH ? ` · 💪 ${strengthH}h` : ''
+        }`}
+      >
         <Bars data={hoursBars} />
       </Card>
       <Card title="Feeling trend" value={`avg ${S.round1(S.avgFeeling(windowed))}/5`}>
@@ -260,6 +273,100 @@ function Climbing({ view }) {
           ]}
         />
       </Card>
+    </>
+  )
+}
+
+// ---- Strength ----
+function Strength({ view }) {
+  const { windowed, buckets } = view
+  const [exKey, setExKey] = useState(null)
+  const [metric, setMetric] = useState('weight')
+
+  const exercises = S.exercisesLogged(windowed)
+  const hang = S.hangboardSeries(windowed)
+  const campus = S.campusCount(windowed)
+  const sessCount = S.strengthSessionCount(windowed)
+
+  if (exercises.length === 0 && hang.length === 0 && campus === 0) {
+    return (
+      <div className="card empty-state">
+        <p>No strength or finger training in this period.</p>
+        <p className="muted small">Log a strength session (or add it to indoor climbing).</p>
+      </div>
+    )
+  }
+
+  const selected = exercises.includes(exKey) ? exKey : exercises[0] || null
+  const series = selected ? S.exerciseSeries(windowed, selected, metric) : []
+  const best = selected ? S.exerciseBest(windowed, selected) : null
+
+  const freqBars = buckets.map((b) => ({ label: b.label, value: S.strengthSessionCount(b.sessions) }))
+  const repsBars = buckets.map((b) => ({ label: b.label, value: S.totalReps(b.sessions) }))
+
+  return (
+    <>
+      <Tiles
+        items={[
+          { label: 'Sessions', value: sessCount },
+          { label: 'Exercises', value: exercises.length },
+          { label: 'Total reps', value: S.totalReps(windowed) },
+          { label: 'Campus', value: campus },
+        ]}
+      />
+
+      <Card title="Sessions per period">
+        <Bars data={freqBars} color={STRENGTH} />
+      </Card>
+
+      {exercises.length > 0 && (
+        <>
+          <Card title="Total reps" value={`${S.totalReps(windowed)} reps`}>
+            <Bars data={repsBars} color={STRENGTH} />
+          </Card>
+
+          <div className="card chart-card stack">
+            <div className="chart-card-head">
+              <span className="chart-card-title">Exercise progression</span>
+              {best && (
+                <span className="chart-card-value">
+                  {best.maxWeight ? `${best.maxWeight} kg` : `${best.maxReps} reps`} best
+                </span>
+              )}
+            </div>
+            <label className="field">
+              <select value={selected || ''} onChange={(e) => setExKey(e.target.value)}>
+                {exercises.map((k) => (
+                  <option key={k} value={k}>
+                    {exerciseLabel(k)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <PillRow
+              options={[
+                { key: 'weight', label: 'Weight' },
+                { key: 'reps', label: 'Top reps' },
+                { key: 'volume', label: 'Volume' },
+              ]}
+              value={metric}
+              onChange={setMetric}
+              wide
+            />
+            <Line data={series} color={STRENGTH} />
+          </div>
+        </>
+      )}
+
+      {(hang.length > 0 || campus > 0) && (
+        <Card title="Hangboard — max two-hand weight" value="kg added">
+          {hang.length ? (
+            <Line data={hang} color={STRENGTH} />
+          ) : (
+            <p className="muted small">Log two-hand hangboard sets to track this.</p>
+          )}
+        </Card>
+      )}
     </>
   )
 }
