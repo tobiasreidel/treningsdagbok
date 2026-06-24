@@ -11,17 +11,19 @@ import {
 
 const WEEK_OPTS = { weekStartsOn: 1 } // Monday
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+const SPORTS = ['climbing', 'cycling', 'strength'] // legend order
+const MAX_DOTS = 6 // guard against a freakishly busy day overflowing the cell
 
-// Color-coded month calendar:
-//   rest = empty · climbing = blue · cycling = amber · strength = violet
-//   2+ sports on one day = green
+// Month calendar with one colored dot per session:
+//   climbing = blue · cycling = amber · strength = violet
+//   multiple sessions on a day = multiple dots (one per session)
 export default function Calendar({ monthRef, sessions, onPrev, onNext, onSelectDay }) {
-  // Index which sports happened on each day.
+  // Count sessions per sport on each day.
   const byDay = {}
   for (const s of sessions) {
     const key = s.date
-    if (!byDay[key]) byDay[key] = { cycling: false, climbing: false, strength: false }
-    if (byDay[key][s.sport] != null) byDay[key][s.sport] = true
+    if (!byDay[key]) byDay[key] = { cycling: 0, climbing: 0, strength: 0 }
+    if (byDay[key][s.sport] != null) byDay[key][s.sport] += 1
   }
 
   const gridStart = startOfWeek(startOfMonth(monthRef), WEEK_OPTS)
@@ -51,22 +53,27 @@ export default function Calendar({ monthRef, sessions, onPrev, onNext, onSelectD
       <div className="cal-grid">
         {days.map((day) => {
           const key = format(day, 'yyyy-MM-dd')
-          const marks = byDay[key]
-          const active = marks
-            ? ['cycling', 'climbing', 'strength'].filter((k) => marks[k])
+          const counts = byDay[key]
+          // One dot per session, grouped by sport (legend order).
+          const dots = counts
+            ? SPORTS.flatMap((sport) => Array(counts[sport]).fill(sport)).slice(0, MAX_DOTS)
             : []
-          const sport = active.length === 0 ? null : active.length > 1 ? 'both' : active[0]
           const dim = !isSameMonth(day, monthRef)
           return (
             <button
               key={key}
-              className={`cal-day ${sport ? `is-${sport}` : ''} ${dim ? 'is-dim' : ''} ${
-                isToday(day) ? 'is-today' : ''
-              }`}
+              className={`cal-day ${dim ? 'is-dim' : ''} ${isToday(day) ? 'is-today' : ''}`}
               onClick={() => onSelectDay?.(key)}
               type="button"
             >
-              {format(day, 'd')}
+              <span className="cal-daynum">{format(day, 'd')}</span>
+              {dots.length > 0 && (
+                <span className="cal-dots">
+                  {dots.map((sport, i) => (
+                    <i key={i} className={`dot-${sport}`} />
+                  ))}
+                </span>
+              )}
             </button>
           )
         })}
@@ -76,7 +83,6 @@ export default function Calendar({ monthRef, sessions, onPrev, onNext, onSelectD
         <span><i className="dot-climbing" /> Climbing</span>
         <span><i className="dot-cycling" /> Cycling</span>
         <span><i className="dot-strength" /> Strength</span>
-        <span><i className="dot-both" /> Multiple</span>
       </div>
     </div>
   )

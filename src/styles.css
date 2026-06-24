@@ -580,8 +580,11 @@ textarea {
 }
 .cal-day {
   aspect-ratio: 1 / 1;
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
   border: none;
   border-radius: 9px;
   background: var(--surface-2);
@@ -590,6 +593,22 @@ textarea {
   font-size: 0.82rem;
   cursor: pointer;
 }
+.cal-daynum {
+  line-height: 1;
+}
+.cal-dots {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  max-width: 100%;
+  line-height: 0;
+}
+.cal-dots i {
+  width: 8px;
+  height: 8px;
+}
 .cal-day.is-dim {
   opacity: 0.35;
 }
@@ -597,22 +616,6 @@ textarea {
   outline: 2px solid var(--primary);
   outline-offset: -2px;
   font-weight: 700;
-}
-.cal-day.is-climbing {
-  background: var(--climbing);
-  color: #fff;
-}
-.cal-day.is-cycling {
-  background: var(--cycling);
-  color: #3a2a00;
-}
-.cal-day.is-strength {
-  background: var(--strength);
-  color: #fff;
-}
-.cal-day.is-both {
-  background: var(--both);
-  color: #06310f;
 }
 .cal-legend {
   display: flex;
@@ -628,8 +631,7 @@ textarea {
 }
 .dot-climbing,
 .dot-cycling,
-.dot-strength,
-.dot-both {
+.dot-strength {
   width: 10px;
   height: 10px;
   border-radius: 50%;
@@ -643,9 +645,6 @@ textarea {
 }
 .dot-strength {
   background: var(--strength);
-}
-.dot-both {
-  background: var(--both);
 }
 
 /* ----- summary cards ----- */
