@@ -7,7 +7,12 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt': a new build waits instead of swapping in silently, so we can
+      // show a "reload to update" banner (see components/UpdatePrompt.jsx).
+      registerType: 'prompt',
+      // Registration is handled by the useRegisterSW() hook in UpdatePrompt,
+      // so don't also inject the auto-register script (avoids double register).
+      injectRegister: false,
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'Treningsdagbok',

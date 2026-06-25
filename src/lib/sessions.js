@@ -25,6 +25,13 @@ function isNetworkError(err) {
   )
 }
 
+// Postgres unique-violation — hit when the same intervals.icu activity is
+// imported twice (see supabase/dedupe_intervals.sql). Not a real failure:
+// the session already exists, so we treat it as a no-op.
+function isDuplicateError(err) {
+  return err?.code === '23505'
+}
+
 function extFromFile(file) {
   if (!file) return 'jpg'
   const fromName = file.name?.split('.').pop()
@@ -119,6 +126,10 @@ export async function createSession(form) {
     if (isNetworkError(err)) {
       await enqueue(item)
       return { pending: true }
+    }
+    if (isDuplicateError(err)) {
+      // Already imported (a concurrent import won the race). Harmless.
+      return { duplicate: true }
     }
     throw err
   }

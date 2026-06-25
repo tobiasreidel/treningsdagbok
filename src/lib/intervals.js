@@ -48,13 +48,24 @@ function authHeader(apiKey) {
 }
 
 const CYCLING_TYPE = /ride/i // Ride, VirtualRide, GravelRide, MountainBikeRide, EBikeRide…
+const CLIMBING_TYPE = /climb|boulder/i // RockClimbing, Climbing, IndoorClimbing, Bouldering…
 
 export function isCyclingActivity(a) {
   return CYCLING_TYPE.test(a.type || '')
 }
 
-// Fetch the athlete's activities in the last `sinceDays`, cycling only.
-export async function fetchCyclingActivities({ athleteId, apiKey, sinceDays = 60 }) {
+export function isClimbingActivity(a) {
+  return CLIMBING_TYPE.test(a.type || '')
+}
+
+// Activities we know how to turn into a session.
+export function isImportableActivity(a) {
+  return isCyclingActivity(a) || isClimbingActivity(a)
+}
+
+// Fetch the athlete's importable activities (rides + climbs) in the last
+// `sinceDays`.
+export async function fetchActivities({ athleteId, apiKey, sinceDays = 60 }) {
   const id = (athleteId || '0').trim() || '0'
   const oldest = format(subDays(new Date(), sinceDays), 'yyyy-MM-dd')
   const newest = format(new Date(), 'yyyy-MM-dd')
@@ -73,7 +84,7 @@ export async function fetchCyclingActivities({ athleteId, apiKey, sinceDays = 60
     throw new Error(`intervals.icu error (${res.status}).`)
   }
   const all = await res.json()
-  return (Array.isArray(all) ? all : []).filter(isCyclingActivity)
+  return (Array.isArray(all) ? all : []).filter(isImportableActivity)
 }
 
 // ---- mapping ---------------------------------------------------------------
@@ -83,20 +94,38 @@ function round(n, dp = 0) {
   return Math.round(Number(n) * f) / f
 }
 
-function guessSubtype(type = '') {
+function guessCyclingSubtype(type = '') {
   const t = type.toLowerCase()
   if (t.includes('gravel') || t.includes('mountain')) return 'gravel'
   return 'road'
 }
 
-// Turn an intervals.icu activity into our session-form shape, with the
-// objective fields pre-filled. The user adds feeling/RPE/notes.
-export function activityToForm(a) {
+// Bouldering vs roped — that's all the type tells us; the user refines later.
+function guessClimbingSubtype(type = '') {
+  return /boulder/i.test(type) ? 'bouldering' : null
+}
+
+// Indoor/outdoor from the trainer flag and any hints in the type/name.
+function guessClimbingLocation(a) {
+  const hint = `${a.type || ''} ${a.name || ''}`.toLowerCase()
+  if (a.trainer === true || /indoor|gym/.test(hint)) return 'indoor'
+  if (/outdoor|crag|rock\b/.test(hint)) return 'outdoor'
+  return null
+}
+
+const durationMin = (a) => {
+  const secs = a.moving_time || a.elapsed_time
+  return secs ? Math.round(secs / 60) : ''
+}
+
+// Turn an intervals.icu ride into our session-form shape, with the objective
+// fields pre-filled. The user adds feeling/RPE/notes.
+function cyclingActivityToForm(a) {
   const date = (a.start_date_local || '').slice(0, 10)
   return {
     date,
     sport: 'cycling',
-    subtype: guessSubtype(a.type),
+    subtype: guessCyclingSubtype(a.type),
     location: null,
     feeling: null,
     rpe: null,
@@ -128,16 +157,65 @@ export function activityToForm(a) {
   }
 }
 
-// Best-effort background import, run on app open so rides show up without a
-// trip to the import screen. Silently adds any cycling activity not already
-// logged (matched by intervals_id) and returns how many were added. Safe to
-// call repeatedly — the de-dupe makes it idempotent.
-export async function autoImportNewRides({ sinceDays = 60 } = {}) {
+// Turn an intervals.icu climb (e.g. a watch-recorded session) into our
+// session-form shape. Grades/sends are added by the user afterwards.
+function climbingActivityToForm(a) {
+  const date = (a.start_date_local || '').slice(0, 10)
+  return {
+    date,
+    sport: 'climbing',
+    subtype: guessClimbingSubtype(a.type),
+    location: guessClimbingLocation(a),
+    feeling: null,
+    rpe: null,
+    duration: durationMin(a),
+    notes: '',
+    extra: {
+      avg_hr: round(a.average_heartrate),
+      max_hr: round(a.max_heartrate),
+      calories: round(a.calories),
+      training_load: round(a.icu_training_load),
+      intervals_id: String(a.id),
+      intervals_name: a.name || null,
+      intervals_type: a.type || null,
+    },
+    routes: [],
+    photoFile: null,
+    photoUrl: null,
+    removePhoto: false,
+  }
+}
+
+// Map any importable activity to a session form, picking the sport by type.
+export function activityToForm(a) {
+  return isClimbingActivity(a) ? climbingActivityToForm(a) : cyclingActivityToForm(a)
+}
+
+// Coalesce concurrent auto-imports into one run. Without this, two overlapping
+// calls (e.g. React StrictMode mounting the effect twice, or an 'online' event
+// firing mid-import) each read the existing sessions before either inserts the
+// new activity, so the intervals_id de-dupe misses and the activity is imported
+// twice. Sharing one in-flight promise makes the de-dupe reliable.
+let importInFlight = null
+
+export function autoImportNewActivities(opts = {}) {
+  if (!importInFlight) {
+    importInFlight = runAutoImport(opts).finally(() => {
+      importInFlight = null
+    })
+  }
+  return importInFlight
+}
+
+// Best-effort background import, run on app open so activities show up without
+// a trip to the import screen. Silently adds any ride or climb not already
+// logged (matched by intervals_id) and returns how many were added.
+async function runAutoImport({ sinceDays = 60 } = {}) {
   const settings = await getSettings()
   if (!hasCredentials(settings)) return 0
 
   const [activities, sessions] = await Promise.all([
-    fetchCyclingActivities({ ...settings, sinceDays }),
+    fetchActivities({ ...settings, sinceDays }),
     fetchSessions().catch(() => []),
   ])
   const importedIds = new Set(
@@ -147,21 +225,27 @@ export async function autoImportNewRides({ sinceDays = 60 } = {}) {
   let added = 0
   for (const a of activities) {
     if (importedIds.has(String(a.id))) continue
+    importedIds.add(String(a.id)) // guard against the same id twice in one run
     try {
-      await createSession(activityToForm(a))
-      added += 1
+      const res = await createSession(activityToForm(a))
+      if (!res?.duplicate) added += 1
     } catch {
-      // Skip a single bad ride rather than aborting the whole batch.
+      // Skip a single bad activity rather than aborting the whole batch.
     }
   }
   return added
 }
 
-// A short human label for the import list.
+// A short human label for the import list — metrics that fit the sport.
 export function activitySummary(a) {
+  const mins = durationMin(a) ? `${durationMin(a)} min` : null
+  if (isClimbingActivity(a)) {
+    const hr = a.average_heartrate ? `${round(a.average_heartrate)} bpm` : null
+    const cal = a.calories ? `${round(a.calories)} kcal` : null
+    return [mins, hr, cal].filter(Boolean).join(' · ')
+  }
   const km = a.distance != null ? `${round(a.distance / 1000, 1)} km` : null
   const elev = a.total_elevation_gain ? `${round(a.total_elevation_gain)} m` : null
-  const mins = a.moving_time ? `${Math.round(a.moving_time / 60)} min` : null
   const power = a.average_watts ?? a.icu_average_watts
   const w = power ? `${round(power)} W` : null
   return [km, elev, mins, w].filter(Boolean).join(' · ')

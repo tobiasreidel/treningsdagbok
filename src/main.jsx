@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
+import UpdatePrompt from './components/UpdatePrompt.jsx'
 import './styles.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -11,6 +12,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <AuthProvider>
         <App />
       </AuthProvider>
+      <UpdatePrompt />
     </BrowserRouter>
   </React.StrictMode>,
 )

@@ -6,7 +6,8 @@ import { notifySessionsChanged } from '../App'
 import {
   getSettings,
   hasCredentials,
-  fetchCyclingActivities,
+  fetchActivities,
+  isClimbingActivity,
   activityToForm,
   activitySummary,
 } from '../lib/intervals'
@@ -27,23 +28,22 @@ export default function ImportRides() {
           return
         }
         const [activities, sessions] = await Promise.all([
-          fetchCyclingActivities({ ...settings, sinceDays: 60 }),
+          fetchActivities({ ...settings, sinceDays: 60 }),
           fetchSessions().catch(() => []),
         ])
         // De-dupe: hide activities already imported (matched by intervals_id),
-        // and flag activities whose date already has a manual cycling session.
+        // and flag activities whose date already has a session of the same sport.
         const importedIds = new Set(
           sessions.map((s) => s.extra?.intervals_id).filter(Boolean),
         )
-        const cyclingDates = new Set(
-          sessions.filter((s) => s.sport === 'cycling').map((s) => s.date),
-        )
+        const sportDates = new Set(sessions.map((s) => `${s.sport}|${s.date}`))
         const items = activities
           .filter((a) => !importedIds.has(String(a.id)))
-          .map((a) => ({
-            activity: a,
-            maybeDup: cyclingDates.has((a.start_date_local || '').slice(0, 10)),
-          }))
+          .map((a) => {
+            const sport = isClimbingActivity(a) ? 'climbing' : 'cycling'
+            const date = (a.start_date_local || '').slice(0, 10)
+            return { activity: a, sport, maybeDup: sportDates.has(`${sport}|${date}`) }
+          })
         if (alive) setState({ status: 'ready', items })
       } catch (err) {
         if (alive) setState({ status: 'error', message: err.message })
@@ -83,10 +83,10 @@ export default function ImportRides() {
       }
       notifySessionsChanged()
       navigate('/', {
-        state: { toast: `Imported ${n} ride${n === 1 ? '' : 's'} — add feeling & notes anytime` },
+        state: { toast: `Imported ${n} session${n === 1 ? '' : 's'} — add feeling & notes anytime` },
       })
     } catch (err) {
-      setError(err.message || 'Some rides could not be imported')
+      setError(err.message || 'Some sessions could not be imported')
       setBusy(false)
     }
   }
@@ -98,7 +98,7 @@ export default function ImportRides() {
           ‹
         </button>
         <div className="wizard-title">
-          <h1>Import rides</h1>
+          <h1>Import sessions</h1>
         </div>
         <button
           className="icon-btn"
@@ -138,7 +138,7 @@ export default function ImportRides() {
 
         {state.status === 'ready' && state.items.length === 0 && (
           <div className="card empty-state">
-            <p>No new rides to import.</p>
+            <p>No new sessions to import.</p>
             <p className="muted small">
               Everything from the last 60 days is already logged.
             </p>
@@ -148,7 +148,7 @@ export default function ImportRides() {
         {state.status === 'ready' && state.items.length > 0 && (
           <>
             <button className="btn btn-primary btn-block" onClick={addAll} disabled={busy}>
-              {busy ? 'Importing…' : `Import all ${state.items.length} rides`}
+              {busy ? 'Importing…' : `Import all ${state.items.length} sessions`}
             </button>
             <p className="muted small">
               Objective data is filled in automatically — tap a session afterwards
@@ -156,17 +156,20 @@ export default function ImportRides() {
             </p>
             {error && <p className="auth-error">{error}</p>}
 
-            {state.items.map(({ activity, maybeDup }) => (
+            {state.items.map(({ activity, sport, maybeDup }) => (
               <div key={activity.id} className="import-card card">
                 <div className="import-main">
-                  <span className="import-name">🚴 {activity.name || 'Ride'}</span>
+                  <span className="import-name">
+                    {sport === 'climbing' ? '🧗' : '🚴'}{' '}
+                    {activity.name || (sport === 'climbing' ? 'Climb' : 'Ride')}
+                  </span>
                   <span className="import-meta">
                     {formatDay((activity.start_date_local || '').slice(0, 10))} ·{' '}
                     {activitySummary(activity)}
                   </span>
                   {maybeDup && (
                     <span className="pending-badge">
-                      possible duplicate — already a ride that day
+                      possible duplicate — already a {sport} session that day
                     </span>
                   )}
                 </div>

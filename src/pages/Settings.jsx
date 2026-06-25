@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Field, Segmented } from '../components/ui'
-import { getSettings, saveSettings, fetchCyclingActivities } from '../lib/intervals'
+import { getSettings, saveSettings, fetchActivities, isClimbingActivity } from '../lib/intervals'
 import { getMyProfile, setDisplayName, getShareSetting, setShareSetting } from '../lib/friends'
 import { getHideRidesUnderKm, setHideRidesUnderKm } from '../lib/prefs'
 
 export default function Settings() {
   const navigate = useNavigate()
   const [athleteId, setAthleteId] = useState('')
-  const [apiKey, setApiKey] = useState('')
+  const [apiKey, setApiKey] = useState('') // only holds a newly-typed key
+  const [savedKey, setSavedKey] = useState('') // existing key, never bound to a field
+  const [replacing, setReplacing] = useState(false) // user chose to enter a new key
   const [displayName, setDisplayNameState] = useState('')
   const [share, setShare] = useState(true)
   const [hideKm, setHideKm] = useState(() => {
@@ -20,11 +22,15 @@ export default function Settings() {
   const [test, setTest] = useState(null)
   const [error, setError] = useState(null)
 
+  // The key to actually use/save: a freshly-typed one when replacing (or when
+  // none is stored yet), otherwise the existing key left untouched.
+  const keyToUse = replacing || !savedKey ? apiKey.trim() : savedKey
+
   useEffect(() => {
     Promise.all([getSettings(), getMyProfile().catch(() => ({})), getShareSetting().catch(() => true)])
       .then(([s, profile, shareVal]) => {
         setAthleteId(s.athleteId)
-        setApiKey(s.apiKey)
+        setSavedKey(s.apiKey)
         setDisplayNameState(profile?.display_name || '')
         setShare(shareVal)
       })
@@ -35,8 +41,14 @@ export default function Settings() {
   const testConnection = async () => {
     setTest({ pending: true })
     try {
-      const rides = await fetchCyclingActivities({ athleteId, apiKey, sinceDays: 60 })
-      setTest({ ok: true, msg: `Connected — found ${rides.length} ride${rides.length === 1 ? '' : 's'} in the last 60 days.` })
+      const acts = await fetchActivities({ athleteId, apiKey: keyToUse, sinceDays: 60 })
+      const climbs = acts.filter(isClimbingActivity).length
+      const rides = acts.length - climbs
+      const parts = [
+        `${rides} ride${rides === 1 ? '' : 's'}`,
+        `${climbs} climb${climbs === 1 ? '' : 's'}`,
+      ]
+      setTest({ ok: true, msg: `Connected — found ${parts.join(' · ')} in the last 60 days.` })
     } catch (err) {
       setTest({ ok: false, msg: err.message })
     }
@@ -51,7 +63,7 @@ export default function Settings() {
       await setDisplayName(displayName).catch(() => {})
       await setShareSetting(share).catch(() => {})
       setHideRidesUnderKm(hideKm)
-      await saveSettings({ athleteId, apiKey })
+      await saveSettings({ athleteId, apiKey: keyToUse })
       navigate('/', { state: { toast: 'Settings saved' } })
     } catch (err) {
       setError(err.message || 'Could not save')
@@ -132,13 +144,30 @@ export default function Settings() {
             intervals.icu, and this app imports from there.
           </p>
           <Field label="API key" hint="intervals.icu → Settings → Developer Settings (bottom of the page)">
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="your intervals.icu API key"
-              autoComplete="off"
-            />
+            {savedKey && !replacing ? (
+              <div className="saved-key">
+                <span className="saved-key-mask">Key saved · ••••{savedKey.slice(-4)}</span>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => {
+                    setReplacing(true)
+                    setApiKey('')
+                  }}
+                >
+                  Replace
+                </button>
+              </div>
+            ) : (
+              <input
+                type="password"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="your intervals.icu API key"
+                autoComplete="off"
+                spellCheck={false}
+              />
+            )}
           </Field>
           <Field label="Athlete ID" hint="Leave blank to use your own account." optional>
             <input
@@ -153,7 +182,7 @@ export default function Settings() {
             type="button"
             className="btn btn-secondary btn-block"
             onClick={testConnection}
-            disabled={!apiKey || test?.pending}
+            disabled={!keyToUse || test?.pending}
           >
             {test?.pending ? 'Testing…' : 'Test connection'}
           </button>
@@ -165,10 +194,10 @@ export default function Settings() {
             className="btn btn-ghost btn-block"
             onClick={() => navigate('/import')}
           >
-            ⬇ Import rides from intervals.icu
+            ⬇ Import sessions from intervals.icu
           </button>
           <p className="muted small">
-            Rides also import automatically each time you open the app.
+            Rides and climbs also import automatically each time you open the app.
           </p>
         </section>
 
