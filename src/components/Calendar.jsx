@@ -20,7 +20,7 @@ const MAX_DOTS = 6 // guard against a freakishly busy day overflowing the cell
 // Month calendar with one colored dot per session:
 //   climbing = blue · cycling = amber · strength = violet
 //   multiple sessions on a day = multiple dots (one per session)
-export default function Calendar({ monthRef, sessions, onPrev, onNext, onSelectDay }) {
+export default function Calendar({ monthRef, sessions, onPrev, onNext, onSelectDay, enabledSports }) {
   // Count sessions per sport on each day.
   const byDay = {}
   for (const s of sessions) {
@@ -35,7 +35,7 @@ export default function Calendar({ monthRef, sessions, onPrev, onNext, onSelectD
 
   // Dots always show (history is never hidden). The legend keys a sport when
   // it's enabled, or when an old session of it still appears in this month.
-  const enabled = getEnabledSports()
+  const enabled = enabledSports || getEnabledSports()
   const present = new Set()
   for (const day of days) {
     const counts = byDay[format(day, 'yyyy-MM-dd')]

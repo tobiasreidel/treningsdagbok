@@ -177,13 +177,18 @@ async function deletePhoto(path) {
   await supabase.storage.from(PHOTO_BUCKET).remove([path])
 }
 
-// Fetch *your own* sessions, newest first, with their route logs joined in.
-// Must scope to the current user explicitly: once you have friends, RLS also
-// permits selecting their shared sessions, so an unscoped select would pull a
-// friend's sessions into your personal dashboard/stats. (The friends feed
-// fetches friends' sessions separately, on purpose.)
-export async function fetchSessions() {
-  const userId = await currentUserId()
+export async function getCurrentUserId() {
+  return currentUserId()
+}
+
+// Fetch a user's sessions, newest first, with their route logs joined in.
+// Defaults to *your own*; pass an athlete's id to read theirs (only works when
+// you're an accepted coach — RLS enforces it). Scoping by user_id is required:
+// once you have friends/coaches, RLS also permits selecting their shared
+// sessions, so an unscoped select would pull other people's sessions into your
+// personal dashboard/stats. (The friends feed fetches those separately.)
+export async function fetchSessions(forUserId) {
+  const userId = forUserId || (await currentUserId())
   let query = supabase
     .from('sessions')
     .select('*, routes(*)')

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { SPORTS, SEND_TYPES, FEELING_LABELS, exerciseLabel } from '../lib/constants'
 import { formatDay, formatDuration } from '../lib/format'
-import { getSession, getSignedPhotoUrl } from '../lib/sessions'
+import { getSession, getSignedPhotoUrl, getCurrentUserId } from '../lib/sessions'
 
 const num = (v) => (v === '' || v == null ? null : Number(v))
 
@@ -29,11 +29,13 @@ export default function SessionDetail() {
   const [session, setSession] = useState(null)
   const [photoSrc, setPhotoSrc] = useState(null)
   const [error, setError] = useState(null)
+  const [myId, setMyId] = useState(null)
   const isPending = id?.startsWith('local-')
 
   useEffect(() => {
     if (isPending) return
     let alive = true
+    getCurrentUserId().then((u) => alive && setMyId(u))
     getSession(id)
       .then(async (s) => {
         if (!alive) return
@@ -46,9 +48,11 @@ export default function SessionDetail() {
     }
   }, [id, isPending])
 
+  const back = () => navigate(-1)
+
   if (isPending) {
     return (
-      <Shell onBack={() => navigate('/')} title="Activity">
+      <Shell onBack={back} title="Activity">
         <p className="muted">
           This activity is still saved offline and will sync when you're back
           online.
@@ -58,7 +62,7 @@ export default function SessionDetail() {
   }
   if (error) {
     return (
-      <Shell onBack={() => navigate('/')} title="Activity">
+      <Shell onBack={back} title="Activity">
         <p className="auth-error">{error}</p>
       </Shell>
     )
@@ -97,18 +101,22 @@ export default function SessionDetail() {
   const finger = e.finger || {}
   const hangs = finger.hangboard || []
   const hasFinger = finger.campus || hangs.length > 0
+  // A coach views athletes' sessions read-only — only the owner can edit.
+  const isOwner = myId && session.user_id === myId
 
   return (
     <Shell
-      onBack={() => navigate('/')}
+      onBack={back}
       title={`${sport?.emoji || ''} ${sport?.label || 'Activity'}`}
       footer={
-        <button
-          className="btn btn-primary btn-block"
-          onClick={() => navigate(`/session/${id}/edit`)}
-        >
-          Edit activity
-        </button>
+        isOwner ? (
+          <button
+            className="btn btn-primary btn-block"
+            onClick={() => navigate(`/session/${id}/edit`)}
+          >
+            Edit activity
+          </button>
+        ) : null
       }
     >
       <div className="detail-hero">

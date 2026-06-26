@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { fetchSessions } from '../lib/sessions'
+import { getAthleteProfile } from '../lib/coaches'
 import { Bars, Line, HBars } from '../components/charts'
 import { exerciseLabel } from '../lib/constants'
-import { getEnabledSports } from '../lib/prefs'
+import { getEnabledSports, ALL_SPORTS } from '../lib/prefs'
 import * as S from '../lib/stats'
 
 const CYCLING = 'var(--cycling)'
@@ -18,11 +19,15 @@ const SPORT_TABS = [
 
 export default function Stats() {
   const navigate = useNavigate()
+  // When viewing as a coach, the route carries the athlete's id.
+  const { id: athleteId } = useParams()
   const [sessions, setSessions] = useState(null)
   const [range, setRange] = useState('3m')
   const [tab, setTab] = useState('overview')
+  const [athleteName, setAthleteName] = useState('')
 
-  const enabled = getEnabledSports()
+  // A coach sees all of the athlete's sports; your own stats follow your prefs.
+  const enabled = athleteId ? ALL_SPORTS : getEnabledSports()
   const enabledKey = enabled.join(',')
   const tabs = [
     { key: 'overview', label: 'Overview' },
@@ -35,10 +40,15 @@ export default function Stats() {
   }, [tab, enabledKey])
 
   useEffect(() => {
-    fetchSessions()
+    fetchSessions(athleteId)
       .then(setSessions)
       .catch(() => setSessions([]))
-  }, [])
+    if (athleteId) {
+      getAthleteProfile(athleteId)
+        .then((p) => setAthleteName(p.display_name || p.email || 'Athlete'))
+        .catch(() => {})
+    }
+  }, [athleteId])
 
   const view = useMemo(() => {
     if (!sessions) return null
@@ -63,11 +73,15 @@ export default function Stats() {
   return (
     <div className="page">
       <header className="wizard-head">
-        <button className="icon-btn" onClick={() => navigate('/')} aria-label="Back">
+        <button
+          className="icon-btn"
+          onClick={() => navigate(athleteId ? `/athlete/${athleteId}` : '/')}
+          aria-label="Back"
+        >
           ‹
         </button>
         <div className="wizard-title">
-          <h1>Stats</h1>
+          <h1>{athleteId ? `${athleteName || 'Athlete'} · stats` : 'Stats'}</h1>
         </div>
         <span style={{ width: 40 }} />
       </header>

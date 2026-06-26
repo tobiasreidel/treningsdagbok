@@ -14,6 +14,7 @@ import Settings from './pages/Settings'
 import ImportRides from './pages/ImportRides'
 import Stats from './pages/Stats'
 import Friends from './pages/Friends'
+import AthleteView from './pages/AthleteView'
 
 // Broadcast helper so views can refresh after the outbox is flushed.
 export function notifySessionsChanged() {
@@ -61,6 +62,8 @@ export default function App() {
       <Route path="/settings" element={<Settings />} />
       <Route path="/stats" element={<Stats />} />
       <Route path="/friends" element={<Friends />} />
+      <Route path="/athlete/:id" element={<AthleteView />} />
+      <Route path="/athlete/:id/stats" element={<Stats />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

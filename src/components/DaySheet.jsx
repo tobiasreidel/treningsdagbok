@@ -4,7 +4,7 @@ import { PendingBadge } from './ui'
 
 // Bottom sheet shown when a calendar day is tapped: lists that day's sessions
 // (tap one for its detail) and offers to add a new session on the same date.
-export default function DaySheet({ date, sessions, onClose, onSelect, onAdd }) {
+export default function DaySheet({ date, sessions, onClose, onSelect, onAdd, readOnly }) {
   const list = sessions
     .filter((s) => s.date === date)
     .sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''))
@@ -50,9 +50,11 @@ export default function DaySheet({ date, sessions, onClose, onSelect, onAdd }) {
           </ul>
         )}
 
-        <button className="btn btn-primary btn-block" onClick={() => onAdd(date)}>
-          + Add session on this day
-        </button>
+        {!readOnly && (
+          <button className="btn btn-primary btn-block" onClick={() => onAdd(date)}>
+            + Add session on this day
+          </button>
+        )}
       </div>
     </div>
   )

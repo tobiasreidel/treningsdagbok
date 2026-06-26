@@ -566,6 +566,17 @@ textarea {
   border-radius: 6px;
   padding: 2px 6px;
 }
+.ro-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 6px;
+  white-space: nowrap;
+}
 .offline-note {
   margin: 0;
 }
@@ -1042,6 +1053,24 @@ textarea {
 .friend-actions {
   display: inline-flex;
   gap: 8px;
+}
+/* a friend-row that's a whole tappable button (e.g. open an athlete) */
+.clickable-row {
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.05s ease;
+}
+.clickable-row:active {
+  transform: scale(0.99);
+}
+/* separate the coaches block from the friends sections above it */
+.coach-block {
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
 }
 
 /* ----- chart cards ----- */

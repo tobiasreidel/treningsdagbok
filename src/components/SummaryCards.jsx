@@ -29,8 +29,10 @@ function aggregate(sessions, range) {
   return acc
 }
 
-export default function SummaryCards({ sessions }) {
-  const enabled = getEnabledSports()
+export default function SummaryCards({ sessions, enabledSports }) {
+  // Override (e.g. a coach viewing an athlete) shows all sports; otherwise use
+  // this device's own sport preferences.
+  const enabled = enabledSports || getEnabledSports()
   // Aggregates reflect only the sports you currently track. Past sessions of a
   // disabled sport still live in the calendar/history — just not these totals.
   const visible = sessions.filter((s) => enabled.includes(s.sport))
