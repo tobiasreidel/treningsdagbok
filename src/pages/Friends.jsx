@@ -22,10 +22,20 @@ const EMPTY_COACH = { coaches: [], requests: [], athletes: [] }
 
 const round1 = (n) => Math.round(n * 10) / 10
 
-// Anything in the "Friends" tab waiting on me: friend requests + people asking
-// me to coach them.
-const pendingCount = (data) =>
-  (data?.incoming?.length || 0) + (data?.coach?.requests?.length || 0)
+const TABS = [
+  { key: 'feed', label: 'Feed' },
+  { key: 'leaderboard', label: 'Leaderboard' },
+  { key: 'friends', label: 'Friends' },
+  { key: 'coach', label: 'Coach' },
+]
+
+// Count waiting on me, per tab: friend requests on Friends, coaching requests
+// on Coach.
+const tabBadge = (key, data) => {
+  if (key === 'friends') return data?.incoming?.length || 0
+  if (key === 'coach') return data?.coach?.requests?.length || 0
+  return 0
+}
 
 export default function Friends() {
   const navigate = useNavigate()
@@ -63,19 +73,15 @@ export default function Friends() {
 
       <main className="wizard-body stack">
         <div className="pill-row">
-          {[
-            { key: 'feed', label: 'Feed' },
-            { key: 'leaderboard', label: 'Leaderboard' },
-            { key: 'friends', label: 'Friends' },
-          ].map((t) => (
+          {TABS.map((t) => (
             <button
               key={t.key}
               className={`pill ${tab === t.key ? 'is-active' : ''}`}
               onClick={() => setTab(t.key)}
             >
               {t.label}
-              {t.key === 'friends' && pendingCount(data) ? (
-                <span className="pill-badge">{pendingCount(data)}</span>
+              {tabBadge(t.key, data) ? (
+                <span className="pill-badge">{tabBadge(t.key, data)}</span>
               ) : null}
             </button>
           ))}
@@ -89,8 +95,10 @@ export default function Friends() {
           <Feed feed={data.feed} />
         ) : tab === 'leaderboard' ? (
           <Leaderboard data={data} />
+        ) : tab === 'friends' ? (
+          <Manage data={data} reload={load} />
         ) : (
-          <Manage data={data} reload={load} navigate={navigate} />
+          <CoachManager coach={data.coach || EMPTY_COACH} reload={load} navigate={navigate} />
         )}
       </main>
     </div>
@@ -189,7 +197,7 @@ function Leaderboard({ data }) {
   )
 }
 
-function Manage({ data, reload, navigate }) {
+function Manage({ data, reload }) {
   const [email, setEmail] = useState('')
   const [msg, setMsg] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -295,8 +303,6 @@ function Manage({ data, reload, navigate }) {
       <p className="muted small">
         Control whether friends can see your activities in Settings → privacy.
       </p>
-
-      <CoachManager coach={data.coach || EMPTY_COACH} reload={reload} navigate={navigate} />
     </div>
   )
 }
@@ -340,9 +346,7 @@ function CoachManager({ coach, reload, navigate }) {
   }
 
   return (
-    <div className="stack coach-block">
-      <h2 className="section-title">Coaches</h2>
-
+    <div className="stack">
       <div className="card stack">
         <label className="field">
           <span className="field-label">Add a coach by email</span>

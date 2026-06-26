@@ -1066,12 +1066,6 @@ textarea {
 .clickable-row:active {
   transform: scale(0.99);
 }
-/* separate the coaches block from the friends sections above it */
-.coach-block {
-  margin-top: 8px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-}
 
 /* ----- chart cards ----- */
 .chart-card {
