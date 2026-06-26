@@ -138,6 +138,14 @@ h2 {
 }
 
 /* ----- buttons ----- */
+/* Strip native iOS control styling so buttons honor their own box:
+   without this, WebKit forces an intrinsic min-width (breaks the 10-wide
+   RPE scale) and centers content by native metrics (off-center icons). */
+button {
+  appearance: none;
+  -webkit-appearance: none;
+}
+
 .btn {
   font: inherit;
   font-weight: 600;
@@ -315,11 +323,15 @@ textarea {
 }
 .scale {
   display: grid;
-  grid-template-columns: repeat(var(--n, 5), 1fr);
+  /* minmax(0, …) lets all columns shrink to fit — without the 0 floor,
+     iOS WebKit keeps each <button> at its intrinsic min width and the
+     10-wide RPE row overflows the screen. */
+  grid-template-columns: repeat(var(--n, 5), minmax(0, 1fr));
   gap: 6px;
 }
 .scale-btn {
   min-height: 44px;
+  padding: 0 2px;
   border: 1.5px solid var(--border);
   border-radius: 10px;
   background: var(--surface);
