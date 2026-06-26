@@ -13,8 +13,14 @@ import { getEnabledSports } from '../lib/prefs'
 
 const WEEK_OPTS = { weekStartsOn: 1 } // Monday
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-const SPORTS = ['climbing', 'cycling', 'strength'] // legend order
-const SPORT_LABELS = { climbing: 'Climbing', cycling: 'Cycling', strength: 'Strength' }
+const SPORTS = ['cycling', 'running', 'swimming', 'climbing', 'strength'] // dot + legend order
+const SPORT_LABELS = {
+  cycling: 'Cycling',
+  running: 'Running',
+  swimming: 'Swimming',
+  climbing: 'Climbing',
+  strength: 'Strength',
+}
 const MAX_DOTS = 6 // guard against a freakishly busy day overflowing the cell
 
 // Month calendar with one colored dot per session:
@@ -25,8 +31,8 @@ export default function Calendar({ monthRef, sessions, onPrev, onNext, onSelectD
   const byDay = {}
   for (const s of sessions) {
     const key = s.date
-    if (!byDay[key]) byDay[key] = { cycling: 0, climbing: 0, strength: 0 }
-    if (byDay[key][s.sport] != null) byDay[key][s.sport] += 1
+    if (!byDay[key]) byDay[key] = {}
+    byDay[key][s.sport] = (byDay[key][s.sport] || 0) + 1
   }
 
   const gridStart = startOfWeek(startOfMonth(monthRef), WEEK_OPTS)
@@ -69,7 +75,7 @@ export default function Calendar({ monthRef, sessions, onPrev, onNext, onSelectD
           const counts = byDay[key]
           // One dot per session, grouped by sport (legend order).
           const dots = counts
-            ? SPORTS.flatMap((sport) => Array(counts[sport]).fill(sport)).slice(0, MAX_DOTS)
+            ? SPORTS.flatMap((sport) => Array(counts[sport] || 0).fill(sport)).slice(0, MAX_DOTS)
             : []
           const dim = !isSameMonth(day, monthRef)
           return (

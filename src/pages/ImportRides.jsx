@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { formatDay } from '../lib/format'
 import { fetchSessions, createSession } from '../lib/sessions'
 import { notifySessionsChanged } from '../App'
+import { SPORTS } from '../lib/constants'
 import {
   getSettings,
   hasCredentials,
   fetchActivities,
-  isClimbingActivity,
+  activitySport,
   activityToForm,
   activitySummary,
 } from '../lib/intervals'
@@ -40,7 +41,7 @@ export default function ImportRides() {
         const items = activities
           .filter((a) => !importedIds.has(String(a.id)))
           .map((a) => {
-            const sport = isClimbingActivity(a) ? 'climbing' : 'cycling'
+            const sport = activitySport(a)
             const date = (a.start_date_local || '').slice(0, 10)
             return { activity: a, sport, maybeDup: sportDates.has(`${sport}|${date}`) }
           })
@@ -160,8 +161,8 @@ export default function ImportRides() {
               <div key={activity.id} className="import-card card">
                 <div className="import-main">
                   <span className="import-name">
-                    {sport === 'climbing' ? '🧗' : '🚴'}{' '}
-                    {activity.name || (sport === 'climbing' ? 'Climb' : 'Ride')}
+                    {SPORTS[sport]?.emoji}{' '}
+                    {activity.name || SPORTS[sport]?.label}
                   </span>
                   <span className="import-meta">
                     {formatDay((activity.start_date_local || '').slice(0, 10))} ·{' '}

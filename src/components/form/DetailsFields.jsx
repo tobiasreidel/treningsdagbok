@@ -1,11 +1,13 @@
 import { Field, Scale, NumberField, Chips, Segmented } from '../ui'
 import { FEELING_LABELS, gradesFor } from '../../lib/constants'
-import { avgSpeedFrom } from '../../lib/format'
+import { avgSpeedFrom, pacePerKm, pacePer100m } from '../../lib/format'
 
 // Step 3 fields: subjective ratings, duration, and sport-specific numbers.
 export default function DetailsFields({ form, update, updateExtra }) {
   const isCycling = form.sport === 'cycling'
   const isClimbing = form.sport === 'climbing'
+  const isRunning = form.sport === 'running'
+  const isSwimming = form.sport === 'swimming'
 
   return (
     <div className="stack">
@@ -51,7 +53,127 @@ export default function DetailsFields({ form, update, updateExtra }) {
 
       {isCycling && <CyclingFields form={form} updateExtra={updateExtra} />}
       {isClimbing && <ClimbingFields form={form} updateExtra={updateExtra} />}
+      {isRunning && <RunningFields form={form} updateExtra={updateExtra} />}
+      {isSwimming && <SwimmingFields form={form} updateExtra={updateExtra} />}
     </div>
+  )
+}
+
+function RunningFields({ form, updateExtra }) {
+  const e = form.extra || {}
+  const pace = pacePerKm(e.distance_km, form.duration)
+  return (
+    <>
+      <div className="two-col">
+        <Field label="Distance" hint={pace ? `${pace} /km` : null}>
+          <NumberField
+            value={e.distance_km}
+            onChange={(v) => updateExtra({ distance_km: v })}
+            placeholder="0"
+            unit="km"
+          />
+        </Field>
+        <Field label="Elevation" optional>
+          <NumberField
+            value={e.elevation_m}
+            onChange={(v) => updateExtra({ elevation_m: v })}
+            placeholder="0"
+            unit="m"
+          />
+        </Field>
+      </div>
+
+      <div className="two-col">
+        <Field label="Avg HR" optional>
+          <NumberField
+            value={e.avg_hr}
+            onChange={(v) => updateExtra({ avg_hr: v })}
+            placeholder="0"
+            unit="bpm"
+            step="1"
+          />
+        </Field>
+        <Field label="Max HR" optional>
+          <NumberField
+            value={e.max_hr}
+            onChange={(v) => updateExtra({ max_hr: v })}
+            placeholder="0"
+            unit="bpm"
+            step="1"
+          />
+        </Field>
+      </div>
+
+      <div className="two-col">
+        <Field label="Cadence" optional>
+          <NumberField
+            value={e.cadence}
+            onChange={(v) => updateExtra({ cadence: v })}
+            placeholder="0"
+            unit="spm"
+            step="1"
+          />
+        </Field>
+        <Field label="Calories" optional>
+          <NumberField
+            value={e.calories}
+            onChange={(v) => updateExtra({ calories: v })}
+            placeholder="0"
+            unit="kcal"
+            step="1"
+          />
+        </Field>
+      </div>
+    </>
+  )
+}
+
+function SwimmingFields({ form, updateExtra }) {
+  const e = form.extra || {}
+  const pace = pacePer100m(e.distance_m, form.duration)
+  return (
+    <>
+      <Field label="Distance" hint={pace ? `${pace} /100m` : null}>
+        <NumberField
+          value={e.distance_m}
+          onChange={(v) => updateExtra({ distance_m: v })}
+          placeholder="0"
+          unit="m"
+          step="50"
+        />
+      </Field>
+
+      <div className="two-col">
+        <Field label="Avg HR" optional>
+          <NumberField
+            value={e.avg_hr}
+            onChange={(v) => updateExtra({ avg_hr: v })}
+            placeholder="0"
+            unit="bpm"
+            step="1"
+          />
+        </Field>
+        <Field label="Max HR" optional>
+          <NumberField
+            value={e.max_hr}
+            onChange={(v) => updateExtra({ max_hr: v })}
+            placeholder="0"
+            unit="bpm"
+            step="1"
+          />
+        </Field>
+      </div>
+
+      <Field label="Calories" optional>
+        <NumberField
+          value={e.calories}
+          onChange={(v) => updateExtra({ calories: v })}
+          placeholder="0"
+          unit="kcal"
+          step="1"
+        />
+      </Field>
+    </>
   )
 }
 

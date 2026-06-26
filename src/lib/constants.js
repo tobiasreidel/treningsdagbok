@@ -3,6 +3,8 @@
 
 export const SPORTS = {
   cycling: { key: 'cycling', label: 'Cycling', emoji: '🚴', color: 'var(--cycling)' },
+  running: { key: 'running', label: 'Running', emoji: '🏃', color: 'var(--running)' },
+  swimming: { key: 'swimming', label: 'Swimming', emoji: '🏊', color: 'var(--swimming)' },
   climbing: { key: 'climbing', label: 'Climbing', emoji: '🧗', color: 'var(--climbing)' },
   strength: { key: 'strength', label: 'Strength', emoji: '💪', color: 'var(--strength)' },
 }
@@ -26,6 +28,15 @@ export const SUBTYPES = {
   cycling: [
     { key: 'road', label: 'Road' },
     { key: 'gravel', label: 'Gravel' },
+  ],
+  running: [
+    { key: 'road', label: 'Road' },
+    { key: 'trail', label: 'Trail' },
+    { key: 'treadmill', label: 'Treadmill' },
+  ],
+  swimming: [
+    { key: 'pool', label: 'Pool' },
+    { key: 'openwater', label: 'Open water' },
   ],
   climbing: [
     { key: 'bouldering', label: 'Bouldering' },

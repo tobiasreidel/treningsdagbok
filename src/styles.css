@@ -13,6 +13,8 @@
   --primary-tint: #ecebfb;
   --primary-ink: #ffffff;
   --cycling: #f59e0b;
+  --running: #f43f5e;
+  --swimming: #06b6d4;
   --climbing: #3b82f6;
   --strength: #a855f7;
   --both: #22c55e;
@@ -735,6 +737,8 @@ textarea {
 }
 .dot-climbing,
 .dot-cycling,
+.dot-running,
+.dot-swimming,
 .dot-strength {
   width: 10px;
   height: 10px;
@@ -746,6 +750,12 @@ textarea {
 }
 .dot-cycling {
   background: var(--cycling);
+}
+.dot-running {
+  background: var(--running);
+}
+.dot-swimming {
+  background: var(--swimming);
 }
 .dot-strength {
   background: var(--strength);
@@ -1004,6 +1014,19 @@ textarea {
   background: var(--surface);
   color: var(--text);
   box-shadow: var(--shadow);
+}
+/* Scrollable variant: pills size to content and the row scrolls sideways
+   (used by the Stats sport tabs once there are too many to fit). */
+.pill-row-scroll {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.pill-row-scroll::-webkit-scrollbar {
+  display: none;
+}
+.pill-row-scroll .pill {
+  flex: 0 0 auto;
+  padding: 8px 14px;
 }
 .pill-badge {
   display: inline-block;

@@ -76,6 +76,8 @@ export const sumHours = (arr) => arr.reduce((a, s) => a + num(s.duration), 0) / 
 export const sumMinutes = (arr) => arr.reduce((a, s) => a + num(s.duration), 0)
 export const sumDistance = (arr) =>
   arr.reduce((a, s) => a + num(s.extra?.distance_km), 0)
+export const sumDistanceM = (arr) =>
+  arr.reduce((a, s) => a + num(s.extra?.distance_m), 0)
 export const sumElevation = (arr) =>
   arr.reduce((a, s) => a + num(s.extra?.elevation_m), 0)
 export const sumLoad = (arr) => arr.reduce((a, s) => a + num(s.extra?.training_load), 0)
@@ -152,6 +154,10 @@ export function restBalance(sessions, start) {
 
 export function longestRide(cycling) {
   return cycling.reduce((m, s) => Math.max(m, num(s.extra?.distance_km)), 0)
+}
+
+export function longestSwim(swimming) {
+  return swimming.reduce((m, s) => Math.max(m, num(s.extra?.distance_m)), 0)
 }
 
 // ---- strength + finger -------------------------------------------------------

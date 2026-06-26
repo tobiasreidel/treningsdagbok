@@ -49,6 +49,8 @@ function authHeader(apiKey) {
 
 const CYCLING_TYPE = /ride/i // Ride, VirtualRide, GravelRide, MountainBikeRide, EBikeRide…
 const CLIMBING_TYPE = /climb|boulder/i // RockClimbing, Climbing, IndoorClimbing, Bouldering…
+const RUNNING_TYPE = /run/i // Run, VirtualRun, TrailRun, TreadmillRun…
+const SWIMMING_TYPE = /swim/i // Swim, OpenWaterSwim, LapSwimming…
 
 export function isCyclingActivity(a) {
   return CYCLING_TYPE.test(a.type || '')
@@ -58,9 +60,30 @@ export function isClimbingActivity(a) {
   return CLIMBING_TYPE.test(a.type || '')
 }
 
+export function isRunningActivity(a) {
+  return RUNNING_TYPE.test(a.type || '')
+}
+
+export function isSwimmingActivity(a) {
+  return SWIMMING_TYPE.test(a.type || '')
+}
+
 // Activities we know how to turn into a session.
 export function isImportableActivity(a) {
-  return isCyclingActivity(a) || isClimbingActivity(a)
+  return (
+    isCyclingActivity(a) ||
+    isClimbingActivity(a) ||
+    isRunningActivity(a) ||
+    isSwimmingActivity(a)
+  )
+}
+
+// Which sport an importable activity maps to (checked in precedence order).
+export function activitySport(a) {
+  if (isClimbingActivity(a)) return 'climbing'
+  if (isSwimmingActivity(a)) return 'swimming'
+  if (isRunningActivity(a)) return 'running'
+  return 'cycling'
 }
 
 // Fetch the athlete's importable activities (rides + climbs) in the last
@@ -98,6 +121,17 @@ function guessCyclingSubtype(type = '') {
   const t = type.toLowerCase()
   if (t.includes('gravel') || t.includes('mountain')) return 'gravel'
   return 'road'
+}
+
+function guessRunningSubtype(a) {
+  const t = (a.type || '').toLowerCase()
+  if (t.includes('trail')) return 'trail'
+  if (t.includes('treadmill') || /virtual/.test(t) || a.trainer === true) return 'treadmill'
+  return 'road'
+}
+
+function guessSwimmingSubtype(type = '') {
+  return /open/i.test(type) ? 'openwater' : 'pool'
 }
 
 // Bouldering vs roped — that's all the type tells us; the user refines later.
@@ -186,9 +220,81 @@ function climbingActivityToForm(a) {
   }
 }
 
+// Turn an intervals.icu run into our session-form shape. Distance/elevation in
+// km/m like cycling, so the shared stats helpers work; pace is derived later.
+function runningActivityToForm(a) {
+  const date = (a.start_date_local || '').slice(0, 10)
+  return {
+    date,
+    sport: 'running',
+    subtype: guessRunningSubtype(a),
+    location: null,
+    feeling: null,
+    rpe: null,
+    duration: durationMin(a),
+    notes: '',
+    extra: {
+      distance_km: a.distance != null ? round(a.distance / 1000, 2) : null,
+      elevation_m: round(a.total_elevation_gain),
+      avg_speed: a.average_speed != null ? round(a.average_speed * 3.6, 1) : null,
+      avg_hr: round(a.average_heartrate),
+      max_hr: round(a.max_heartrate),
+      cadence: round(a.average_cadence),
+      training_load: round(a.icu_training_load),
+      calories: round(a.calories),
+      intervals_id: String(a.id),
+      intervals_name: a.name || null,
+      intervals_type: a.type || null,
+    },
+    routes: [],
+    photoFile: null,
+    photoUrl: null,
+    removePhoto: false,
+  }
+}
+
+// Turn an intervals.icu swim into our session-form shape. Swim distance stays
+// in metres (extra.distance_m), which is how swimmers think about it.
+function swimmingActivityToForm(a) {
+  const date = (a.start_date_local || '').slice(0, 10)
+  return {
+    date,
+    sport: 'swimming',
+    subtype: guessSwimmingSubtype(a.type),
+    location: null,
+    feeling: null,
+    rpe: null,
+    duration: durationMin(a),
+    notes: '',
+    extra: {
+      distance_m: round(a.distance),
+      avg_hr: round(a.average_heartrate),
+      max_hr: round(a.max_heartrate),
+      training_load: round(a.icu_training_load),
+      calories: round(a.calories),
+      intervals_id: String(a.id),
+      intervals_name: a.name || null,
+      intervals_type: a.type || null,
+    },
+    routes: [],
+    photoFile: null,
+    photoUrl: null,
+    removePhoto: false,
+  }
+}
+
 // Map any importable activity to a session form, picking the sport by type.
 export function activityToForm(a) {
-  return isClimbingActivity(a) ? climbingActivityToForm(a) : cyclingActivityToForm(a)
+  switch (activitySport(a)) {
+    case 'climbing':
+      return climbingActivityToForm(a)
+    case 'running':
+      return runningActivityToForm(a)
+    case 'swimming':
+      return swimmingActivityToForm(a)
+    default:
+      return cyclingActivityToForm(a)
+  }
 }
 
 // Coalesce concurrent auto-imports into one run. Without this, two overlapping
@@ -239,10 +345,21 @@ async function runAutoImport({ sinceDays = 60 } = {}) {
 // A short human label for the import list — metrics that fit the sport.
 export function activitySummary(a) {
   const mins = durationMin(a) ? `${durationMin(a)} min` : null
-  if (isClimbingActivity(a)) {
-    const hr = a.average_heartrate ? `${round(a.average_heartrate)} bpm` : null
+  const hr = a.average_heartrate ? `${round(a.average_heartrate)} bpm` : null
+  const sport = activitySport(a)
+
+  if (sport === 'climbing') {
     const cal = a.calories ? `${round(a.calories)} kcal` : null
     return [mins, hr, cal].filter(Boolean).join(' · ')
+  }
+  if (sport === 'swimming') {
+    const m = a.distance != null ? `${round(a.distance)} m` : null
+    return [m, mins, hr].filter(Boolean).join(' · ')
+  }
+  if (sport === 'running') {
+    const km = a.distance != null ? `${round(a.distance / 1000, 1)} km` : null
+    const elev = a.total_elevation_gain ? `${round(a.total_elevation_gain)} m` : null
+    return [km, elev, mins, hr].filter(Boolean).join(' · ')
   }
   const km = a.distance != null ? `${round(a.distance / 1000, 1)} km` : null
   const elev = a.total_elevation_gain ? `${round(a.total_elevation_gain)} m` : null

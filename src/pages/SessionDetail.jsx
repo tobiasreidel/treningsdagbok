@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { SPORTS, SEND_TYPES, FEELING_LABELS, exerciseLabel } from '../lib/constants'
-import { formatDay, formatDuration } from '../lib/format'
+import { formatDay, formatDuration, pacePerKm, pacePer100m } from '../lib/format'
 import { getSession, getSignedPhotoUrl, getCurrentUserId } from '../lib/sessions'
 
 const num = (v) => (v === '' || v == null ? null : Number(v))
@@ -20,6 +20,24 @@ const CYCLING_METRICS = [
   { key: 'training_load', label: 'Load', unit: 'TSS' },
   { key: 'if_factor', label: 'Intensity', unit: 'IF' },
   { key: 'work_kj', label: 'Work', unit: 'kJ' },
+  { key: 'calories', label: 'Calories', unit: 'kcal' },
+]
+
+const RUNNING_METRICS = [
+  { key: 'distance_km', label: 'Distance', unit: 'km' },
+  { key: 'elevation_m', label: 'Elevation', unit: 'm' },
+  { key: 'avg_hr', label: 'Avg HR', unit: 'bpm' },
+  { key: 'max_hr', label: 'Max HR', unit: 'bpm' },
+  { key: 'cadence', label: 'Cadence', unit: 'spm' },
+  { key: 'training_load', label: 'Load', unit: 'TSS' },
+  { key: 'calories', label: 'Calories', unit: 'kcal' },
+]
+
+const SWIMMING_METRICS = [
+  { key: 'distance_m', label: 'Distance', unit: 'm' },
+  { key: 'avg_hr', label: 'Avg HR', unit: 'bpm' },
+  { key: 'max_hr', label: 'Max HR', unit: 'bpm' },
+  { key: 'training_load', label: 'Load', unit: 'TSS' },
   { key: 'calories', label: 'Calories', unit: 'kcal' },
 ]
 
@@ -78,6 +96,8 @@ export default function SessionDetail() {
   const sport = SPORTS[session.sport]
   const e = session.extra || {}
   const isCycling = session.sport === 'cycling'
+  const isRunning = session.sport === 'running'
+  const isSwimming = session.sport === 'swimming'
 
   const subtitleParts = [session.subtype]
   if (isCycling && e.indoor) subtitleParts.push('indoor')
@@ -88,11 +108,24 @@ export default function SessionDetail() {
   if (session.feeling) tiles.push({ label: 'Feeling', value: FEELING_LABELS[session.feeling], sub: `${session.feeling}/5` })
   if (session.rpe) tiles.push({ label: 'RPE', value: session.rpe, sub: '/10' })
   if (session.duration) tiles.push({ label: 'Duration', value: formatDuration(session.duration) })
-  if (isCycling) {
-    for (const m of CYCLING_METRICS) {
-      const v = num(e[m.key])
-      if (v != null && v !== 0) tiles.push({ label: m.label, value: v, sub: m.unit })
-    }
+  if (isRunning) {
+    const pace = pacePerKm(e.distance_km, session.duration)
+    if (pace) tiles.push({ label: 'Pace', value: pace, sub: '/km' })
+  }
+  if (isSwimming) {
+    const pace = pacePer100m(e.distance_m, session.duration)
+    if (pace) tiles.push({ label: 'Pace', value: pace, sub: '/100m' })
+  }
+  const metrics = isCycling
+    ? CYCLING_METRICS
+    : isRunning
+      ? RUNNING_METRICS
+      : isSwimming
+        ? SWIMMING_METRICS
+        : []
+  for (const m of metrics) {
+    const v = num(e[m.key])
+    if (v != null && v !== 0) tiles.push({ label: m.label, value: v, sub: m.unit })
   }
 
   const grades = e.grades || []

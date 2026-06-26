@@ -84,3 +84,27 @@ export function avgSpeedFrom(distanceKm, minutes) {
   if (!d || !m) return ''
   return Math.round((d / (m / 60)) * 10) / 10
 }
+
+// "m:ss" from a seconds value (e.g. a pace). null if not computable.
+function fmtPace(secs) {
+  if (!Number.isFinite(secs) || secs <= 0) return null
+  const m = Math.floor(secs / 60)
+  const s = Math.round(secs % 60)
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+// Running pace as "m:ss" per km from distance (km) + duration (min).
+export function pacePerKm(distanceKm, minutes) {
+  const d = Number(distanceKm)
+  const m = Number(minutes)
+  if (!d || !m) return null
+  return fmtPace((m * 60) / d)
+}
+
+// Swim pace as "m:ss" per 100 m from distance (m) + duration (min).
+export function pacePer100m(distanceM, minutes) {
+  const d = Number(distanceM)
+  const m = Number(minutes)
+  if (!d || !m) return null
+  return fmtPace((m * 60) / (d / 100))
+}

@@ -8,11 +8,15 @@ import { getEnabledSports, ALL_SPORTS } from '../lib/prefs'
 import * as S from '../lib/stats'
 
 const CYCLING = 'var(--cycling)'
+const RUNNING = 'var(--running)'
+const SWIMMING = 'var(--swimming)'
 const CLIMBING = 'var(--climbing)'
 const STRENGTH = 'var(--strength)'
 
 const SPORT_TABS = [
   { key: 'cycling', label: '🚴 Cycling' },
+  { key: 'running', label: '🏃 Running' },
+  { key: 'swimming', label: '🏊 Swimming' },
   { key: 'climbing', label: '🧗 Climbing' },
   { key: 'strength', label: '💪 Strength' },
 ]
@@ -64,6 +68,8 @@ export default function Stats() {
       enabled,
       buckets: S.buckets(windowed, start, grain),
       cycling: S.bySport(windowed, 'cycling'),
+      running: S.bySport(windowed, 'running'),
+      swimming: S.bySport(windowed, 'swimming'),
       climbing: S.bySport(windowed, 'climbing'),
       strength: S.bySport(windowed, 'strength'),
     }
@@ -92,7 +98,7 @@ export default function Stats() {
           value={range}
           onChange={setRange}
         />
-        <PillRow options={tabs} value={tab} onChange={setTab} wide />
+        <PillRow options={tabs} value={tab} onChange={setTab} scroll />
 
         {!view ? (
           <div className="splash inline">
@@ -106,6 +112,10 @@ export default function Stats() {
           <Overview view={view} />
         ) : tab === 'cycling' ? (
           <Cycling view={view} />
+        ) : tab === 'running' ? (
+          <Running view={view} />
+        ) : tab === 'swimming' ? (
+          <Swimming view={view} />
         ) : tab === 'climbing' ? (
           <Climbing view={view} />
         ) : tab === 'strength' ? (
@@ -119,9 +129,9 @@ export default function Stats() {
 }
 
 // ---- tabs/range pill control ----
-function PillRow({ options, value, onChange, wide }) {
+function PillRow({ options, value, onChange, wide, scroll }) {
   return (
-    <div className={`pill-row ${wide ? 'pill-row-wide' : ''}`}>
+    <div className={`pill-row ${wide ? 'pill-row-wide' : ''} ${scroll ? 'pill-row-scroll' : ''}`}>
       {options.map((o) => (
         <button
           key={o.key}
@@ -166,6 +176,8 @@ function Tiles({ items }) {
 // ---- Overview ----
 const SPORT_META = {
   cycling: { color: CYCLING, emoji: '🚴' },
+  running: { color: RUNNING, emoji: '🏃' },
+  swimming: { color: SWIMMING, emoji: '🏊' },
   climbing: { color: CLIMBING, emoji: '🧗' },
   strength: { color: STRENGTH, emoji: '💪' },
 }
@@ -241,6 +253,74 @@ function Cycling({ view }) {
       </Card>
       <Card title="Avg speed trend" value="km/h">
         <Line data={speed} color={CYCLING} />
+      </Card>
+    </>
+  )
+}
+
+// ---- Running ----
+function Running({ view }) {
+  const { buckets, running } = view
+  if (running.length === 0)
+    return <div className="card empty-state"><p>No runs in this period.</p></div>
+  const dist = buckets.map((b) => ({ label: b.label, value: Math.round(S.sumDistance(S.bySport(b.sessions, 'running'))) }))
+  const elev = buckets.map((b) => ({ label: b.label, value: Math.round(S.sumElevation(S.bySport(b.sessions, 'running'))) }))
+  const hours = buckets.map((b) => ({ label: b.label, value: S.round1(S.sumHours(S.bySport(b.sessions, 'running'))) }))
+  const feeling = buckets.map((b) => ({ label: b.label, value: S.round1(S.avgFeeling(S.bySport(b.sessions, 'running'))) }))
+
+  return (
+    <>
+      <Tiles
+        items={[
+          { label: 'Distance', value: Math.round(S.sumDistance(running)), sub: 'km' },
+          { label: 'Elevation', value: Math.round(S.sumElevation(running)), sub: 'm' },
+          { label: 'Hours', value: S.round1(S.sumHours(running)), sub: 'h' },
+          { label: 'Longest run', value: S.round1(S.longestRide(running)), sub: 'km' },
+        ]}
+      />
+      <Card title="Distance" value={`${Math.round(S.sumDistance(running))} km`}>
+        <Bars data={dist} color={RUNNING} />
+      </Card>
+      <Card title="Elevation" value={`${Math.round(S.sumElevation(running))} m`}>
+        <Bars data={elev} color={RUNNING} />
+      </Card>
+      <Card title="Running hours">
+        <Bars data={hours} color={RUNNING} />
+      </Card>
+      <Card title="Feeling trend" value={`avg ${S.round1(S.avgFeeling(running))}/5`}>
+        <Line data={feeling} color={RUNNING} />
+      </Card>
+    </>
+  )
+}
+
+// ---- Swimming ----
+function Swimming({ view }) {
+  const { buckets, swimming } = view
+  if (swimming.length === 0)
+    return <div className="card empty-state"><p>No swims in this period.</p></div>
+  const dist = buckets.map((b) => ({ label: b.label, value: Math.round(S.sumDistanceM(S.bySport(b.sessions, 'swimming'))) }))
+  const hours = buckets.map((b) => ({ label: b.label, value: S.round1(S.sumHours(S.bySport(b.sessions, 'swimming'))) }))
+  const feeling = buckets.map((b) => ({ label: b.label, value: S.round1(S.avgFeeling(S.bySport(b.sessions, 'swimming'))) }))
+
+  return (
+    <>
+      <Tiles
+        items={[
+          { label: 'Distance', value: Math.round(S.sumDistanceM(swimming)), sub: 'm' },
+          { label: 'Sessions', value: swimming.length },
+          { label: 'Hours', value: S.round1(S.sumHours(swimming)), sub: 'h' },
+          { label: 'Longest swim', value: Math.round(S.longestSwim(swimming)), sub: 'm' },
+        ]}
+      />
+      <Card title="Distance" value={`${Math.round(S.sumDistanceM(swimming))} m`}>
+        <Bars data={dist} color={SWIMMING} />
+      </Card>
+      <Card title="Swimming hours">
+        <Bars data={hours} color={SWIMMING} />
+      </Card>
+      <Card title="Feeling trend" value={`avg ${S.round1(S.avgFeeling(swimming))}/5`}>
+        <Line data={feeling} color={SWIMMING} />
       </Card>
     </>
   )

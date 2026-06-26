@@ -2,28 +2,16 @@ import { lastNDaysRange, monthRange, inRange, toHours } from '../lib/format'
 import { getEnabledSports } from '../lib/prefs'
 
 function aggregate(sessions, range) {
-  const acc = {
-    count: 0,
-    minutes: 0,
-    cyclingMin: 0,
-    climbingMin: 0,
-    strengthMin: 0,
-    distance: 0,
-    elevation: 0,
-  }
+  const acc = { count: 0, minutes: 0, bySport: {}, distance: 0, elevation: 0 }
   for (const s of sessions) {
     if (!inRange(s.date, range)) continue
     acc.count += 1
     const mins = Number(s.duration) || 0
     acc.minutes += mins
+    acc.bySport[s.sport] = (acc.bySport[s.sport] || 0) + mins
     if (s.sport === 'cycling') {
-      acc.cyclingMin += mins
       acc.distance += Number(s.extra?.distance_km) || 0
       acc.elevation += Number(s.extra?.elevation_m) || 0
-    } else if (s.sport === 'climbing') {
-      acc.climbingMin += mins
-    } else if (s.sport === 'strength') {
-      acc.strengthMin += mins
     }
   }
   return acc
@@ -49,20 +37,19 @@ export default function SummaryCards({ sessions, enabledSports }) {
 }
 
 function PeriodCard({ title, data, enabled }) {
+  // Show a per-sport hours line for each enabled sport that has time logged
+  // (always show the first couple so the card never looks empty).
+  const lines = enabled.filter((sport) => (data.bySport[sport] || 0) > 0)
   return (
     <div className="card stat-card">
       <span className="stat-title">{title}</span>
       <span className="stat-big">{toHours(data.minutes)}h</span>
       <div className="stat-split">
-        {enabled.includes('cycling') && (
-          <span><i className="dot-cycling" /> {toHours(data.cyclingMin)}h</span>
-        )}
-        {enabled.includes('climbing') && (
-          <span><i className="dot-climbing" /> {toHours(data.climbingMin)}h</span>
-        )}
-        {enabled.includes('strength') && data.strengthMin > 0 && (
-          <span><i className="dot-strength" /> {toHours(data.strengthMin)}h</span>
-        )}
+        {lines.map((sport) => (
+          <span key={sport}>
+            <i className={`dot-${sport}`} /> {toHours(data.bySport[sport] || 0)}h
+          </span>
+        ))}
       </div>
       <span className="stat-sub">{data.count} session{data.count === 1 ? '' : 's'}</span>
     </div>
