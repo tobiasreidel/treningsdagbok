@@ -195,6 +195,10 @@ button {
   color: var(--text);
   width: 40px;
   height: 40px;
+  /* padding:0 kills the asymmetric native button padding that iOS leaves
+     in place even with appearance:none — that padding was shifting the
+     content (text ‹ and SVG icons alike) off-center. */
+  padding: 0;
   border-radius: 12px;
   font-size: 1.3rem;
   line-height: 1;
@@ -202,6 +206,10 @@ button {
   place-items: center;
   cursor: pointer;
   flex: none;
+}
+/* block removes the inline-SVG baseline gap so the glyph sits dead-center. */
+.icon-btn svg {
+  display: block;
 }
 .icon-btn.danger {
   color: var(--danger);
