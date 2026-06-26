@@ -1,9 +1,16 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Field, Segmented } from '../components/ui'
+import { SPORTS } from '../lib/constants'
 import { getSettings, saveSettings, fetchActivities, isClimbingActivity } from '../lib/intervals'
 import { getMyProfile, setDisplayName, getShareSetting, setShareSetting } from '../lib/friends'
-import { getHideRidesUnderKm, setHideRidesUnderKm } from '../lib/prefs'
+import {
+  getHideRidesUnderKm,
+  setHideRidesUnderKm,
+  getEnabledSports,
+  setEnabledSports,
+  ALL_SPORTS,
+} from '../lib/prefs'
 
 export default function Settings() {
   const navigate = useNavigate()
@@ -17,6 +24,7 @@ export default function Settings() {
     const v = getHideRidesUnderKm()
     return v > 0 ? String(v) : ''
   })
+  const [enabledSports, setEnabledSportsState] = useState(getEnabledSports)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [test, setTest] = useState(null)
@@ -37,6 +45,17 @@ export default function Settings() {
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
+
+  // Sport toggles persist immediately (local pref) — independent of Save.
+  const toggleSport = (key) => {
+    setEnabledSportsState((prev) => {
+      const next = prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+      // Keep at least one sport enabled.
+      const result = next.length ? next : prev
+      setEnabledSports(result)
+      return result
+    })
+  }
 
   const testConnection = async () => {
     setTest({ pending: true })
@@ -113,6 +132,40 @@ export default function Settings() {
               columns={2}
             />
           </Field>
+        </section>
+
+        <section className="stack">
+          <h2 className="step-q">Sports</h2>
+          <p className="muted small">
+            Choose which sports you track. Turning one off hides it from logging,
+            cards and stats — your past sessions are kept and still show in the
+            calendar.
+          </p>
+          <div className="toggle-list">
+            {ALL_SPORTS.map((key) => {
+              const sport = SPORTS[key]
+              const on = enabledSports.includes(key)
+              const isLastOn = on && enabledSports.length === 1
+              return (
+                <label className="toggle-row" key={key}>
+                  <span className="toggle-label">
+                    <span className="toggle-emoji">{sport.emoji}</span>
+                    {sport.label}
+                  </span>
+                  <span className="switch">
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      disabled={isLastOn}
+                      onChange={() => toggleSport(key)}
+                    />
+                    <span className="switch-track" />
+                    <span className="switch-thumb" />
+                  </span>
+                </label>
+              )
+            })}
+          </div>
         </section>
 
         <section className="stack">

@@ -7,6 +7,7 @@ import StrengthFields from '../components/form/StrengthFields'
 import NotesPhoto from '../components/form/NotesPhoto'
 import { emptyForm, isOutdoorClimbing } from '../lib/formState'
 import { SPORTS, SUBTYPES, LOCATIONS } from '../lib/constants'
+import { getEnabledSports } from '../lib/prefs'
 import { createSession } from '../lib/sessions'
 import { notifySessionsChanged } from '../App'
 
@@ -30,6 +31,8 @@ export default function RegisterSession() {
   const update = (patch) => setForm((f) => ({ ...f, ...patch }))
   const updateExtra = (patch) =>
     setForm((f) => ({ ...f, extra: { ...f.extra, ...patch } }))
+
+  const enabledSports = getEnabledSports()
 
   // Step list is dynamic:
   //   • strength       → no subtype; a strength + finger step
@@ -107,10 +110,10 @@ export default function RegisterSession() {
           <section>
             <h2 className="step-q">What did you do?</h2>
             <Segmented
-              options={Object.values(SPORTS)}
+              options={enabledSports.map((k) => SPORTS[k])}
               value={form.sport}
               onChange={selectSport}
-              columns={3}
+              columns={Math.min(enabledSports.length, 3)}
             />
           </section>
         )}

@@ -1,4 +1,5 @@
 import { lastNDaysRange, monthRange, inRange, toHours } from '../lib/format'
+import { getEnabledSports } from '../lib/prefs'
 
 function aggregate(sessions, range) {
   const acc = {
@@ -29,27 +30,35 @@ function aggregate(sessions, range) {
 }
 
 export default function SummaryCards({ sessions }) {
-  const week = aggregate(sessions, lastNDaysRange(7))
-  const month = aggregate(sessions, monthRange())
+  const enabled = getEnabledSports()
+  // Aggregates reflect only the sports you currently track. Past sessions of a
+  // disabled sport still live in the calendar/history — just not these totals.
+  const visible = sessions.filter((s) => enabled.includes(s.sport))
+  const week = aggregate(visible, lastNDaysRange(7))
+  const month = aggregate(visible, monthRange())
 
   return (
     <div className="summary-grid">
-      <PeriodCard title="Last 7 days" data={week} />
-      <PeriodCard title="This month" data={month} />
-      <CyclingCard data={month} />
+      <PeriodCard title="Last 7 days" data={week} enabled={enabled} />
+      <PeriodCard title="This month" data={month} enabled={enabled} />
+      {enabled.includes('cycling') && <CyclingCard data={month} />}
     </div>
   )
 }
 
-function PeriodCard({ title, data }) {
+function PeriodCard({ title, data, enabled }) {
   return (
     <div className="card stat-card">
       <span className="stat-title">{title}</span>
       <span className="stat-big">{toHours(data.minutes)}h</span>
       <div className="stat-split">
-        <span><i className="dot-cycling" /> {toHours(data.cyclingMin)}h</span>
-        <span><i className="dot-climbing" /> {toHours(data.climbingMin)}h</span>
-        {data.strengthMin > 0 && (
+        {enabled.includes('cycling') && (
+          <span><i className="dot-cycling" /> {toHours(data.cyclingMin)}h</span>
+        )}
+        {enabled.includes('climbing') && (
+          <span><i className="dot-climbing" /> {toHours(data.climbingMin)}h</span>
+        )}
+        {enabled.includes('strength') && data.strengthMin > 0 && (
           <span><i className="dot-strength" /> {toHours(data.strengthMin)}h</span>
         )}
       </div>

@@ -3,17 +3,36 @@ import { useNavigate } from 'react-router-dom'
 import { fetchSessions } from '../lib/sessions'
 import { Bars, Line, HBars } from '../components/charts'
 import { exerciseLabel } from '../lib/constants'
+import { getEnabledSports } from '../lib/prefs'
 import * as S from '../lib/stats'
 
 const CYCLING = 'var(--cycling)'
 const CLIMBING = 'var(--climbing)'
 const STRENGTH = 'var(--strength)'
 
+const SPORT_TABS = [
+  { key: 'cycling', label: '🚴 Cycling' },
+  { key: 'climbing', label: '🧗 Climbing' },
+  { key: 'strength', label: '💪 Strength' },
+]
+
 export default function Stats() {
   const navigate = useNavigate()
   const [sessions, setSessions] = useState(null)
   const [range, setRange] = useState('3m')
   const [tab, setTab] = useState('overview')
+
+  const enabled = getEnabledSports()
+  const enabledKey = enabled.join(',')
+  const tabs = [
+    { key: 'overview', label: 'Overview' },
+    ...SPORT_TABS.filter((t) => enabled.includes(t.key)),
+  ]
+  // If the active tab's sport was just disabled, fall back to Overview.
+  useEffect(() => {
+    if (tab !== 'overview' && !enabled.includes(tab)) setTab('overview')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, enabledKey])
 
   useEffect(() => {
     fetchSessions()
@@ -23,19 +42,23 @@ export default function Stats() {
 
   const view = useMemo(() => {
     if (!sessions) return null
-    const start = S.windowStart(range, sessions)
+    // Stats only covers the sports you currently track.
+    const base = sessions.filter((s) => enabled.includes(s.sport))
+    const start = S.windowStart(range, base)
     const grain = S.rangeConfig(range).grain
-    const windowed = S.inWindow(sessions, start)
+    const windowed = S.inWindow(base, start)
     return {
       start,
       grain,
       windowed,
+      enabled,
       buckets: S.buckets(windowed, start, grain),
       cycling: S.bySport(windowed, 'cycling'),
       climbing: S.bySport(windowed, 'climbing'),
       strength: S.bySport(windowed, 'strength'),
     }
-  }, [sessions, range])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessions, range, enabledKey])
 
   return (
     <div className="page">
@@ -55,17 +78,7 @@ export default function Stats() {
           value={range}
           onChange={setRange}
         />
-        <PillRow
-          options={[
-            { key: 'overview', label: 'Overview' },
-            { key: 'cycling', label: '🚴 Cycling' },
-            { key: 'climbing', label: '🧗 Climbing' },
-            { key: 'strength', label: '💪 Strength' },
-          ]}
-          value={tab}
-          onChange={setTab}
-          wide
-        />
+        <PillRow options={tabs} value={tab} onChange={setTab} wide />
 
         {!view ? (
           <div className="splash inline">
@@ -75,14 +88,16 @@ export default function Stats() {
           <div className="card empty-state">
             <p>No activity in this period.</p>
           </div>
-        ) : tab === 'overview' ? (
+        ) : !enabled.includes(tab) ? (
           <Overview view={view} />
         ) : tab === 'cycling' ? (
           <Cycling view={view} />
         ) : tab === 'climbing' ? (
           <Climbing view={view} />
-        ) : (
+        ) : tab === 'strength' ? (
           <Strength view={view} />
+        ) : (
+          <Overview view={view} />
         )}
       </main>
     </div>
@@ -135,19 +150,26 @@ function Tiles({ items }) {
 }
 
 // ---- Overview ----
+const SPORT_META = {
+  cycling: { color: CYCLING, emoji: '🚴' },
+  climbing: { color: CLIMBING, emoji: '🧗' },
+  strength: { color: STRENGTH, emoji: '💪' },
+}
+
 function Overview({ view }) {
-  const { windowed, buckets, cycling, climbing, start } = view
+  const { windowed, buckets, start, enabled } = view
   const rest = S.restBalance(windowed, start)
   const hoursBars = buckets.map((b) => ({
     label: b.label,
-    segments: [
-      { value: S.sumHours(S.bySport(b.sessions, 'cycling')), color: CYCLING },
-      { value: S.sumHours(S.bySport(b.sessions, 'climbing')), color: CLIMBING },
-      { value: S.sumHours(S.bySport(b.sessions, 'strength')), color: STRENGTH },
-    ],
+    segments: enabled.map((sport) => ({
+      value: S.sumHours(S.bySport(b.sessions, sport)),
+      color: SPORT_META[sport].color,
+    })),
   }))
   const feelingLine = buckets.map((b) => ({ label: b.label, value: S.round1(S.avgFeeling(b.sessions)) }))
-  const strengthH = S.round1(S.sumHours(S.bySport(windowed, 'strength')))
+  const hoursValue = enabled
+    .map((sport) => `${SPORT_META[sport].emoji} ${S.round1(S.sumHours(S.bySport(windowed, sport)))}h`)
+    .join(' · ')
 
   return (
     <>
@@ -159,12 +181,7 @@ function Overview({ view }) {
           { label: 'Active days', value: rest.active, sub: `/ ${rest.total}` },
         ]}
       />
-      <Card
-        title="Training hours"
-        value={`🚴 ${S.round1(S.sumHours(cycling))}h · 🧗 ${S.round1(S.sumHours(climbing))}h${
-          strengthH ? ` · 💪 ${strengthH}h` : ''
-        }`}
-      >
+      <Card title="Training hours" value={hoursValue}>
         <Bars data={hoursBars} />
       </Card>
       <Card title="Feeling trend" value={`avg ${S.round1(S.avgFeeling(windowed))}/5`}>

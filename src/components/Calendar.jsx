@@ -9,9 +9,12 @@ import {
   format,
 } from 'date-fns'
 
+import { getEnabledSports } from '../lib/prefs'
+
 const WEEK_OPTS = { weekStartsOn: 1 } // Monday
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const SPORTS = ['climbing', 'cycling', 'strength'] // legend order
+const SPORT_LABELS = { climbing: 'Climbing', cycling: 'Cycling', strength: 'Strength' }
 const MAX_DOTS = 6 // guard against a freakishly busy day overflowing the cell
 
 // Month calendar with one colored dot per session:
@@ -29,6 +32,16 @@ export default function Calendar({ monthRef, sessions, onPrev, onNext, onSelectD
   const gridStart = startOfWeek(startOfMonth(monthRef), WEEK_OPTS)
   const gridEnd = endOfWeek(endOfMonth(monthRef), WEEK_OPTS)
   const days = eachDayOfInterval({ start: gridStart, end: gridEnd })
+
+  // Dots always show (history is never hidden). The legend keys a sport when
+  // it's enabled, or when an old session of it still appears in this month.
+  const enabled = getEnabledSports()
+  const present = new Set()
+  for (const day of days) {
+    const counts = byDay[format(day, 'yyyy-MM-dd')]
+    if (counts) for (const sport of SPORTS) if (counts[sport]) present.add(sport)
+  }
+  const legendSports = SPORTS.filter((s) => enabled.includes(s) || present.has(s))
 
   return (
     <div className="calendar card">
@@ -80,9 +93,11 @@ export default function Calendar({ monthRef, sessions, onPrev, onNext, onSelectD
       </div>
 
       <div className="cal-legend">
-        <span><i className="dot-climbing" /> Climbing</span>
-        <span><i className="dot-cycling" /> Cycling</span>
-        <span><i className="dot-strength" /> Strength</span>
+        {legendSports.map((sport) => (
+          <span key={sport}>
+            <i className={`dot-${sport}`} /> {SPORT_LABELS[sport]}
+          </span>
+        ))}
       </div>
     </div>
   )
