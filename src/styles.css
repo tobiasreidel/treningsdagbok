@@ -347,6 +347,22 @@ textarea {
   grid-template-columns: 1fr 1fr 1fr;
   gap: 10px;
 }
+.set-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.set-row {
+  display: grid;
+  grid-template-columns: auto 1fr 1fr;
+  align-items: center;
+  gap: 8px;
+}
+.set-row-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
 .inline-row {
   display: flex;
   gap: 8px;

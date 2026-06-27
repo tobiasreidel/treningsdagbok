@@ -4,6 +4,7 @@ import { SPORTS, SEND_TYPES, FEELING_LABELS, exerciseLabel } from '../lib/consta
 import { formatDay, formatDuration, pacePerKm, pacePer100m } from '../lib/format'
 import { getSession, getSignedPhotoUrl, getCurrentUserId } from '../lib/sessions'
 import { embeddedStrengthMinutes, embeddedFingerMinutes } from '../lib/stats'
+import { normalizeHang } from '../lib/formState'
 
 const num = (v) => (v === '' || v == null ? null : Number(v))
 
@@ -236,17 +237,20 @@ export default function SessionDetail() {
           <div className="stack">
             {finger.campus && (
               <div className="route-line">
-                <span className="route-line-name">Campus board</span>
+                <span className="route-line-name">{campusLabel(finger.campus)}</span>
               </div>
             )}
-            {hangs.map((h, i) => (
-              <div className="route-line" key={i}>
-                <span className="route-line-name">
-                  Hangboard · {h.hands === 'one' ? 'one hand' : 'two hands'}
-                </span>
-                <span className="route-line-meta">{fmtHangWeight(h.weight)}</span>
-              </div>
-            ))}
+            {hangs.map((h, i) => {
+              const n = normalizeHang(h)
+              return (
+                <div className="route-line" key={i}>
+                  <span className="route-line-name">
+                    Hangboard · {n.hands === 'one' ? 'one hand' : 'two hands'}
+                  </span>
+                  <span className="route-line-meta">{fmtHang(n)}</span>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
@@ -289,6 +293,29 @@ function fmtHangWeight(weight) {
   const w = num(weight)
   if (!w) return 'bodyweight'
   return w > 0 ? `+${w} kg` : `−${Math.abs(w)} kg assisted`
+}
+
+function campusLabel(campus) {
+  return campus === 'spray' ? 'Spray wall' : 'Campus board'
+}
+
+// One value if every set agrees, otherwise the sentinel 'varies'.
+function uniformOrNull(values) {
+  const norm = values.map((v) => (v === '' || v == null ? '' : String(Number(v))))
+  return new Set(norm).size <= 1 ? norm[0] : 'varies'
+}
+
+// "1 × 5 · +20 kg · 7 s", collapsing uniform sets and flagging when they vary.
+function fmtHang(n) {
+  const reps = Math.max(1, Number(n.reps) || 1)
+  const parts = [`${reps} × ${n.sets.length}`]
+  const w = uniformOrNull(n.sets.map((s) => s.weight))
+  const t = uniformOrNull(n.sets.map((s) => s.time))
+  parts.push(w === 'varies' ? 'weights vary' : fmtHangWeight(w))
+  if (t === 'varies') parts.push('times vary')
+  else if (Number(t) > 0) parts.push(`${Number(t)} s`)
+  if (reps > 1 && Number(n.rest) > 0) parts.push(`${Number(n.rest)} s rest`)
+  return parts.join(' · ')
 }
 
 function Shell({ onBack, title, children, footer }) {

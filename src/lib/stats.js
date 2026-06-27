@@ -10,6 +10,7 @@ import {
   differenceInCalendarDays,
 } from 'date-fns'
 import { asDate } from './format'
+import { normalizeHang } from './formState'
 
 const WEEK_OPTS = { weekStartsOn: 1 }
 const num = (v) => Number(v) || 0
@@ -284,15 +285,21 @@ export function exerciseBest(sessions, key) {
   return { maxWeight, maxReps, sessions: count }
 }
 
+// Heaviest added weight across an exercise's sets (handles both data shapes).
+function hangMaxWeight(h) {
+  return Math.max(0, ...normalizeHang(h).sets.map((x) => num(x.weight)))
+}
+
 // Hangboard progression: heaviest two-hand added weight per session (oldest→newest).
 export function hangboardSeries(sessions) {
+  const isTwo = (h) => normalizeHang(h).hands === 'two'
   const rows = sessions
-    .filter((s) => (s.extra?.finger?.hangboard || []).some((h) => h.hands === 'two'))
+    .filter((s) => (s.extra?.finger?.hangboard || []).some(isTwo))
     .slice()
     .sort((a, b) => a.date.localeCompare(b.date))
   return rows.map((s) => {
-    const two = (s.extra.finger.hangboard || []).filter((h) => h.hands === 'two')
-    return { label: fmtShort(s.date), value: round1(Math.max(0, ...two.map((h) => num(h.weight)))) }
+    const two = (s.extra.finger.hangboard || []).filter(isTwo)
+    return { label: fmtShort(s.date), value: round1(Math.max(0, ...two.map(hangMaxWeight))) }
   })
 }
 
