@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react'
 
 // Reusable, touch-friendly form controls. Big tap targets, one-handed use.
 
-export function Field({ label, hint, children, optional }) {
+export function Field({ label, hint, children, optional, required }) {
   return (
     <label className="field">
       {label && (
         <span className="field-label">
           {label}
           {optional && <span className="field-optional"> · optional</span>}
+          {required && <span className="field-required"> *</span>}
         </span>
       )}
       {children}

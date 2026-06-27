@@ -43,6 +43,11 @@ export default function EditSession() {
     setForm((f) => ({ ...f, extra: { ...f.extra, ...patch } }))
 
   const save = async () => {
+    // Duration is required (matches the register flow).
+    if (!(Number(form.duration) > 0)) {
+      setError('Add a duration before saving.')
+      return
+    }
     setSaving(true)
     setError(null)
     try {

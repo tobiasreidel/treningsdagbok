@@ -329,6 +329,10 @@ textarea {
   font-weight: 400;
   font-size: 0.82rem;
 }
+.field-required {
+  color: var(--danger);
+  font-weight: 700;
+}
 .field-hint {
   color: var(--text-muted);
   font-size: 0.8rem;

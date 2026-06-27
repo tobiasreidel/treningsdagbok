@@ -64,6 +64,8 @@ export default function RegisterSession() {
       if (form.sport === 'climbing' && !form.location) return false
       return true
     }
+    // Duration is required: you can't leave the details step without one.
+    if (current === 'details') return Number(form.duration) > 0
     return true
   }
 

@@ -41,7 +41,7 @@ export default function DetailsFields({ form, update, updateExtra }) {
         />
       </Field>
 
-      <Field label="Duration">
+      <Field label="Duration" required>
         <NumberField
           value={form.duration}
           onChange={(v) => update({ duration: v })}
