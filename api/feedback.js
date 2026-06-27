@@ -63,21 +63,29 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({ type, message }),
     })
-    if (r.status === 401 || r.status === 403) {
-      return res.status(401).json({ error: 'Your session expired — sign in again.' })
+    const rawBody = await r.text()
+    let payload = null
+    try {
+      payload = rawBody ? JSON.parse(rawBody) : null
+    } catch {
+      // non-JSON body
     }
-    const payload = await r.json().catch(() => null)
     if (!r.ok) {
-      if (String(payload?.message || '').includes('rate_limit')) {
+      const pgMsg = String(payload?.message || payload?.error || rawBody || '').slice(0, 300)
+      if (pgMsg.includes('rate_limit')) {
         return res
           .status(429)
           .json({ error: "You've sent a lot of feedback recently — please try again later." })
       }
-      return res.status(400).json({ error: 'Could not record your message.' })
+      // Surface the real Supabase status + message instead of a vague guess.
+      return res.status(502).json({
+        error: `Could not record your message (Supabase ${r.status}).`,
+        detail: pgMsg,
+      })
     }
     row = Array.isArray(payload) ? payload[0] : payload
-  } catch {
-    return res.status(502).json({ error: 'Could not reach the database.' })
+  } catch (err) {
+    return res.status(502).json({ error: 'Could not reach the database.', detail: String(err) })
   }
 
   // 2) Email it. The message is already saved, so delivery is best-effort —

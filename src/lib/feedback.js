@@ -30,7 +30,8 @@ export async function sendFeedback(type, message) {
     // non-JSON response
   }
   if (!res.ok) {
-    throw new Error(body?.error || 'Could not send — please try again.')
+    const base = body?.error || 'Could not send — please try again.'
+    throw new Error(body?.detail ? `${base} ${body.detail}` : base)
   }
   return body || { ok: true }
 }
