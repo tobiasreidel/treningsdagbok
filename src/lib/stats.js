@@ -90,6 +90,42 @@ export function avgFeeling(arr) {
 
 export const bySport = (arr, sport) => arr.filter((s) => s.sport === sport)
 
+// Minutes of the strength/finger block logged on top of an indoor climb. The
+// rest of the session's duration counts as climbing. (Clamped to the total.)
+export function embeddedStrengthMinutes(s) {
+  if (s.sport !== 'climbing') return 0
+  return Math.min(num(s.duration), Math.max(0, num(s.extra?.strength_minutes)))
+}
+
+// How a session's duration splits across sports. Usually a single entry; an
+// indoor climb with a strength block splits into climbing + strength.
+export function sportMinutes(s) {
+  const total = num(s.duration)
+  const strength = embeddedStrengthMinutes(s)
+  if (strength > 0) {
+    return [
+      { sport: 'climbing', minutes: total - strength },
+      { sport: 'strength', minutes: strength },
+    ]
+  }
+  return [{ sport: s.sport, minutes: total }]
+}
+
+// Hours attributable to one sport across the array, honouring the split above.
+export function sportHours(arr, sport) {
+  let m = 0
+  for (const s of arr) for (const p of sportMinutes(s)) if (p.sport === sport) m += p.minutes
+  return m / 60
+}
+
+// Distinct sports a session represents — a climb with a strength block counts
+// as both climbing and strength. Used for the calendar dots + week table.
+export function sessionSports(s) {
+  return sportMinutes(s)
+    .filter((p) => p.minutes > 0)
+    .map((p) => p.sport)
+}
+
 // ---- climbing breakdowns ---------------------------------------------------
 export function disciplineSplit(climbing) {
   const m = { bouldering: 0, sport: 0, trad: 0 }

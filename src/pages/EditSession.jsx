@@ -106,7 +106,7 @@ export default function EditSession() {
   return (
     <div className="page">
       <header className="wizard-head">
-        <button className="icon-btn" onClick={() => navigate(`/session/${id}`)} aria-label="Back">
+        <button className="icon-btn" onClick={() => navigate(-1)} aria-label="Back">
           ‹
         </button>
         <div className="wizard-title">

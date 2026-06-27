@@ -10,6 +10,7 @@ import {
 } from 'date-fns'
 
 import { getEnabledSports } from '../lib/prefs'
+import { sessionSports } from '../lib/stats'
 
 const WEEK_OPTS = { weekStartsOn: 1 } // Monday
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -26,13 +27,16 @@ const MAX_DOTS = 6 // guard against a freakishly busy day overflowing the cell
 // Month calendar with one colored dot per session:
 //   climbing = blue · cycling = amber · strength = violet
 //   multiple sessions on a day = multiple dots (one per session)
+// A climb that includes a strength block gets both a climbing and a strength dot.
 export default function Calendar({ monthRef, sessions, onPrev, onNext, onSelectDay, enabledSports }) {
-  // Count sessions per sport on each day.
+  // Count sessions per sport on each day (splitting climb + strength blocks).
   const byDay = {}
   for (const s of sessions) {
     const key = s.date
     if (!byDay[key]) byDay[key] = {}
-    byDay[key][s.sport] = (byDay[key][s.sport] || 0) + 1
+    for (const sport of sessionSports(s)) {
+      byDay[key][sport] = (byDay[key][sport] || 0) + 1
+    }
   }
 
   const gridStart = startOfWeek(startOfMonth(monthRef), WEEK_OPTS)

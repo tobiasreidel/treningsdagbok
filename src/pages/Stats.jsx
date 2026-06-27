@@ -188,13 +188,13 @@ function Overview({ view }) {
   const hoursBars = buckets.map((b) => ({
     label: b.label,
     segments: enabled.map((sport) => ({
-      value: S.sumHours(S.bySport(b.sessions, sport)),
+      value: S.sportHours(b.sessions, sport),
       color: SPORT_META[sport].color,
     })),
   }))
   const feelingLine = buckets.map((b) => ({ label: b.label, value: S.round1(S.avgFeeling(b.sessions)) }))
   const hoursValue = enabled
-    .map((sport) => `${SPORT_META[sport].emoji} ${S.round1(S.sumHours(S.bySport(windowed, sport)))}h`)
+    .map((sport) => `${SPORT_META[sport].emoji} ${S.round1(S.sportHours(windowed, sport))}h`)
     .join(' · ')
 
   return (
@@ -330,7 +330,7 @@ function Swimming({ view }) {
 function Climbing({ view }) {
   const { buckets, climbing } = view
   if (climbing.length === 0) return <div className="card empty-state"><p>No climbing in this period.</p></div>
-  const hours = buckets.map((b) => ({ label: b.label, value: S.round1(S.sumHours(S.bySport(b.sessions, 'climbing'))) }))
+  const hours = buckets.map((b) => ({ label: b.label, value: S.round1(S.sportHours(b.sessions, 'climbing')) }))
   const feeling = buckets.map((b) => ({ label: b.label, value: S.round1(S.avgFeeling(S.bySport(b.sessions, 'climbing'))) }))
   const disc = S.disciplineSplit(climbing)
   const loc = S.locationSplit(climbing)
@@ -342,7 +342,7 @@ function Climbing({ view }) {
       <Tiles
         items={[
           { label: 'Sessions', value: climbing.length },
-          { label: 'Hours', value: S.round1(S.sumHours(climbing)), sub: 'h' },
+          { label: 'Hours', value: S.round1(S.sportHours(climbing, 'climbing')), sub: 'h' },
           { label: 'Outdoor', value: loc.outdoor },
           { label: 'Indoor', value: loc.indoor },
         ]}

@@ -1,6 +1,7 @@
 import { SPORTS } from '../lib/constants'
 import { asDate, formatDayShort, formatDuration, lastNDaysRange } from '../lib/format'
 import { getHideRidesUnderKm } from '../lib/prefs'
+import { embeddedStrengthMinutes } from '../lib/stats'
 import { PendingBadge } from './ui'
 
 // The most recent 7 days, newest first. Short cycling commutes can be hidden
@@ -44,6 +45,7 @@ export default function WeekTable({ sessions, onSelect }) {
         <tbody>
           {recent.map((s) => {
             const sport = SPORTS[s.sport]
+            const strengthMin = embeddedStrengthMinutes(s)
             return (
               <tr
                 key={s.id}
@@ -55,6 +57,11 @@ export default function WeekTable({ sessions, onSelect }) {
                   <span className="sport-cell">
                     {sport?.emoji}{' '}
                     <span className="sport-sub">{labelFor(s)}</span>
+                    {strengthMin > 0 && (
+                      <span className="sport-extra">
+                        <i className="dot-strength" /> {formatDuration(strengthMin)}
+                      </span>
+                    )}
                     {s.pending && <PendingBadge />}
                   </span>
                 </td>

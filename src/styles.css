@@ -791,7 +791,8 @@ textarea {
 }
 .stat-split {
   display: flex;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 4px 12px;
   font-size: 0.85rem;
   color: var(--text-muted);
 }
@@ -799,6 +800,7 @@ textarea {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  white-space: nowrap;
 }
 .stat-sub {
   font-size: 0.78rem;
@@ -845,6 +847,14 @@ textarea {
 .sport-sub {
   color: var(--text-muted);
   font-size: 0.82rem;
+}
+.sport-extra {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
 }
 .empty-state {
   text-align: center;

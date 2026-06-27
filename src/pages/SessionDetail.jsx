@@ -107,7 +107,16 @@ export default function SessionDetail() {
   const tiles = []
   if (session.feeling) tiles.push({ label: 'Feeling', value: FEELING_LABELS[session.feeling], sub: `${session.feeling}/5` })
   if (session.rpe) tiles.push({ label: 'RPE', value: session.rpe, sub: '/10' })
-  if (session.duration) tiles.push({ label: 'Duration', value: formatDuration(session.duration) })
+  const strengthMin = session.sport === 'climbing' ? num(e.strength_minutes) : null
+  if (session.duration) {
+    // For a climb with a strength block, split the duration tile in two.
+    if (strengthMin) {
+      tiles.push({ label: 'Climbing', value: formatDuration(session.duration - strengthMin) })
+      tiles.push({ label: 'Strength', value: formatDuration(strengthMin) })
+    } else {
+      tiles.push({ label: 'Duration', value: formatDuration(session.duration) })
+    }
+  }
   if (isRunning) {
     const pace = pacePerKm(e.distance_km, session.duration)
     if (pace) tiles.push({ label: 'Pace', value: pace, sub: '/km' })

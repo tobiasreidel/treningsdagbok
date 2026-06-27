@@ -29,6 +29,21 @@ export default function StrengthFields({ form, updateExtra }) {
 
   return (
     <div className="stack">
+      {form.sport === 'climbing' && (
+        <Field
+          label="Time on strength / finger"
+          hint="Counted as strength — the rest of the session stays climbing time"
+        >
+          <NumberField
+            value={e.strength_minutes ?? ''}
+            onChange={(v) => updateExtra({ strength_minutes: v })}
+            placeholder="0"
+            unit="min"
+            step="5"
+          />
+        </Field>
+      )}
+
       <Segmented
         options={[
           { key: 'strength', label: '🏋 Strength' },

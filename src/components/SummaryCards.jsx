@@ -1,14 +1,17 @@
 import { lastNDaysRange, monthRange, inRange, toHours } from '../lib/format'
-import { getEnabledSports } from '../lib/prefs'
+import { sportMinutes } from '../lib/stats'
+import { ALL_SPORTS, getEnabledSports } from '../lib/prefs'
 
 function aggregate(sessions, range) {
   const acc = { count: 0, minutes: 0, bySport: {}, distance: 0, elevation: 0 }
   for (const s of sessions) {
     if (!inRange(s.date, range)) continue
     acc.count += 1
-    const mins = Number(s.duration) || 0
-    acc.minutes += mins
-    acc.bySport[s.sport] = (acc.bySport[s.sport] || 0) + mins
+    acc.minutes += Number(s.duration) || 0
+    // Indoor climbs with a strength block split across two sports.
+    for (const p of sportMinutes(s)) {
+      acc.bySport[p.sport] = (acc.bySport[p.sport] || 0) + p.minutes
+    }
     if (s.sport === 'cycling') {
       acc.distance += Number(s.extra?.distance_km) || 0
       acc.elevation += Number(s.extra?.elevation_m) || 0
@@ -18,28 +21,27 @@ function aggregate(sessions, range) {
 }
 
 export default function SummaryCards({ sessions, enabledSports }) {
-  // Override (e.g. a coach viewing an athlete) shows all sports; otherwise use
-  // this device's own sport preferences.
   const enabled = enabledSports || getEnabledSports()
-  // Aggregates reflect only the sports you currently track. Past sessions of a
-  // disabled sport still live in the calendar/history — just not these totals.
-  const visible = sessions.filter((s) => enabled.includes(s.sport))
-  const week = aggregate(visible, lastNDaysRange(7))
-  const month = aggregate(visible, monthRange())
+  // Totals reflect *everything you actually trained* in the window. A sport you
+  // have since disabled still counts toward the total — and still shows a dot —
+  // if you logged it this week/month. The enable toggle only steers the
+  // register flow and the Stats tabs, not these dashboard totals.
+  const week = aggregate(sessions, lastNDaysRange(7))
+  const month = aggregate(sessions, monthRange())
 
   return (
     <div className="summary-grid">
-      <PeriodCard title="Last 7 days" data={week} enabled={enabled} />
-      <PeriodCard title="This month" data={month} enabled={enabled} />
-      {enabled.includes('cycling') && <CyclingCard data={month} />}
+      <PeriodCard title="Last 7 days" data={week} />
+      <PeriodCard title="This month" data={month} />
+      {(enabled.includes('cycling') || month.distance > 0) && <CyclingCard data={month} />}
     </div>
   )
 }
 
-function PeriodCard({ title, data, enabled }) {
-  // Show a per-sport hours line for each enabled sport that has time logged
-  // (always show the first couple so the card never looks empty).
-  const lines = enabled.filter((sport) => (data.bySport[sport] || 0) > 0)
+function PeriodCard({ title, data }) {
+  // One line per sport that has any time logged in the window (canonical order),
+  // whether or not it is currently an enabled sport.
+  const lines = ALL_SPORTS.filter((sport) => (data.bySport[sport] || 0) > 0)
   return (
     <div className="card stat-card">
       <span className="stat-title">{title}</span>
