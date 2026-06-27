@@ -1,10 +1,12 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { isConfigured } from './lib/supabase'
 import { useAuth } from './context/AuthContext'
 import { flushOutbox } from './lib/sessions'
 import { autoImportNewActivities } from './lib/intervals'
+import { isOnboarded } from './lib/prefs'
 import SetupNeeded from './components/SetupNeeded'
+import Onboarding from './components/Onboarding'
 import Login from './components/Login'
 import Dashboard from './pages/Dashboard'
 import RegisterSession from './pages/RegisterSession'
@@ -23,6 +25,9 @@ export function notifySessionsChanged() {
 
 export default function App() {
   const { session, loading } = useAuth()
+  // Bumped to re-evaluate onboarding after the picker finishes. The value is
+  // unused — onboarding state itself is read from prefs, keyed by user id.
+  const [, bumpOnboarding] = useState(0)
 
   // Flush any queued offline sessions on load and whenever we come back online.
   useEffect(() => {
@@ -51,6 +56,11 @@ export default function App() {
   }
 
   if (!session) return <Login />
+
+  const userId = session.user?.id
+  if (!isOnboarded(userId)) {
+    return <Onboarding userId={userId} onDone={() => bumpOnboarding((n) => n + 1)} />
+  }
 
   return (
     <Routes>

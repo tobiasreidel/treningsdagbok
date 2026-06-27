@@ -4,6 +4,7 @@ import { Field, Segmented } from '../components/ui'
 import { SPORTS } from '../lib/constants'
 import { getSettings, saveSettings, fetchActivities, isClimbingActivity } from '../lib/intervals'
 import { getMyProfile, setDisplayName, getShareSetting, setShareSetting } from '../lib/friends'
+import { sendFeedback } from '../lib/feedback'
 import {
   getHideRidesUnderKm,
   setHideRidesUnderKm,
@@ -29,6 +30,10 @@ export default function Settings() {
   const [saving, setSaving] = useState(false)
   const [test, setTest] = useState(null)
   const [error, setError] = useState(null)
+  // Bug report / feature request widget (bottom of the page).
+  const [fbType, setFbType] = useState('bug')
+  const [fbMessage, setFbMessage] = useState('')
+  const [fb, setFb] = useState(null) // { pending } | { ok, msg } | { error, msg }
 
   // The key to actually use/save: a freshly-typed one when replacing (or when
   // none is stored yet), otherwise the existing key left untouched.
@@ -55,6 +60,19 @@ export default function Settings() {
       setEnabledSports(result)
       return result
     })
+  }
+
+  const submitFeedback = async () => {
+    const msg = fbMessage.trim()
+    if (!msg) return
+    setFb({ pending: true })
+    try {
+      await sendFeedback(fbType, msg)
+      setFb({ ok: true, msg: 'Thanks — sent! 🙌' })
+      setFbMessage('')
+    } catch (err) {
+      setFb({ error: true, msg: err.message || 'Could not send.' })
+    }
   }
 
   const testConnection = async () => {
@@ -252,6 +270,49 @@ export default function Settings() {
           <p className="muted small">
             Rides and climbs also import automatically each time you open the app.
           </p>
+        </section>
+
+        <section className="stack">
+          <h2 className="step-q">Feedback</h2>
+          <p className="muted small">
+            Hit a bug or wish the app did something? Send it straight to Tobias.
+          </p>
+          <Segmented
+            options={[
+              { key: 'bug', label: '🐞 Report a bug' },
+              { key: 'feature', label: '💡 Request a feature' },
+            ]}
+            value={fbType}
+            onChange={(v) => {
+              setFbType(v)
+              setFb(null)
+            }}
+            columns={2}
+          />
+          <Field label={fbType === 'bug' ? 'What went wrong?' : 'What would you like?'}>
+            <textarea
+              rows={4}
+              maxLength={2000}
+              value={fbMessage}
+              onChange={(e) => setFbMessage(e.target.value)}
+              placeholder={
+                fbType === 'bug'
+                  ? 'Describe the bug — what you did and what happened…'
+                  : 'Describe the feature you’d like…'
+              }
+            />
+          </Field>
+          <button
+            type="button"
+            className="btn btn-secondary btn-block"
+            onClick={submitFeedback}
+            disabled={!fbMessage.trim() || fb?.pending}
+          >
+            {fb?.pending ? 'Sending…' : fbType === 'bug' ? 'Send bug report' : 'Send request'}
+          </button>
+          {fb && !fb.pending && (
+            <p className={fb.ok ? 'auth-notice' : 'auth-error'}>{fb.msg}</p>
+          )}
         </section>
 
         {error && <p className="auth-error">{error}</p>}

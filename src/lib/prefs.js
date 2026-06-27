@@ -3,6 +3,7 @@
 const KEYS = {
   hideRidesUnderKm: 'pref.hideRidesUnderKm',
   enabledSports: 'pref.enabledSports',
+  onboardedUsers: 'pref.onboardedUsers',
 }
 
 // Sports the user currently tracks. Disabling one hides it from logging and
@@ -30,6 +31,33 @@ export function setEnabledSports(keys) {
 
 export function isSportEnabled(key) {
   return getEnabledSports().includes(key)
+}
+
+// First-run onboarding: a new user picks their sports before reaching the app.
+// Tracked per *user id* (not per device) — sport prefs live in localStorage and
+// are shared across accounts on the same browser, so they can't tell us whether
+// *this* user has been through the picker.
+function onboardedIds() {
+  try {
+    const raw = localStorage.getItem(KEYS.onboardedUsers)
+    const ids = raw ? JSON.parse(raw) : []
+    return Array.isArray(ids) ? ids : []
+  } catch {
+    return []
+  }
+}
+
+export function isOnboarded(userId) {
+  if (!userId) return true // nothing to gate on until we know who's signed in
+  return onboardedIds().includes(userId)
+}
+
+export function setOnboarded(userId) {
+  if (!userId) return
+  const ids = onboardedIds()
+  if (!ids.includes(userId)) {
+    localStorage.setItem(KEYS.onboardedUsers, JSON.stringify([...ids, userId]))
+  }
 }
 
 // Minimum cycling distance (km) to show in the dashboard's "Last 7 days" list.
