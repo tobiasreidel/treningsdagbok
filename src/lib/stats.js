@@ -90,22 +90,33 @@ export function avgFeeling(arr) {
 
 export const bySport = (arr, sport) => arr.filter((s) => s.sport === sport)
 
-// Minutes of the strength/finger block logged on top of an indoor climb. The
-// rest of the session's duration counts as climbing. (Clamped to the total.)
+// Minutes of strength work carved out of an indoor climb. The rest of the
+// session's duration counts as climbing. (Clamped to the total.)
 export function embeddedStrengthMinutes(s) {
   if (s.sport !== 'climbing') return 0
   return Math.min(num(s.duration), Math.max(0, num(s.extra?.strength_minutes)))
 }
 
+// Minutes of finger work carved out of an indoor climb, on top of any strength
+// minutes. Clamped to whatever duration the strength block hasn't already used.
+export function embeddedFingerMinutes(s) {
+  if (s.sport !== 'climbing') return 0
+  const remaining = Math.max(0, num(s.duration) - embeddedStrengthMinutes(s))
+  return Math.min(remaining, Math.max(0, num(s.extra?.finger_minutes)))
+}
+
 // How a session's duration splits across sports. Usually a single entry; an
-// indoor climb with a strength block splits into climbing + strength.
+// indoor climb with strength/finger blocks splits into climbing + strength +
+// finger. (sessionSports/sportHours drop the zero-minute parts.)
 export function sportMinutes(s) {
   const total = num(s.duration)
   const strength = embeddedStrengthMinutes(s)
-  if (strength > 0) {
+  const finger = embeddedFingerMinutes(s)
+  if (strength > 0 || finger > 0) {
     return [
-      { sport: 'climbing', minutes: total - strength },
+      { sport: 'climbing', minutes: total - strength - finger },
       { sport: 'strength', minutes: strength },
+      { sport: 'finger', minutes: finger },
     ]
   }
   return [{ sport: s.sport, minutes: total }]
@@ -197,8 +208,9 @@ export function longestSwim(swimming) {
 }
 
 // ---- strength + finger -------------------------------------------------------
-// Strength/finger data lives in extra and can ride on a standalone strength
-// session OR an indoor climbing session, so these scan extra rather than sport.
+// Strength/finger data lives in extra and can ride on a standalone strength or
+// finger session, an indoor climb, or (for legacy sessions) a combined strength
+// session, so these scan extra rather than keying off sport.
 const fmtShort = (d) => format(asDate(d), 'd/M')
 
 function exerciseEntries(session, key) {
@@ -226,9 +238,14 @@ export function totalReps(arr) {
   return r
 }
 
-// Sessions in the array that include any strength or finger work.
-export function strengthSessionCount(arr) {
-  return arr.filter((s) => (s.extra?.strength || []).length > 0 || hasFingerData(s)).length
+// Sessions in the array that include logged lifts (the Strength tab).
+export function liftSessionCount(arr) {
+  return arr.filter((s) => (s.extra?.strength || []).length > 0).length
+}
+
+// Sessions in the array that include any finger work (the Finger tab).
+export function fingerSessionCount(arr) {
+  return arr.filter((s) => hasFingerData(s)).length
 }
 
 export function campusCount(sessions) {

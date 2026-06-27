@@ -17,6 +17,7 @@
   --swimming: #06b6d4;
   --climbing: #3b82f6;
   --strength: #a855f7;
+  --finger: #ec4899;
   --both: #22c55e;
   --danger: #ef4444;
   --radius: 16px;
@@ -739,7 +740,8 @@ textarea {
 .dot-cycling,
 .dot-running,
 .dot-swimming,
-.dot-strength {
+.dot-strength,
+.dot-finger {
   width: 10px;
   height: 10px;
   border-radius: 50%;
@@ -759,6 +761,9 @@ textarea {
 }
 .dot-strength {
   background: var(--strength);
+}
+.dot-finger {
+  background: var(--finger);
 }
 
 /* ----- summary cards ----- */

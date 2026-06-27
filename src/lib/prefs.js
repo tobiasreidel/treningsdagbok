@@ -9,7 +9,7 @@ const KEYS = {
 // Sports the user currently tracks. Disabling one hides it from logging and
 // the aggregate views (cards, stats) — but never touches stored sessions, so
 // past sessions of a disabled sport still show in the calendar and history.
-export const ALL_SPORTS = ['cycling', 'running', 'swimming', 'climbing', 'strength']
+export const ALL_SPORTS = ['cycling', 'running', 'swimming', 'climbing', 'strength', 'finger']
 
 export function getEnabledSports() {
   try {

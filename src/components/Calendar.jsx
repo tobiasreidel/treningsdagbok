@@ -14,13 +14,14 @@ import { sessionSports } from '../lib/stats'
 
 const WEEK_OPTS = { weekStartsOn: 1 } // Monday
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-const SPORTS = ['cycling', 'running', 'swimming', 'climbing', 'strength'] // dot + legend order
+const SPORTS = ['cycling', 'running', 'swimming', 'climbing', 'strength', 'finger'] // dot + legend order
 const SPORT_LABELS = {
   cycling: 'Cycling',
   running: 'Running',
   swimming: 'Swimming',
   climbing: 'Climbing',
   strength: 'Strength',
+  finger: 'Finger',
 }
 const MAX_DOTS = 6 // guard against a freakishly busy day overflowing the cell
 

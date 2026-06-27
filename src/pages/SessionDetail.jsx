@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { SPORTS, SEND_TYPES, FEELING_LABELS, exerciseLabel } from '../lib/constants'
 import { formatDay, formatDuration, pacePerKm, pacePer100m } from '../lib/format'
 import { getSession, getSignedPhotoUrl, getCurrentUserId } from '../lib/sessions'
+import { embeddedStrengthMinutes, embeddedFingerMinutes } from '../lib/stats'
 
 const num = (v) => (v === '' || v == null ? null : Number(v))
 
@@ -107,12 +108,14 @@ export default function SessionDetail() {
   const tiles = []
   if (session.feeling) tiles.push({ label: 'Feeling', value: FEELING_LABELS[session.feeling], sub: `${session.feeling}/5` })
   if (session.rpe) tiles.push({ label: 'RPE', value: session.rpe, sub: '/10' })
-  const strengthMin = session.sport === 'climbing' ? num(e.strength_minutes) : null
+  const strengthMin = embeddedStrengthMinutes(session)
+  const fingerMin = embeddedFingerMinutes(session)
   if (session.duration) {
-    // For a climb with a strength block, split the duration tile in two.
-    if (strengthMin) {
-      tiles.push({ label: 'Climbing', value: formatDuration(session.duration - strengthMin) })
-      tiles.push({ label: 'Strength', value: formatDuration(strengthMin) })
+    // For a climb with strength/finger blocks, split the duration tile out.
+    if (strengthMin > 0 || fingerMin > 0) {
+      tiles.push({ label: 'Climbing', value: formatDuration(session.duration - strengthMin - fingerMin) })
+      if (strengthMin > 0) tiles.push({ label: 'Strength', value: formatDuration(strengthMin) })
+      if (fingerMin > 0) tiles.push({ label: 'Finger', value: formatDuration(fingerMin) })
     } else {
       tiles.push({ label: 'Duration', value: formatDuration(session.duration) })
     }

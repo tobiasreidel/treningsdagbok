@@ -50,10 +50,14 @@ export function isOutdoorClimbing(form) {
   return form.sport === 'climbing' && form.location === 'outdoor'
 }
 
-// The strength + finger-training module is shown for standalone strength
-// sessions and (optionally) for indoor climbing sessions.
+// The strength + finger-training module is shown for standalone strength or
+// finger sessions and (optionally) for indoor climbing sessions.
 export function usesStrengthModule(form) {
-  return form.sport === 'strength' || (form.sport === 'climbing' && form.location === 'indoor')
+  return (
+    form.sport === 'strength' ||
+    form.sport === 'finger' ||
+    (form.sport === 'climbing' && form.location === 'indoor')
+  )
 }
 
 export function emptyRoute() {

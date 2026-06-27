@@ -35,11 +35,12 @@ export default function RegisterSession() {
   const enabledSports = getEnabledSports()
 
   // Step list is dynamic:
-  //   • strength       → no subtype; a strength + finger step
-  //   • outdoor climbing → a routes step
-  //   • indoor climbing  → an (optional) strength + finger step
+  //   • strength / finger → no subtype; a single training step
+  //   • outdoor climbing  → a routes step
+  //   • indoor climbing   → an (optional) strength + finger step
   const steps = useMemo(() => {
     if (form.sport === 'strength') return ['sport', 'details', 'strength', 'notes']
+    if (form.sport === 'finger') return ['sport', 'details', 'finger', 'notes']
     const s = ['sport', 'subtype', 'details']
     if (isOutdoorClimbing(form)) s.push('routes')
     else if (form.sport === 'climbing' && form.location === 'indoor') s.push('strength')
@@ -157,10 +158,14 @@ export default function RegisterSession() {
           </section>
         )}
 
-        {current === 'strength' && (
+        {(current === 'strength' || current === 'finger') && (
           <section>
             <h2 className="step-q">
-              {form.sport === 'strength' ? 'Training' : 'Strength training'}
+              {form.sport === 'finger'
+                ? 'Finger training'
+                : form.sport === 'strength'
+                  ? 'Strength training'
+                  : 'Strength & finger'}
             </h2>
             <StrengthFields form={form} updateExtra={updateExtra} />
           </section>

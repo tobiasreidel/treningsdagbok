@@ -7,6 +7,7 @@ export const SPORTS = {
   swimming: { key: 'swimming', label: 'Swimming', emoji: '🏊', color: 'var(--swimming)' },
   climbing: { key: 'climbing', label: 'Climbing', emoji: '🧗', color: 'var(--climbing)' },
   strength: { key: 'strength', label: 'Strength', emoji: '💪', color: 'var(--strength)' },
+  finger: { key: 'finger', label: 'Finger', emoji: '🤏', color: 'var(--finger)' },
 }
 
 // Strength exercises offered in the picker (each logs sets · reps · weight).

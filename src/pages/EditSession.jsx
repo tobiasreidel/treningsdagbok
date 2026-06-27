@@ -159,7 +159,11 @@ export default function EditSession() {
         {usesStrengthModule(form) && (
           <section>
             <h2 className="step-q">
-              {form.sport === 'strength' ? 'Training' : 'Strength training'}
+              {form.sport === 'finger'
+                ? 'Finger training'
+                : form.sport === 'strength'
+                  ? 'Strength training'
+                  : 'Strength & finger'}
             </h2>
             <StrengthFields form={form} updateExtra={updateExtra} />
           </section>

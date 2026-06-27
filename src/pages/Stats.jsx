@@ -12,6 +12,7 @@ const RUNNING = 'var(--running)'
 const SWIMMING = 'var(--swimming)'
 const CLIMBING = 'var(--climbing)'
 const STRENGTH = 'var(--strength)'
+const FINGER = 'var(--finger)'
 
 const SPORT_TABS = [
   { key: 'cycling', label: '🚴 Cycling' },
@@ -19,6 +20,7 @@ const SPORT_TABS = [
   { key: 'swimming', label: '🏊 Swimming' },
   { key: 'climbing', label: '🧗 Climbing' },
   { key: 'strength', label: '💪 Strength' },
+  { key: 'finger', label: '🤏 Finger' },
 ]
 
 export default function Stats() {
@@ -72,6 +74,7 @@ export default function Stats() {
       swimming: S.bySport(windowed, 'swimming'),
       climbing: S.bySport(windowed, 'climbing'),
       strength: S.bySport(windowed, 'strength'),
+      finger: S.bySport(windowed, 'finger'),
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessions, range, enabledKey])
@@ -120,6 +123,8 @@ export default function Stats() {
           <Climbing view={view} />
         ) : tab === 'strength' ? (
           <Strength view={view} />
+        ) : tab === 'finger' ? (
+          <Finger view={view} />
         ) : (
           <Overview view={view} />
         )}
@@ -180,6 +185,7 @@ const SPORT_META = {
   swimming: { color: SWIMMING, emoji: '🏊' },
   climbing: { color: CLIMBING, emoji: '🧗' },
   strength: { color: STRENGTH, emoji: '💪' },
+  finger: { color: FINGER, emoji: '🤏' },
 }
 
 function Overview({ view }) {
@@ -395,14 +401,12 @@ function Strength({ view }) {
   const [metric, setMetric] = useState('weight')
 
   const exercises = S.exercisesLogged(windowed)
-  const hang = S.hangboardSeries(windowed)
-  const campus = S.campusCount(windowed)
-  const sessCount = S.strengthSessionCount(windowed)
+  const sessCount = S.liftSessionCount(windowed)
 
-  if (exercises.length === 0 && hang.length === 0 && campus === 0) {
+  if (exercises.length === 0) {
     return (
       <div className="card empty-state">
-        <p>No strength or finger training in this period.</p>
+        <p>No strength training in this period.</p>
         <p className="muted small">Log a strength session (or add it to indoor climbing).</p>
       </div>
     )
@@ -412,7 +416,7 @@ function Strength({ view }) {
   const series = selected ? S.exerciseSeries(windowed, selected, metric) : []
   const best = selected ? S.exerciseBest(windowed, selected) : null
 
-  const freqBars = buckets.map((b) => ({ label: b.label, value: S.strengthSessionCount(b.sessions) }))
+  const freqBars = buckets.map((b) => ({ label: b.label, value: S.liftSessionCount(b.sessions) }))
   const repsBars = buckets.map((b) => ({ label: b.label, value: S.totalReps(b.sessions) }))
 
   return (
@@ -422,7 +426,6 @@ function Strength({ view }) {
           { label: 'Sessions', value: sessCount },
           { label: 'Exercises', value: exercises.length },
           { label: 'Total reps', value: S.totalReps(windowed) },
-          { label: 'Campus', value: campus },
         ]}
       />
 
@@ -430,54 +433,84 @@ function Strength({ view }) {
         <Bars data={freqBars} color={STRENGTH} />
       </Card>
 
-      {exercises.length > 0 && (
-        <>
-          <Card title="Total reps" value={`${S.totalReps(windowed)} reps`}>
-            <Bars data={repsBars} color={STRENGTH} />
-          </Card>
+      <Card title="Total reps" value={`${S.totalReps(windowed)} reps`}>
+        <Bars data={repsBars} color={STRENGTH} />
+      </Card>
 
-          <div className="card chart-card stack">
-            <div className="chart-card-head">
-              <span className="chart-card-title">Exercise progression</span>
-              {best && (
-                <span className="chart-card-value">
-                  {best.maxWeight ? `${best.maxWeight} kg` : `${best.maxReps} reps`} best
-                </span>
-              )}
-            </div>
-            <label className="field">
-              <select value={selected || ''} onChange={(e) => setExKey(e.target.value)}>
-                {exercises.map((k) => (
-                  <option key={k} value={k}>
-                    {exerciseLabel(k)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <PillRow
-              options={[
-                { key: 'weight', label: 'Weight' },
-                { key: 'reps', label: 'Top reps' },
-                { key: 'volume', label: 'Volume' },
-              ]}
-              value={metric}
-              onChange={setMetric}
-              wide
-            />
-            <Line data={series} color={STRENGTH} />
-          </div>
-        </>
-      )}
-
-      {(hang.length > 0 || campus > 0) && (
-        <Card title="Hangboard, max two-hand weight" value="kg added">
-          {hang.length ? (
-            <Line data={hang} color={STRENGTH} />
-          ) : (
-            <p className="muted small">Log two-hand hangboard sets to track this.</p>
+      <div className="card chart-card stack">
+        <div className="chart-card-head">
+          <span className="chart-card-title">Exercise progression</span>
+          {best && (
+            <span className="chart-card-value">
+              {best.maxWeight ? `${best.maxWeight} kg` : `${best.maxReps} reps`} best
+            </span>
           )}
-        </Card>
-      )}
+        </div>
+        <label className="field">
+          <select value={selected || ''} onChange={(e) => setExKey(e.target.value)}>
+            {exercises.map((k) => (
+              <option key={k} value={k}>
+                {exerciseLabel(k)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <PillRow
+          options={[
+            { key: 'weight', label: 'Weight' },
+            { key: 'reps', label: 'Top reps' },
+            { key: 'volume', label: 'Volume' },
+          ]}
+          value={metric}
+          onChange={setMetric}
+          wide
+        />
+        <Line data={series} color={STRENGTH} />
+      </div>
+    </>
+  )
+}
+
+// ---- Finger ----
+function Finger({ view }) {
+  const { windowed, buckets } = view
+  const hang = S.hangboardSeries(windowed)
+  const campus = S.campusCount(windowed)
+  const sessCount = S.fingerSessionCount(windowed)
+
+  if (sessCount === 0 && hang.length === 0 && campus === 0) {
+    return (
+      <div className="card empty-state">
+        <p>No finger training in this period.</p>
+        <p className="muted small">Log a finger session (or add it to indoor climbing).</p>
+      </div>
+    )
+  }
+
+  const bestHang = hang.reduce((m, p) => Math.max(m, p.value), 0)
+  const freqBars = buckets.map((b) => ({ label: b.label, value: S.fingerSessionCount(b.sessions) }))
+
+  return (
+    <>
+      <Tiles
+        items={[
+          { label: 'Sessions', value: sessCount },
+          { label: 'Campus', value: campus },
+          { label: 'Best hang', value: bestHang || '–', sub: bestHang ? 'kg' : '' },
+        ]}
+      />
+
+      <Card title="Sessions per period">
+        <Bars data={freqBars} color={FINGER} />
+      </Card>
+
+      <Card title="Hangboard, max two-hand weight" value="kg added">
+        {hang.length ? (
+          <Line data={hang} color={FINGER} />
+        ) : (
+          <p className="muted small">Log two-hand hangboard sets to track this.</p>
+        )}
+      </Card>
     </>
   )
 }
