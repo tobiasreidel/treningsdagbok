@@ -112,7 +112,14 @@ export default function Dashboard() {
             </p>
           )}
 
-          <SummaryCards sessions={sessions} />
+          <div className="summary-section">
+            <div className="summary-bar">
+              <button className="link-btn" onClick={() => navigate('/widgets')}>
+                ✎ Customize
+              </button>
+            </div>
+            <SummaryCards sessions={sessions} />
+          </div>
 
           <Calendar
             monthRef={monthRef}

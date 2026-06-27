@@ -188,6 +188,14 @@ export default function Settings() {
 
         <section className="stack">
           <h2 className="step-q">Dashboard</h2>
+          <button
+            type="button"
+            className="btn btn-secondary btn-block settings-link-row"
+            onClick={() => navigate('/widgets')}
+          >
+            <span>Customize widgets</span>
+            <span className="settings-link-arrow">›</span>
+          </button>
           <Field
             label="Hide short rides"
             hint="Keep short commutes out of the “Last 7 days” list. Leave blank to show all."

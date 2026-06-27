@@ -16,6 +16,7 @@ import Settings from './pages/Settings'
 import ImportRides from './pages/ImportRides'
 import Stats from './pages/Stats'
 import Logbook from './pages/Logbook'
+import CustomizeDashboard from './pages/CustomizeDashboard'
 import Friends from './pages/Friends'
 import AthleteView from './pages/AthleteView'
 
@@ -73,6 +74,7 @@ export default function App() {
       <Route path="/settings" element={<Settings />} />
       <Route path="/stats" element={<Stats />} />
       <Route path="/logbook" element={<Logbook />} />
+      <Route path="/widgets" element={<CustomizeDashboard />} />
       <Route path="/friends" element={<Friends />} />
       <Route path="/athlete/:id" element={<AthleteView />} />
       <Route path="/athlete/:id/stats" element={<Stats />} />

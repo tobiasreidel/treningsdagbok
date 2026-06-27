@@ -66,7 +66,10 @@ export default function AthleteView() {
         </div>
       ) : (
         <>
-          <SummaryCards sessions={sessions} enabledSports={ALL_SPORTS} />
+          <SummaryCards
+            sessions={sessions}
+            widgets={['week-summary', 'month-summary', 'cycling-month']}
+          />
 
           <Calendar
             monthRef={monthRef}

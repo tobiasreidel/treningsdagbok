@@ -4,6 +4,7 @@ const KEYS = {
   hideRidesUnderKm: 'pref.hideRidesUnderKm',
   enabledSports: 'pref.enabledSports',
   onboardedUsers: 'pref.onboardedUsers',
+  dashboardWidgets: 'pref.dashboardWidgets',
 }
 
 // Sports the user currently tracks. Disabling one hides it from logging and
@@ -58,6 +59,28 @@ export function setOnboarded(userId) {
   if (!ids.includes(userId)) {
     localStorage.setItem(KEYS.onboardedUsers, JSON.stringify([...ids, userId]))
   }
+}
+
+// Dashboard widgets the user has placed on the front page, in display order.
+// Unlike the per-sport totals of old, what shows is now purely the user's
+// choice (see src/components/DashboardWidgets.jsx for the catalog). An empty
+// list is valid (the user removed everything); only a missing key falls back
+// to the default set.
+export const DEFAULT_WIDGETS = ['week-summary', 'month-summary', 'cycling-month']
+
+export function getDashboardWidgets() {
+  try {
+    const raw = localStorage.getItem(KEYS.dashboardWidgets)
+    if (raw == null) return [...DEFAULT_WIDGETS]
+    const saved = JSON.parse(raw)
+    return Array.isArray(saved) ? saved : [...DEFAULT_WIDGETS]
+  } catch {
+    return [...DEFAULT_WIDGETS]
+  }
+}
+
+export function setDashboardWidgets(ids) {
+  localStorage.setItem(KEYS.dashboardWidgets, JSON.stringify(Array.isArray(ids) ? ids : []))
 }
 
 // Minimum cycling distance (km) to show in the dashboard's "Last 7 days" list.

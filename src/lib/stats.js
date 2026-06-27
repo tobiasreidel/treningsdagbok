@@ -194,6 +194,24 @@ export function currentStreak(sessions) {
   return streak
 }
 
+// Consecutive weeks (Mon-anchored) with at least one session, ending now. The
+// current week is still "in progress": an empty current week doesn't break the
+// streak — we count back from last week — but training this week extends it.
+export function currentWeekStreak(sessions) {
+  if (!sessions.length) return 0
+  const weeks = new Set(
+    sessions.map((s) => format(startOfWeek(asDate(s.date), WEEK_OPTS), 'yyyy-MM-dd')),
+  )
+  let w = startOfWeek(new Date(), WEEK_OPTS)
+  if (!weeks.has(format(w, 'yyyy-MM-dd'))) w = addWeeks(w, -1)
+  let streak = 0
+  while (weeks.has(format(w, 'yyyy-MM-dd'))) {
+    streak += 1
+    w = addWeeks(w, -1)
+  }
+  return streak
+}
+
 export function restBalance(sessions, start) {
   const total = Math.max(1, differenceInCalendarDays(new Date(), start) + 1)
   const active = new Set(inWindow(sessions, start).map((s) => s.date)).size
