@@ -130,7 +130,7 @@ export function ChipSelect({ options, value, onChange }) {
 }
 
 export function PendingBadge() {
-  return <span className="pending-badge" title="Saved offline — will sync">⟳ offline</span>
+  return <span className="pending-badge" title="Saved offline, will sync">⟳ offline</span>
 }
 
 // Online/offline awareness.

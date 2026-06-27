@@ -68,7 +68,7 @@ export default function Settings() {
     setFb({ pending: true })
     try {
       await sendFeedback(fbType, msg)
-      setFb({ ok: true, msg: 'Thanks — sent! 🙌' })
+      setFb({ ok: true, msg: 'Thanks, sent! 🙌' })
       setFbMessage('')
     } catch (err) {
       setFb({ error: true, msg: err.message || 'Could not send.' })
@@ -85,7 +85,7 @@ export default function Settings() {
         `${rides} ride${rides === 1 ? '' : 's'}`,
         `${climbs} climb${climbs === 1 ? '' : 's'}`,
       ]
-      setTest({ ok: true, msg: `Connected — found ${parts.join(' · ')} in the last 60 days.` })
+      setTest({ ok: true, msg: `Connected. Found ${parts.join(' · ')} in the last 60 days.` })
     } catch (err) {
       setTest({ ok: false, msg: err.message })
     }
@@ -156,7 +156,7 @@ export default function Settings() {
           <h2 className="step-q">Sports</h2>
           <p className="muted small">
             Choose which sports you track. Turning one off hides it from logging,
-            cards and stats — your past sessions are kept and still show in the
+            cards and stats. Your past sessions are kept and still show in the
             calendar.
           </p>
           <div className="toggle-list">
@@ -211,7 +211,7 @@ export default function Settings() {
         <section className="stack">
           <h2 className="step-q">Connect intervals.icu</h2>
           <p className="muted small">
-            Pull your rides in automatically. Your Garmin device syncs to
+            Pull your activities in automatically. Your Garmin device syncs to
             intervals.icu, and this app imports from there.
           </p>
           <Field label="API key" hint="intervals.icu → Settings → Developer Settings (bottom of the page)">
@@ -268,7 +268,7 @@ export default function Settings() {
             ⬇ Import sessions from intervals.icu
           </button>
           <p className="muted small">
-            Rides and climbs also import automatically each time you open the app.
+            Activities also import automatically each time you open the app.
           </p>
         </section>
 
@@ -297,7 +297,7 @@ export default function Settings() {
               onChange={(e) => setFbMessage(e.target.value)}
               placeholder={
                 fbType === 'bug'
-                  ? 'Describe the bug — what you did and what happened…'
+                  ? 'Describe the bug: what you did and what happened…'
                   : 'Describe the feature you’d like…'
               }
             />

@@ -4,8 +4,8 @@ export default function SetupNeeded() {
   return (
     <div className="setup">
       <div className="setup-card">
-        <h1>🚴🧗 Treningsdagbok</h1>
-        <p className="muted">Almost there — connect your Supabase project.</p>
+        <h1>📓 Treningsdagbok</h1>
+        <p className="muted">Almost there. Connect your Supabase project.</p>
         <ol>
           <li>
             Create a free project at <code>supabase.com</code>.

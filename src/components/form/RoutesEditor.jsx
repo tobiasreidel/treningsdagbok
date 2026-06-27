@@ -49,7 +49,7 @@ export default function RoutesEditor({ form, update }) {
                 value={route.grade || ''}
                 onChange={(e) => setRoute(idx, { grade: e.target.value || null })}
               >
-                <option value="">—</option>
+                <option value="">Grade</option>
                 {grades.map((g) => (
                   <option key={g} value={g}>
                     {g}

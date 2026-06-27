@@ -17,7 +17,7 @@ export default defineConfig({
       manifest: {
         name: 'Treningsdagbok',
         short_name: 'Trening',
-        description: 'Personal training diary for cycling and climbing',
+        description: 'Personal training diary',
         theme_color: '#4f46e5',
         background_color: '#0b1020',
         display: 'standalone',

@@ -1,10 +1,11 @@
-# Treningsdagbok 🚴🧗
+# Treningsdagbok 📓
 
-A personal training diary for **cycling** and **climbing**, built as an installable
-**PWA** (Add to Home Screen on iPhone). React + Vite frontend, Supabase backend.
+A personal multi-sport training diary (cycling, running, swimming, climbing and
+strength), built as an installable **PWA** (Add to Home Screen on iPhone).
+React + Vite frontend, Supabase backend.
 
 > **Status: Phases 1–4 implemented.** Logging + dashboard, stats dashboards,
-> automatic intervals.icu cycling import, and friends (feed/leaderboard/privacy).
+> automatic intervals.icu import, and friends (feed/leaderboard/privacy).
 > Built multi-user-ready and offline-resilient from day one.
 
 ---

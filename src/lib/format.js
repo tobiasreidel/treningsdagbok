@@ -57,9 +57,9 @@ export function inRange(value, range) {
 
 // minutes -> "1h 30m" / "45m"
 export function formatDuration(minutes) {
-  if (minutes == null || minutes === '') return '—'
+  if (minutes == null || minutes === '') return '–'
   const m = Number(minutes)
-  if (!Number.isFinite(m) || m <= 0) return '—'
+  if (!Number.isFinite(m) || m <= 0) return '–'
   const h = Math.floor(m / 60)
   const rem = m % 60
   if (h === 0) return `${rem}m`

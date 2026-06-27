@@ -100,7 +100,7 @@ export default function Dashboard() {
         <>
           {softError && (
             <p className="muted small offline-note">
-              Showing offline data — couldn’t reach the server.
+              Showing offline data. Couldn’t reach the server.
             </p>
           )}
 

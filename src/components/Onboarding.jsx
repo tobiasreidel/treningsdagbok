@@ -31,8 +31,8 @@ export default function Onboarding({ userId, onDone }) {
         <section className="stack">
           <h2 className="step-q">Which sports do you do?</h2>
           <p className="muted small">
-            Pick the ones you train. The app will focus on these — you can change
-            them later in Settings.
+            Pick the ones you train. The app will focus on these, and you can
+            change them later in Settings.
           </p>
           <div className="segmented" style={{ '--cols': 2 }}>
             {ALL_SPORTS.map((key) => {

@@ -32,7 +32,7 @@ export default function StrengthFields({ form, updateExtra }) {
       {form.sport === 'climbing' && (
         <Field
           label="Time on strength / finger"
-          hint="Counted as strength — the rest of the session stays climbing time"
+          hint="Counted as strength. The rest of the session stays climbing time."
         >
           <NumberField
             value={e.strength_minutes ?? ''}

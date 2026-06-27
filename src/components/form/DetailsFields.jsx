@@ -349,7 +349,7 @@ function ClimbingFields({ form, updateExtra }) {
   return (
     <Field
       label="Grades worked"
-      hint="French grades — a general sense of the session"
+      hint="French grades for a general sense of the session"
       optional
     >
       <Chips

@@ -39,9 +39,9 @@ export default function Login() {
     <div className="auth">
       <form className="auth-card" onSubmit={submit}>
         <div className="auth-brand">
-          <span className="auth-logo">🚴🧗</span>
+          <span className="auth-logo">📓</span>
           <h1>Treningsdagbok</h1>
-          <p className="muted">Your cycling &amp; climbing diary</p>
+          <p className="muted">Your training diary</p>
         </div>
 
         <div className="auth-tabs">

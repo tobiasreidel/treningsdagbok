@@ -20,7 +20,7 @@ export async function sendFeedback(type, message) {
       body: JSON.stringify({ type, message }),
     })
   } catch {
-    throw new Error('Network error — please try again.')
+    throw new Error('Network error. Please try again.')
   }
 
   let body = null
@@ -30,7 +30,7 @@ export async function sendFeedback(type, message) {
     // non-JSON response
   }
   if (!res.ok) {
-    const base = body?.error || 'Could not send — please try again.'
+    const base = body?.error || 'Could not send. Please try again.'
     throw new Error(body?.detail ? `${base} ${body.detail}` : base)
   }
   return body || { ok: true }

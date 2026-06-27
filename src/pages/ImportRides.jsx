@@ -67,7 +67,7 @@ export default function ImportRides() {
         items: s.items.filter((i) => i.activity.id !== activity.id),
       }))
     } catch (err) {
-      setError(err.message || 'Could not import that ride')
+      setError(err.message || 'Could not import that activity')
     } finally {
       setBusy(false)
     }
@@ -84,7 +84,7 @@ export default function ImportRides() {
       }
       notifySessionsChanged()
       navigate('/', {
-        state: { toast: `Imported ${n} session${n === 1 ? '' : 's'} — add feeling & notes anytime` },
+        state: { toast: `Imported ${n} session${n === 1 ? '' : 's'}. Add feeling and notes anytime.` },
       })
     } catch (err) {
       setError(err.message || 'Some sessions could not be imported')
@@ -121,7 +121,7 @@ export default function ImportRides() {
         {state.status === 'no-creds' && (
           <div className="card empty-state">
             <p>intervals.icu isn’t connected yet.</p>
-            <p className="muted small">Add your API key to pull in your rides.</p>
+            <p className="muted small">Add your API key to pull in your activities.</p>
             <button className="btn btn-primary" onClick={() => navigate('/settings')}>
               Connect intervals.icu
             </button>
@@ -152,7 +152,7 @@ export default function ImportRides() {
               {busy ? 'Importing…' : `Import all ${state.items.length} sessions`}
             </button>
             <p className="muted small">
-              Objective data is filled in automatically — tap a session afterwards
+              Objective data is filled in automatically. Tap a session afterwards
               to add feeling, RPE and notes.
             </p>
             {error && <p className="auth-error">{error}</p>}
@@ -170,7 +170,7 @@ export default function ImportRides() {
                   </span>
                   {maybeDup && (
                     <span className="pending-badge">
-                      possible duplicate — already a {sport} session that day
+                      possible duplicate, already a {sport} session that day
                     </span>
                   )}
                 </div>

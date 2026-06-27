@@ -274,7 +274,7 @@ function Manage({ data, reload }) {
         <h2 className="section-title">Friends ({data.friends.length})</h2>
         {data.friends.length === 0 ? (
           <div className="card empty-state">
-            <p className="muted small">No friends yet — send a request above.</p>
+            <p className="muted small">No friends yet. Send a request above.</p>
           </div>
         ) : (
           data.friends.map((c) => (
@@ -328,7 +328,7 @@ function CoachManager({ coach, reload, navigate }) {
     try {
       const res = await sendCoachRequest(email)
       const messages = {
-        ok: { ok: true, text: 'Coach invited — they need to accept.' },
+        ok: { ok: true, text: 'Coach invited. They need to accept.' },
         not_found: { ok: false, text: 'No account found with that email.' },
         self: { ok: false, text: "That's you 🙂" },
         exists: { ok: false, text: 'That person is already your coach (or invited).' },
@@ -351,8 +351,8 @@ function CoachManager({ coach, reload, navigate }) {
         <label className="field">
           <span className="field-label">Add a coach by email</span>
           <span className="field-hint">
-            A coach can see everything in your account — sessions, calendar and
-            stats — but can’t change anything.
+            A coach can see everything in your account: sessions, calendar and
+            stats. They can’t change anything.
           </span>
           <input
             type="email"
@@ -412,7 +412,7 @@ function CoachManager({ coach, reload, navigate }) {
         <h2 className="section-title">Your coaches</h2>
         {coach.coaches.length === 0 ? (
           <div className="card empty-state">
-            <p className="muted small">No coaches yet — invite one above.</p>
+            <p className="muted small">No coaches yet. Invite one above.</p>
           </div>
         ) : (
           coach.coaches.map((c) => (

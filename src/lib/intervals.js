@@ -98,7 +98,7 @@ export async function fetchActivities({ athleteId, apiKey, sinceDays = 60 }) {
   try {
     res = await fetch(url, { headers: { Authorization: authHeader(apiKey) } })
   } catch (e) {
-    throw new Error('Could not reach intervals.icu — check your connection.')
+    throw new Error('Could not reach intervals.icu. Check your connection.')
   }
   if (res.status === 401 || res.status === 403) {
     throw new Error('intervals.icu rejected the key. Double-check your API key and athlete ID.')

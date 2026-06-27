@@ -80,7 +80,7 @@ export default function RegisterSession() {
       const res = await createSession(form)
       notifySessionsChanged()
       navigate('/', {
-        state: { toast: res.pending ? 'Saved offline — will sync when online' : 'Session saved' },
+        state: { toast: res.pending ? 'Saved offline. Will sync when online.' : 'Session saved' },
       })
     } catch (err) {
       setError(err.message || 'Could not save')

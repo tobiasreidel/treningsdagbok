@@ -470,7 +470,7 @@ function Strength({ view }) {
       )}
 
       {(hang.length > 0 || campus > 0) && (
-        <Card title="Hangboard — max two-hand weight" value="kg added">
+        <Card title="Hangboard, max two-hand weight" value="kg added">
           {hang.length ? (
             <Line data={hang} color={STRENGTH} />
           ) : (

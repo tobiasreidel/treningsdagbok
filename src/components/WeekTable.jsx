@@ -23,7 +23,7 @@ export default function WeekTable({ sessions, onSelect }) {
         <p>No sessions in the last 7 days.</p>
         <p className="muted small">
           {minKm > 0
-            ? `Short rides under ${minKm} km are hidden — change this in Settings.`
+            ? `Short rides under ${minKm} km are hidden. Change this in Settings.`
             : 'Tap “Register session” to log one.'}
         </p>
       </div>
@@ -59,7 +59,7 @@ export default function WeekTable({ sessions, onSelect }) {
                     <span className="sport-sub">{labelFor(s)}</span>
                     {strengthMin > 0 && (
                       <span className="sport-extra">
-                        <i className="dot-strength" /> {formatDuration(strengthMin)}
+                        {SPORTS.strength.emoji} strength training · {formatDuration(strengthMin)}
                       </span>
                     )}
                     {s.pending && <PendingBadge />}
