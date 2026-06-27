@@ -1376,3 +1376,175 @@ textarea {
   color: var(--text-muted);
   font-size: 0.95rem;
 }
+
+/* ----- logbook ----- */
+.log-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.log-custom-len {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 2px 2px 0;
+}
+.log-custom-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  flex: none;
+}
+.log-custom-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.log-custom-inputs input {
+  width: 68px;
+  padding: 8px 10px;
+  text-align: center;
+}
+.log-custom-inputs .suffix {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+.log-custom-clear {
+  flex: none;
+}
+.logbook {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.log-month {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.log-month-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 2px 6px;
+  border-bottom: 2px solid var(--border);
+}
+.log-month-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.log-month-count {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+.log-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.log-entry {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.log-entry.is-open {
+  border-color: var(--primary);
+}
+.log-entry-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  padding: 12px 14px;
+  cursor: pointer;
+}
+.log-entry-emoji {
+  font-size: 1.5rem;
+  flex: none;
+  line-height: 1;
+}
+.log-entry-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.log-entry-title {
+  font-weight: 700;
+  text-transform: capitalize;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.log-entry-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.log-entry-facts > span {
+  position: relative;
+}
+.log-entry-facts > span:not(:first-child)::before {
+  content: '·';
+  position: absolute;
+  left: -7px;
+}
+.log-entry-date {
+  font-weight: 600;
+  color: var(--text);
+}
+.log-entry-side {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.log-entry-dur {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.log-chevron {
+  color: var(--text-muted);
+  font-size: 1.3rem;
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+.log-chevron.is-open {
+  transform: rotate(90deg);
+}
+.log-entry-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 14px 14px;
+  animation: log-unfold 0.18s ease;
+}
+.log-notes {
+  font-size: 0.9rem;
+}
+@keyframes log-unfold {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}

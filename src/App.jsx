@@ -15,6 +15,7 @@ import EditSession from './pages/EditSession'
 import Settings from './pages/Settings'
 import ImportRides from './pages/ImportRides'
 import Stats from './pages/Stats'
+import Logbook from './pages/Logbook'
 import Friends from './pages/Friends'
 import AthleteView from './pages/AthleteView'
 
@@ -71,6 +72,7 @@ export default function App() {
       <Route path="/import" element={<ImportRides />} />
       <Route path="/settings" element={<Settings />} />
       <Route path="/stats" element={<Stats />} />
+      <Route path="/logbook" element={<Logbook />} />
       <Route path="/friends" element={<Friends />} />
       <Route path="/athlete/:id" element={<AthleteView />} />
       <Route path="/athlete/:id/stats" element={<Stats />} />

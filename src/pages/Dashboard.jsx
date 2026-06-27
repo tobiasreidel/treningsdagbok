@@ -8,7 +8,7 @@ import Calendar from '../components/Calendar'
 import SummaryCards from '../components/SummaryCards'
 import WeekTable from '../components/WeekTable'
 import DaySheet from '../components/DaySheet'
-import { FriendsIcon, StatsIcon, SettingsIcon, SignOutIcon } from '../components/icons'
+import { FriendsIcon, LogbookIcon, StatsIcon, SettingsIcon, SignOutIcon } from '../components/icons'
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -65,6 +65,14 @@ export default function Dashboard() {
             aria-label="Friends"
           >
             <FriendsIcon />
+          </button>
+          <button
+            className="icon-btn"
+            onClick={() => navigate('/logbook')}
+            title="Logbook"
+            aria-label="Logbook"
+          >
+            <LogbookIcon />
           </button>
           <button
             className="icon-btn"
