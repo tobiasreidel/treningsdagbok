@@ -15,26 +15,35 @@ import { normalizeHang } from './formState'
 const WEEK_OPTS = { weekStartsOn: 1 }
 const num = (v) => Number(v) || 0
 
+// Ranges are defined by a whole number of periods (not raw days) so the chart
+// comes out to exactly that many bars — e.g. 4W is 4 weekly bars, not 4-and-a-
+// bit. 'all' spans from the first session.
 export const RANGES = [
-  { key: '4w', label: '4W', days: 28, grain: 'week' },
-  { key: '3m', label: '3M', days: 91, grain: 'week' },
-  { key: '6m', label: '6M', days: 182, grain: 'month' },
-  { key: '1y', label: '1Y', days: 365, grain: 'month' },
-  { key: 'all', label: 'All', days: null, grain: 'month' },
+  { key: '4w', label: '4W', weeks: 4, grain: 'week' },
+  { key: '3m', label: '3M', weeks: 13, grain: 'week' },
+  { key: '6m', label: '6M', months: 6, grain: 'month' },
+  { key: '1y', label: '1Y', months: 12, grain: 'month' },
+  { key: 'all', label: 'All', grain: 'month' },
 ]
 
 export function rangeConfig(key) {
   return RANGES.find((r) => r.key === key) || RANGES[1]
 }
 
+// Start of the window, aligned to a week/month boundary so buckets() yields
+// exactly N periods with no stray partial one at the front.
 export function windowStart(key, sessions) {
   const cfg = rangeConfig(key)
-  if (cfg.days == null) {
-    // earliest session date (sessions are newest-first)
-    const earliest = sessions.length ? sessions[sessions.length - 1].date : null
-    return earliest ? asDate(earliest) : subDays(new Date(), 30)
+  const today = new Date()
+  if (cfg.grain === 'week') {
+    return addWeeks(startOfWeek(today, WEEK_OPTS), -(cfg.weeks - 1))
   }
-  return subDays(new Date(), cfg.days)
+  if (cfg.months) {
+    return addMonths(startOfMonth(today), -(cfg.months - 1))
+  }
+  // 'all' — from the earliest session (sessions are newest-first).
+  const earliest = sessions.length ? sessions[sessions.length - 1].date : null
+  return earliest ? asDate(earliest) : subDays(today, 30)
 }
 
 export function inWindow(sessions, start) {
@@ -188,6 +197,13 @@ export function sendStats(climbing) {
 // streak — we count back from last week — but training this week extends it.
 export function currentWeekStreak(sessions) {
   if (!sessions.length) return 0
+  // Broken once you've gone more than 7 days without training, even if that gap
+  // straddles two calendar weeks.
+  const last = sessions.reduce((m, s) => {
+    const d = asDate(s.date)
+    return d > m ? d : m
+  }, asDate(sessions[0].date))
+  if (differenceInCalendarDays(new Date(), last) > 7) return 0
   const weeks = new Set(
     sessions.map((s) => format(startOfWeek(asDate(s.date), WEEK_OPTS), 'yyyy-MM-dd')),
   )
