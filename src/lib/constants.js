@@ -1,5 +1,5 @@
 // Domain constants for the training diary. Kept in one place so the data model,
-// the register flow, and (later) the stats views all agree on vocabulary.
+// the register flow, and the stats views all agree on vocabulary.
 
 export const SPORTS = {
   cycling: { key: 'cycling', label: 'Cycling', emoji: '🚴', color: 'var(--cycling)' },
