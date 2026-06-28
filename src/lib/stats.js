@@ -183,17 +183,6 @@ export function sendStats(climbing) {
 }
 
 // ---- general ---------------------------------------------------------------
-export function currentStreak(sessions) {
-  const days = new Set(sessions.map((s) => s.date))
-  let streak = 0
-  let d = new Date()
-  while (days.has(format(d, 'yyyy-MM-dd'))) {
-    streak += 1
-    d = subDays(d, 1)
-  }
-  return streak
-}
-
 // Consecutive weeks (Mon-anchored) with at least one session, ending now. The
 // current week is still "in progress": an empty current week doesn't break the
 // streak — we count back from last week — but training this week extends it.

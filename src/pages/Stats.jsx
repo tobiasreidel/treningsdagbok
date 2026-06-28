@@ -68,6 +68,9 @@ export default function Stats() {
       grain,
       windowed,
       enabled,
+      // Computed over the full (enabled) history, not the window, so the streak
+      // isn't capped by the selected range — matches the dashboard widget.
+      weekStreak: S.currentWeekStreak(base),
       buckets: S.buckets(windowed, start, grain),
       cycling: S.bySport(windowed, 'cycling'),
       running: S.bySport(windowed, 'running'),
@@ -189,7 +192,7 @@ const SPORT_META = {
 }
 
 function Overview({ view }) {
-  const { windowed, buckets, start, enabled } = view
+  const { windowed, buckets, start, enabled, weekStreak } = view
   const rest = S.restBalance(windowed, start)
   const hoursBars = buckets.map((b) => ({
     label: b.label,
@@ -209,7 +212,7 @@ function Overview({ view }) {
         items={[
           { label: 'Sessions', value: windowed.length },
           { label: 'Hours', value: S.round1(S.sumHours(windowed)), sub: 'h' },
-          { label: 'Current streak', value: S.currentStreak(windowed), sub: 'days' },
+          { label: 'Weekly streak', value: weekStreak, sub: weekStreak === 1 ? 'week' : 'weeks' },
           { label: 'Active days', value: rest.active, sub: `/ ${rest.total}` },
         ]}
       />
