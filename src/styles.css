@@ -543,6 +543,64 @@ textarea {
 .head-actions {
   flex: none;
 }
+/* On narrower screens the 5 action buttons + title don't fit on one row at
+   full size, so the title used to clip to "Treningsda…". Rather than wrap (it
+   looked cluttered) or use one hard breakpoint (left a gap of widths that
+   still clipped, and looked too small on the rest), step the title and button
+   sizes down in bands so everything stays on a single line at every phone
+   width. Each band is tuned to fit at its narrowest edge; content is capped at
+   a 480px wrapper, so header width is min(viewport,480) − 32. */
+@media (max-width: 459px) {
+  .dash-head {
+    gap: 10px;
+  }
+  .dash-head h1 {
+    font-size: 1.15rem;
+  }
+  .head-actions {
+    gap: 6px;
+  }
+  .dash-head .icon-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 1.15rem;
+    border-radius: 10px;
+  }
+}
+@media (max-width: 404px) {
+  .dash-head {
+    gap: 6px;
+  }
+  .dash-head h1 {
+    font-size: 0.95rem;
+  }
+  .head-actions {
+    gap: 4px;
+  }
+  .dash-head .icon-btn {
+    width: 31px;
+    height: 31px;
+    font-size: 0.95rem;
+    border-radius: 9px;
+  }
+}
+@media (max-width: 359px) {
+  .dash-head {
+    gap: 4px;
+  }
+  .dash-head h1 {
+    font-size: 0.85rem;
+  }
+  .head-actions {
+    gap: 3px;
+  }
+  .dash-head .icon-btn {
+    width: 27px;
+    height: 27px;
+    font-size: 0.85rem;
+    border-radius: 8px;
+  }
+}
 .wizard-head {
   margin-bottom: 8px;
 }
