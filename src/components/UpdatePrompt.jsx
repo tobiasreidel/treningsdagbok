@@ -11,11 +11,15 @@ export default function UpdatePrompt() {
     updateServiceWorker,
   } = useRegisterSW({
     onRegisteredSW(_swUrl, registration) {
-      // Long-lived tabs (an installed PWA may stay open for days) won't notice
-      // a new deploy unless we poll, so check hourly.
-      if (registration) {
-        setInterval(() => registration.update(), 60 * 60 * 1000)
-      }
+      if (!registration) return
+      // Hourly poll as a fallback for long-lived sessions.
+      setInterval(() => registration.update(), 60 * 60 * 1000)
+      // iOS suspends JS timers while the PWA is backgrounded, so the interval
+      // above won't fire on resume. Check whenever the app comes back to the
+      // foreground instead — this covers swipe-back without killing the app.
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') registration.update()
+      })
     },
   })
 
