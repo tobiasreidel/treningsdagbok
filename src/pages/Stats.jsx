@@ -216,7 +216,7 @@ function Overview({ view }) {
       <Card title="Training hours" value={hoursValue}>
         <Bars data={hoursBars} />
       </Card>
-      <Card title="Feeling trend" value={`avg ${S.round1(S.avgFeeling(windowed))}/5`}>
+      <Card title="Feeling trend" value={S.avgFeeling(windowed) != null ? `avg ${S.round1(S.avgFeeling(windowed))}/5` : '–'}>
         <Line data={feelingLine} color="var(--both)" />
       </Card>
     </>
@@ -293,7 +293,7 @@ function Running({ view }) {
       <Card title="Running hours">
         <Bars data={hours} color={RUNNING} />
       </Card>
-      <Card title="Feeling trend" value={`avg ${S.round1(S.avgFeeling(running))}/5`}>
+      <Card title="Feeling trend" value={S.avgFeeling(running) != null ? `avg ${S.round1(S.avgFeeling(running))}/5` : '–'}>
         <Line data={feeling} color={RUNNING} />
       </Card>
     </>
@@ -325,7 +325,7 @@ function Swimming({ view }) {
       <Card title="Swimming hours">
         <Bars data={hours} color={SWIMMING} />
       </Card>
-      <Card title="Feeling trend" value={`avg ${S.round1(S.avgFeeling(swimming))}/5`}>
+      <Card title="Feeling trend" value={S.avgFeeling(swimming) != null ? `avg ${S.round1(S.avgFeeling(swimming))}/5` : '–'}>
         <Line data={feeling} color={SWIMMING} />
       </Card>
     </>
@@ -374,7 +374,7 @@ function Climbing({ view }) {
           ]}
         />
       </Card>
-      <Card title="Feeling trend" value={`avg ${S.round1(S.avgFeeling(climbing))}/5`}>
+      <Card title="Feeling trend" value={S.avgFeeling(climbing) != null ? `avg ${S.round1(S.avgFeeling(climbing))}/5` : '–'}>
         <Line data={feeling} color={CLIMBING} />
       </Card>
       <Card title="Grade pyramid" value="outdoor routes">

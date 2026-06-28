@@ -66,7 +66,23 @@ export function setOnboarded(userId) {
 // choice (see src/components/DashboardWidgets.jsx for the catalog). An empty
 // list is valid (the user removed everything); only a missing key falls back
 // to the default set.
-export const DEFAULT_WIDGETS = ['week-summary', 'month-summary', 'cycling-month']
+export const DEFAULT_WIDGETS = ['week-summary', 'month-summary']
+
+const SPORT_WIDGET = {
+  cycling: 'cycling-month',
+  running: 'running-month',
+  swimming: 'swimming-month',
+  climbing: 'climbing-month',
+  strength: 'strength-month',
+  finger: 'finger-month',
+}
+
+// Returns starter widgets for a new user: 2 general + up to 2 sport-specific
+// (in the order the user picked their sports), capped at 4 total.
+export function defaultWidgetsForSports(sports) {
+  const sportWidgets = sports.filter((k) => SPORT_WIDGET[k]).map((k) => SPORT_WIDGET[k]).slice(0, 2)
+  return [...DEFAULT_WIDGETS, ...sportWidgets]
+}
 
 export function getDashboardWidgets() {
   try {

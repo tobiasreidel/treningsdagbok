@@ -85,7 +85,7 @@ export const sumLoad = (arr) => arr.reduce((a, s) => a + num(s.extra?.training_l
 
 export function avgFeeling(arr) {
   const vals = arr.map((s) => num(s.feeling)).filter(Boolean)
-  if (!vals.length) return 0
+  if (!vals.length) return null
   return vals.reduce((a, b) => a + b, 0) / vals.length
 }
 

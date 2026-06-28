@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { SPORTS } from '../lib/constants'
-import { ALL_SPORTS, setEnabledSports, setOnboarded } from '../lib/prefs'
+import { ALL_SPORTS, setEnabledSports, setOnboarded, setDashboardWidgets, defaultWidgetsForSports } from '../lib/prefs'
 
 // First-run screen: pick the sports you do. This seeds your enabled sports
 // (changeable any time in Settings) so the app shows only what's relevant.
@@ -13,6 +13,7 @@ export default function Onboarding({ userId, onDone }) {
   const finish = () => {
     if (!picked.length) return
     setEnabledSports(picked)
+    setDashboardWidgets(defaultWidgetsForSports(picked))
     setOnboarded(userId)
     onDone()
   }

@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { SPORTS, SEND_TYPES, FEELING_LABELS, exerciseLabel } from '../lib/constants'
 import { formatDay, formatDuration, pacePerKm, pacePer100m } from '../lib/format'
-import { getSession, getSignedPhotoUrl, getCurrentUserId } from '../lib/sessions'
+import { getSession, getSignedPhotoUrl, getCurrentUserId, deleteSession } from '../lib/sessions'
 import { embeddedStrengthMinutes, embeddedFingerMinutes } from '../lib/stats'
 import { normalizeHang } from '../lib/formState'
+import { notifySessionsChanged } from '../App'
 
 const num = (v) => (v === '' || v == null ? null : Number(v))
 
@@ -50,6 +51,7 @@ export default function SessionDetail() {
   const [photoSrc, setPhotoSrc] = useState(null)
   const [error, setError] = useState(null)
   const [myId, setMyId] = useState(null)
+  const [deleting, setDeleting] = useState(false)
   const isPending = id?.startsWith('local-')
 
   useEffect(() => {
@@ -62,13 +64,26 @@ export default function SessionDetail() {
         setSession(s)
         if (s.photo_url) setPhotoSrc(await getSignedPhotoUrl(s.photo_url))
       })
-      .catch((err) => alive && setError(err.message || 'Could not load activity'))
+      .catch(() => alive && setError('Activity not found'))
     return () => {
       alive = false
     }
   }, [id, isPending])
 
   const back = () => navigate(-1)
+
+  const remove = async () => {
+    if (!window.confirm('Delete this activity? This cannot be undone.')) return
+    setDeleting(true)
+    try {
+      await deleteSession(session)
+      notifySessionsChanged()
+      navigate('/', { state: { toast: 'Activity deleted' } })
+    } catch (err) {
+      setError(err.message || 'Could not delete')
+      setDeleting(false)
+    }
+  }
 
   if (isPending) {
     return (
@@ -154,6 +169,13 @@ export default function SessionDetail() {
     <Shell
       onBack={back}
       title={`${sport?.emoji || ''} ${sport?.label || 'Activity'}`}
+      headerRight={
+        isOwner ? (
+          <button className="icon-btn danger" onClick={remove} disabled={deleting} aria-label="Delete activity">
+            🗑
+          </button>
+        ) : null
+      }
       footer={
         isOwner ? (
           <button
@@ -318,7 +340,7 @@ function fmtHang(n) {
   return parts.join(' · ')
 }
 
-function Shell({ onBack, title, children, footer }) {
+function Shell({ onBack, title, children, footer, headerRight }) {
   return (
     <div className="page">
       <header className="wizard-head">
@@ -328,7 +350,7 @@ function Shell({ onBack, title, children, footer }) {
         <div className="wizard-title">
           <h1>{title}</h1>
         </div>
-        <span style={{ width: 40 }} />
+        {headerRight ?? <span style={{ width: 40 }} />}
       </header>
       <main className="wizard-body stack">{children}</main>
       {footer && <footer className="wizard-foot">{footer}</footer>}

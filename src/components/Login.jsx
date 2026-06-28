@@ -48,14 +48,14 @@ export default function Login() {
           <button
             type="button"
             className={mode === 'signin' ? 'is-active' : ''}
-            onClick={() => setMode('signin')}
+            onClick={() => { setMode('signin'); setError(null) }}
           >
             Sign in
           </button>
           <button
             type="button"
             className={mode === 'signup' ? 'is-active' : ''}
-            onClick={() => setMode('signup')}
+            onClick={() => { setMode('signup'); setError(null) }}
           >
             Create account
           </button>
