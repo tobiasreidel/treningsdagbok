@@ -5,6 +5,7 @@ import { SPORTS } from '../lib/constants'
 import { getSettings, saveSettings, fetchActivities, isClimbingActivity } from '../lib/intervals'
 import { getMyProfile, setDisplayName, getShareSetting, setShareSetting } from '../lib/friends'
 import { sendFeedback } from '../lib/feedback'
+import { THEMES, getTheme, setTheme } from '../lib/theme'
 import {
   getHideRidesUnderKm,
   setHideRidesUnderKm,
@@ -26,6 +27,7 @@ export default function Settings() {
     return v > 0 ? String(v) : ''
   })
   const [enabledSports, setEnabledSportsState] = useState(getEnabledSports)
+  const [theme, setThemeState] = useState(getTheme)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [test, setTest] = useState(null)
@@ -61,6 +63,9 @@ export default function Settings() {
       return result
     })
   }
+
+  // Theme applies live (and persists) the moment it's tapped — no Save needed.
+  const chooseTheme = (key) => setThemeState(setTheme(key))
 
   const submitFeedback = async () => {
     const msg = fbMessage.trim()
@@ -129,7 +134,7 @@ export default function Settings() {
       </header>
 
       <main className="wizard-body stack">
-        <section className="stack">
+        <section className="card settings-card stack">
           <h2 className="step-q">Profile</h2>
           <Field label="Display name" hint="Shown to friends">
             <input
@@ -152,7 +157,13 @@ export default function Settings() {
           </Field>
         </section>
 
-        <section className="stack">
+        <section className="card settings-card stack">
+          <h2 className="step-q">Appearance</h2>
+          <p className="muted small">Pick a colour theme. Applies instantly.</p>
+          <ThemePicker value={theme} onChange={chooseTheme} />
+        </section>
+
+        <section className="card settings-card stack">
           <h2 className="step-q">Sports</h2>
           <p className="muted small">
             Choose which sports you track. Turning one off hides it from logging,
@@ -186,7 +197,7 @@ export default function Settings() {
           </div>
         </section>
 
-        <section className="stack">
+        <section className="card settings-card stack">
           <h2 className="step-q">Dashboard</h2>
           <button
             type="button"
@@ -216,7 +227,7 @@ export default function Settings() {
           </Field>
         </section>
 
-        <section className="stack">
+        <section className="card settings-card stack">
           <h2 className="step-q">Connect intervals.icu</h2>
           <p className="muted small">
             Pull your activities in automatically. Your Garmin device syncs to
@@ -280,7 +291,7 @@ export default function Settings() {
           </p>
         </section>
 
-        <section className="stack">
+        <section className="card settings-card stack">
           <h2 className="step-q">Feedback</h2>
           <p className="muted small">
             Hit a bug or wish the app did something? Send it straight to Tobias.
@@ -331,6 +342,33 @@ export default function Settings() {
           {saving ? 'Saving…' : 'Save'}
         </button>
       </footer>
+    </div>
+  )
+}
+
+// Swatch grid for choosing a colour theme. Each tile previews the theme's
+// background, a surface bar and the accent colour.
+function ThemePicker({ value, onChange }) {
+  return (
+    <div className="theme-grid">
+      {THEMES.map((t) => (
+        <button
+          key={t.key}
+          type="button"
+          className={`theme-swatch ${value === t.key ? 'is-active' : ''}`}
+          onClick={() => onChange(t.key)}
+          aria-pressed={value === t.key}
+        >
+          <span
+            className="theme-preview"
+            style={{ '--sw-bg': t.bg, '--sw-surface': t.surface, '--sw-accent': t.accent }}
+          >
+            <span className="theme-preview-bar" />
+            <span className="theme-preview-dot" />
+          </span>
+          <span className="theme-swatch-label">{t.label}</span>
+        </button>
+      ))}
     </div>
   )
 }

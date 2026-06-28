@@ -26,8 +26,30 @@
   --maxw: 480px;
 }
 
+/* ----- themes -------------------------------------------------------------
+   :root above is the Light palette (the default). Each theme below overrides
+   the base tokens; sport colours stay constant so dots/charts read the same
+   everywhere. The active theme is chosen via data-theme on <html> (see
+   src/lib/theme.js). "System" follows the OS through the media query. */
+
+/* Shared dark palette — used by the explicit Dark theme and by System on a
+   dark device. (Kept in two places because a selector list can't span a media
+   query; it's only a handful of tokens.) */
+[data-theme='dark'] {
+  --bg: #0b1020;
+  --surface: #151b2e;
+  --surface-2: #1d2440;
+  --text: #e7e9f2;
+  --text-muted: #98a1ba;
+  --border: #283154;
+  --primary: #6366f1;
+  --primary-tint: #21264a;
+  --shadow: none;
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme]),
+  [data-theme='system'] {
     --bg: #0b1020;
     --surface: #151b2e;
     --surface-2: #1d2440;
@@ -38,6 +60,45 @@
     --primary-tint: #21264a;
     --shadow: none;
   }
+}
+
+/* Midnight — OLED black with a violet accent. */
+[data-theme='midnight'] {
+  --bg: #000000;
+  --surface: #0c0c14;
+  --surface-2: #15151f;
+  --text: #e8e8f2;
+  --text-muted: #9a9ab2;
+  --border: #22222e;
+  --primary: #8b5cf6;
+  --primary-tint: #1e1633;
+  --shadow: none;
+}
+
+/* Forest — deep green dusk with an emerald accent. */
+[data-theme='forest'] {
+  --bg: #0c1410;
+  --surface: #122019;
+  --surface-2: #1a2c22;
+  --text: #e3ece6;
+  --text-muted: #93a89c;
+  --border: #233a2e;
+  --primary: #10b981;
+  --primary-tint: #10241c;
+  --shadow: none;
+}
+
+/* Sunset — warm cream light theme with an orange accent. */
+[data-theme='sunset'] {
+  --bg: #fdf6f0;
+  --surface: #ffffff;
+  --surface-2: #fbeae0;
+  --text: #2a1f1a;
+  --text-muted: #8a7268;
+  --border: #f1ddd0;
+  --primary: #ea580c;
+  --primary-tint: #fde7d6;
+  --shadow: 0 1px 3px rgba(120, 60, 20, 0.08), 0 1px 2px rgba(120, 60, 20, 0.05);
 }
 
 * {
@@ -924,6 +985,85 @@ textarea {
   color: var(--text-muted);
   font-size: 1.2rem;
   line-height: 1;
+}
+
+/* Each Settings group is a card so the page reads as distinct blocks. */
+.settings-card {
+  gap: 12px;
+}
+.settings-card .step-q {
+  margin: 0;
+}
+
+/* ----- theme picker (Appearance) ----- */
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.theme-swatch {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 7px;
+  background: var(--surface-2);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color 0.12s ease, transform 0.05s ease;
+}
+.theme-swatch:active {
+  transform: scale(0.97);
+}
+.theme-swatch.is-active {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-tint);
+}
+.theme-preview {
+  position: relative;
+  height: 44px;
+  border-radius: 8px;
+  background: var(--sw-bg);
+  border: 1px solid rgba(127, 127, 127, 0.22);
+  overflow: hidden;
+}
+.theme-preview-bar {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 9px;
+  height: 7px;
+  border-radius: 4px;
+  background: var(--sw-surface);
+}
+.theme-preview-bar::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 11px;
+  width: 60%;
+  height: 7px;
+  border-radius: 4px;
+  background: var(--sw-surface);
+  opacity: 0.6;
+}
+.theme-preview-dot {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--sw-accent);
+}
+.theme-swatch-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-align: center;
+  color: var(--text);
+}
+.theme-swatch.is-active .theme-swatch-label {
+  color: var(--primary);
 }
 
 /* ----- widget manager ----- */
