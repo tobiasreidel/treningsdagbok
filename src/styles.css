@@ -1025,6 +1025,10 @@ textarea {
 }
 .theme-preview {
   position: relative;
+  /* The preview's children are all absolutely positioned, so it has no
+     intrinsic width. iOS Safari then collapses this flex item to ~0 wide
+     (Chrome stretches it) — so set the width explicitly. */
+  width: 100%;
   height: 44px;
   border-radius: 8px;
   background: var(--sw-bg);
