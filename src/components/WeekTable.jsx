@@ -19,9 +19,9 @@ export default function WeekTable({ sessions, onSelect }) {
 
   if (recent.length === 0) {
     return (
-      <div className=”card empty-state”>
+      <div className="card empty-state">
         <p>No sessions in the last 7 days.</p>
-        <p className=”muted small”>Tap &ldquo;Register session&rdquo; to log one.</p>
+        <p className="muted small">Tap &ldquo;Register session&rdquo; to log one.</p>
       </div>
     )
   }
