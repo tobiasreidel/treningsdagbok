@@ -994,6 +994,10 @@ textarea {
 .settings-card .step-q {
   margin: 0;
 }
+.settings-autosave {
+  text-align: center;
+  padding: 4px 0 max(env(safe-area-inset-bottom), 8px);
+}
 
 /* ----- theme picker (Appearance) ----- */
 .theme-grid {

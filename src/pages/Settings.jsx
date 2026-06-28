@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Field, Segmented } from '../components/ui'
 import { SPORTS } from '../lib/constants'
@@ -29,9 +29,14 @@ export default function Settings() {
   const [enabledSports, setEnabledSportsState] = useState(getEnabledSports)
   const [theme, setThemeState] = useState(getTheme)
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
   const [test, setTest] = useState(null)
   const [error, setError] = useState(null)
+  const [flash, setFlash] = useState(null) // transient "Saved" confirmation
+  // Last-persisted values, so a blur with no change doesn't re-hit the server.
+  const savedName = useRef('')
+  const savedHideKm = useRef('')
+  const savedAthleteId = useRef('')
+  const flashTimer = useRef()
   // Bug report / feature request widget (bottom of the page).
   const [fbType, setFbType] = useState('bug')
   const [fbMessage, setFbMessage] = useState('')
@@ -48,10 +53,23 @@ export default function Settings() {
         setSavedKey(s.apiKey)
         setDisplayNameState(profile?.display_name || '')
         setShare(shareVal)
+        savedAthleteId.current = s.athleteId
+        savedName.current = profile?.display_name || ''
+        savedHideKm.current = hideKm
       })
       .catch(() => {})
       .finally(() => setLoading(false))
+    return () => clearTimeout(flashTimer.current)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Briefly show a "Saved" pill. Settings auto-save, so this is the only
+  // feedback that a change stuck.
+  const showFlash = (msg = 'Saved') => {
+    setFlash(msg)
+    clearTimeout(flashTimer.current)
+    flashTimer.current = setTimeout(() => setFlash(null), 1600)
+  }
 
   // Sport toggles persist immediately (local pref) — independent of Save.
   const toggleSport = (key) => {
@@ -96,20 +114,48 @@ export default function Settings() {
     }
   }
 
-  const save = async () => {
-    setSaving(true)
+  // ---- auto-save -----------------------------------------------------------
+  // Each field persists on its own: text inputs on blur (so we don't write a
+  // character at a time), the privacy toggle on change. Profile/privacy are
+  // best-effort — they depend on friends.sql having been run — so a failure
+  // there is swallowed rather than shown as an error.
+  const commitName = () => {
+    if (displayName === savedName.current) return
+    savedName.current = displayName
+    setDisplayName(displayName).catch(() => {})
+    showFlash()
+  }
+
+  const commitShare = (v) => {
+    setShare(v)
+    setShareSetting(v).catch(() => {})
+    showFlash()
+  }
+
+  const commitHideKm = () => {
+    if (hideKm === savedHideKm.current) return
+    savedHideKm.current = hideKm
+    setHideRidesUnderKm(hideKm)
+    showFlash()
+  }
+
+  // Athlete id + API key live in one row, so they save together.
+  const commitIntervals = async () => {
+    const keyChanged = (replacing || !savedKey) && apiKey.trim() && apiKey.trim() !== savedKey
+    const athleteChanged = athleteId !== savedAthleteId.current
+    if (!keyChanged && !athleteChanged) return
     setError(null)
     try {
-      // Profile/privacy are best-effort: they depend on friends.sql having been
-      // run, and shouldn't block saving the intervals.icu connection.
-      await setDisplayName(displayName).catch(() => {})
-      await setShareSetting(share).catch(() => {})
-      setHideRidesUnderKm(hideKm)
       await saveSettings({ athleteId, apiKey: keyToUse })
-      navigate('/', { state: { toast: 'Settings saved' } })
+      savedAthleteId.current = athleteId
+      if (keyChanged) {
+        setSavedKey(apiKey.trim())
+        setReplacing(false)
+        setApiKey('')
+      }
+      showFlash()
     } catch (err) {
       setError(err.message || 'Could not save')
-      setSaving(false)
     }
   }
 
@@ -141,6 +187,7 @@ export default function Settings() {
               type="text"
               value={displayName}
               onChange={(e) => setDisplayNameState(e.target.value)}
+              onBlur={commitName}
               placeholder="Your name"
             />
           </Field>
@@ -151,7 +198,7 @@ export default function Settings() {
                 { key: 'off', label: 'Private' },
               ]}
               value={share ? 'on' : 'off'}
-              onChange={(v) => setShare(v === 'on')}
+              onChange={(v) => commitShare(v === 'on')}
               columns={2}
             />
           </Field>
@@ -220,6 +267,7 @@ export default function Settings() {
                 step="1"
                 value={hideKm}
                 onChange={(e) => setHideKm(e.target.value)}
+                onBlur={commitHideKm}
                 placeholder="e.g. 10"
               />
               <span className="suffix">km</span>
@@ -253,6 +301,7 @@ export default function Settings() {
                 type="password"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
+                onBlur={commitIntervals}
                 placeholder="your intervals.icu API key"
                 autoComplete="off"
                 spellCheck={false}
@@ -265,6 +314,7 @@ export default function Settings() {
               inputMode="numeric"
               value={athleteId}
               onChange={(e) => setAthleteId(e.target.value)}
+              onBlur={commitIntervals}
               placeholder="0"
             />
           </Field>
@@ -335,13 +385,11 @@ export default function Settings() {
         </section>
 
         {error && <p className="auth-error">{error}</p>}
+
+        <p className="muted small settings-autosave">Changes are saved automatically.</p>
       </main>
 
-      <footer className="wizard-foot">
-        <button className="btn btn-primary btn-block" onClick={save} disabled={saving}>
-          {saving ? 'Saving…' : 'Save'}
-        </button>
-      </footer>
+      {flash && <div className="toast">{flash}</div>}
     </div>
   )
 }
