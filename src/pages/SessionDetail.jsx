@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { SPORTS, SEND_TYPES, FEELING_LABELS, exerciseLabel } from '../lib/constants'
+import { SPORTS, SEND_TYPES, FEELING_LABELS, exerciseLabel, formatGrade } from '../lib/constants'
 import { formatDay, formatDuration, pacePerKm, pacePer100m } from '../lib/format'
 import { getSession, getSignedPhotoUrl, getCurrentUserId, deleteSession } from '../lib/sessions'
 import { embeddedStrengthMinutes, embeddedFingerMinutes } from '../lib/stats'
@@ -214,7 +214,7 @@ export default function SessionDetail() {
           <div className="chips">
             {grades.map((g) => (
               <span className="chip is-active" key={g}>
-                {g}
+                {formatGrade(g, session.subtype)}
               </span>
             ))}
           </div>
@@ -229,7 +229,7 @@ export default function SessionDetail() {
               <div className="route-line" key={i}>
                 <span className="route-line-name">{r.name || `Route ${i + 1}`}</span>
                 <span className="route-line-meta">
-                  {r.grade && <strong>{r.grade}</strong>}
+                  {r.grade && <strong>{formatGrade(r.grade, session.subtype)}</strong>}
                   {r.send_type && <span className="route-send">{sendLabel(r.send_type)}</span>}
                   {r.attempts ? <span className="muted small">{r.attempts} att</span> : null}
                 </span>

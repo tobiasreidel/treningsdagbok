@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
-import { SPORTS, FEELING_LABELS } from '../lib/constants'
+import { SPORTS, FEELING_LABELS, formatGrade } from '../lib/constants'
 import {
   asDate,
   formatDay,
@@ -303,7 +303,7 @@ function Expanded({ session: s, onOpenFull }) {
         <div className="chips">
           {grades.map((g) => (
             <span className="chip is-active" key={g}>
-              {g}
+              {formatGrade(g, s.subtype)}
             </span>
           ))}
         </div>

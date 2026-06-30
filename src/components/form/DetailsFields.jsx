@@ -1,5 +1,5 @@
 import { Field, Scale, NumberField, Chips, Segmented } from '../ui'
-import { FEELING_LABELS, gradesFor } from '../../lib/constants'
+import { FEELING_LABELS, gradesFor, formatGrade } from '../../lib/constants'
 import { avgSpeedFrom, pacePerKm, pacePer100m } from '../../lib/format'
 
 // Step 3 fields: subjective ratings, duration, and sport-specific numbers.
@@ -345,7 +345,9 @@ function CyclingFields({ form, updateExtra }) {
 
 function ClimbingFields({ form, updateExtra }) {
   const e = form.extra || {}
-  const grades = e.grades || []
+  // Match selection against the canonical case for the subtype so grades saved
+  // before the boulder=UPPERCASE convention still light up (and re-save fixed).
+  const grades = (e.grades || []).map((g) => formatGrade(g, form.subtype))
   return (
     <Field
       label="Grades worked"

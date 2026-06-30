@@ -11,6 +11,7 @@ import {
 } from 'date-fns'
 import { asDate } from './format'
 import { normalizeHang } from './formState'
+import { formatGrade } from './constants'
 
 const WEEK_OPTS = { weekStartsOn: 1 }
 const num = (v) => Number(v) || 0
@@ -175,7 +176,10 @@ export function gradePyramid(climbing) {
   const counts = {}
   for (const s of climbing) {
     for (const r of s.routes || []) {
-      if (r.grade) counts[r.grade] = (counts[r.grade] || 0) + 1
+      if (r.grade) {
+        const label = formatGrade(r.grade, s.subtype)
+        counts[label] = (counts[label] || 0) + 1
+      }
     }
   }
   return Object.keys(counts)

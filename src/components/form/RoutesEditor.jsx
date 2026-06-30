@@ -1,5 +1,5 @@
 import { Field, ChipSelect, NumberField } from '../ui'
-import { SEND_TYPES, gradesFor } from '../../lib/constants'
+import { SEND_TYPES, gradesFor, formatGrade } from '../../lib/constants'
 import { emptyRoute } from '../../lib/formState'
 
 // Step 4 (outdoor climbing only): log individual routes / boulders.
@@ -46,7 +46,7 @@ export default function RoutesEditor({ form, update }) {
           <div className="two-col">
             <Field label="Grade">
               <select
-                value={route.grade || ''}
+                value={formatGrade(route.grade, form.subtype) || ''}
                 onChange={(e) => setRoute(idx, { grade: e.target.value || null })}
               >
                 <option value="">Grade</option>

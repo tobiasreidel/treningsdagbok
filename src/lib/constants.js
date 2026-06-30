@@ -58,15 +58,15 @@ export const SEND_TYPES = [
   { key: 'attempt', label: 'Attempt', short: 'Att' },
 ]
 
-// French (Fontainebleau) grades for bouldering.
+// Fontainebleau boulder grades are written with an uppercase letter (8B+).
 export const BOULDER_GRADES = [
   '3', '4', '5', '5+',
-  '6a', '6a+', '6b', '6b+', '6c', '6c+',
-  '7a', '7a+', '7b', '7b+', '7c', '7c+',
-  '8a', '8a+', '8b', '8b+', '8c', '8c+', '9a',
+  '6A', '6A+', '6B', '6B+', '6C', '6C+',
+  '7A', '7A+', '7B', '7B+', '7C', '7C+',
+  '8A', '8A+', '8B', '8B+', '8C', '8C+', '9A',
 ]
 
-// French sport-climbing grades (used for sport + trad).
+// French sport-climbing grades (used for sport + trad) use a lowercase letter.
 export const ROUTE_GRADES = [
   '4a', '4b', '4c',
   '5a', '5b', '5c',
@@ -78,6 +78,15 @@ export const ROUTE_GRADES = [
 
 export function gradesFor(subtype) {
   return subtype === 'bouldering' ? BOULDER_GRADES : ROUTE_GRADES
+}
+
+// Boulder grades show an uppercase letter (8B+), route grades a lowercase one
+// (8b+). Normalize a stored grade to the right case for its subtype, so values
+// saved before this convention (all lowercase) still display and match cleanly.
+export function formatGrade(grade, subtype) {
+  if (!grade) return grade
+  const g = String(grade)
+  return subtype === 'bouldering' ? g.toUpperCase() : g.toLowerCase()
 }
 
 export const FEELING_LABELS = {
