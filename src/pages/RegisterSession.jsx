@@ -5,6 +5,7 @@ import DetailsFields from '../components/form/DetailsFields'
 import RoutesEditor from '../components/form/RoutesEditor'
 import StrengthFields from '../components/form/StrengthFields'
 import NotesPhoto from '../components/form/NotesPhoto'
+import NotesField from '../components/form/NotesField'
 import { emptyForm, isOutdoorClimbing } from '../lib/formState'
 import { SPORTS, SUBTYPES, LOCATIONS } from '../lib/constants'
 import { getEnabledSports } from '../lib/prefs'
@@ -147,9 +148,12 @@ export default function RegisterSession() {
         )}
 
         {current === 'details' && (
-          <section>
-            <h2 className="step-q">Details</h2>
-            <DetailsFields form={form} update={update} updateExtra={updateExtra} />
+          <section className="stack">
+            <div>
+              <h2 className="step-q">Details</h2>
+              <DetailsFields form={form} update={update} updateExtra={updateExtra} />
+            </div>
+            <NotesField form={form} update={update} />
           </section>
         )}
 
@@ -161,15 +165,18 @@ export default function RegisterSession() {
         )}
 
         {(current === 'strength' || current === 'finger') && (
-          <section>
-            <h2 className="step-q">
-              {form.sport === 'finger'
-                ? 'Finger training'
-                : form.sport === 'strength'
-                  ? 'Strength training'
-                  : 'Strength & finger'}
-            </h2>
-            <StrengthFields form={form} updateExtra={updateExtra} />
+          <section className="stack">
+            <div>
+              <h2 className="step-q">
+                {form.sport === 'finger'
+                  ? 'Finger training'
+                  : form.sport === 'strength'
+                    ? 'Strength training'
+                    : 'Strength & finger'}
+              </h2>
+              <StrengthFields form={form} updateExtra={updateExtra} />
+            </div>
+            <NotesField form={form} update={update} />
           </section>
         )}
 

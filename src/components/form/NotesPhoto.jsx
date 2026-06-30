@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Field } from '../ui'
+import NotesField from './NotesField'
 
 // Final step: free-text notes + an optional photo.
 // `existingPhotoSrc` is a resolved (signed) URL for a previously saved photo.
@@ -29,14 +30,7 @@ export default function NotesPhoto({ form, update, existingPhotoSrc }) {
 
   return (
     <div className="stack">
-      <Field label="Notes" optional>
-        <textarea
-          rows={5}
-          value={form.notes}
-          placeholder="How did it go? Conditions, what you worked on…"
-          onChange={(e) => update({ notes: e.target.value })}
-        />
-      </Field>
+      <NotesField form={form} update={update} />
 
       <Field label="Photo" optional>
         {preview ? (
