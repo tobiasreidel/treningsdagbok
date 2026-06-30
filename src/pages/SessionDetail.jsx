@@ -327,10 +327,14 @@ function uniformOrNull(values) {
   return new Set(norm).size <= 1 ? norm[0] : 'varies'
 }
 
-// "1 × 5 · +20 kg · 7 s", collapsing uniform sets and flagging when they vary.
+// "20 mm · 1 × 5 · +20 kg · 7 s", collapsing uniform sets and flagging when they vary.
 function fmtHang(n) {
   const reps = Math.max(1, Number(n.reps) || 1)
-  const parts = [`${reps} × ${n.sets.length}`]
+  const parts = []
+  const ed = uniformOrNull(n.sets.map((s) => s.edge))
+  if (ed === 'varies') parts.push('edges vary')
+  else if (Number(ed) > 0) parts.push(`${Number(ed)} mm`)
+  parts.push(`${reps} × ${n.sets.length}`)
   const w = uniformOrNull(n.sets.map((s) => s.weight))
   const t = uniformOrNull(n.sets.map((s) => s.time))
   parts.push(w === 'varies' ? 'weights vary' : fmtHangWeight(w))

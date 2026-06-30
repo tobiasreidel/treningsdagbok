@@ -215,7 +215,7 @@ function HangEditor({ hang, index, onChange, onRemove }) {
     if (!Number.isFinite(count) || count < 1) count = 1
     count = Math.min(count, 30)
     if (count === h.sets.length) return
-    const template = h.sets[0] || { weight: '', time: '' }
+    const template = h.sets[0] || { weight: '', time: '', edge: '' }
     const sets = h.sets.slice(0, count)
     while (sets.length < count) sets.push({ ...template })
     onChange({ ...h, sets })
@@ -332,12 +332,19 @@ function HangEditor({ hang, index, onChange, onRemove }) {
               unit="s"
               min={0}
             />
+            <NumberField
+              value={s.edge}
+              onChange={(v) => setSet(i, { edge: v })}
+              placeholder="20"
+              unit="mm"
+              min={0}
+            />
           </div>
         ))}
       </div>
       <span className="field-hint">
         {oneHand ? 'Weight: + added · − assisted (pulley).' : 'Weight: added weight.'} Time is
-        the hang in seconds. The first set is the default for the rest.
+        the hang in seconds. Edge is the depth in mm. The first set is the default for the rest.
       </span>
     </div>
   )

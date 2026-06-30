@@ -70,28 +70,31 @@ export function emptyExercise() {
 
 // A hangboard exercise: one or two hands, a rep count, an optional rest (in
 // seconds) between reps, and a list of sets. Each set carries its own added
-// weight (kg) and hang time (seconds); new sets default to the first set's
-// values but can be changed individually. One-hand weight may be negative
-// (assisted via pulley); two-hand weight is added only.
+// weight (kg), hang time (seconds), and edge size (mm); new sets default to the
+// first set's values but can be changed individually. One-hand weight may be
+// negative (assisted via pulley); two-hand weight is added only.
 export function emptyHang() {
-  return { hands: 'two', reps: '1', rest: '', sets: [{ weight: '', time: '' }] }
+  return { hands: 'two', reps: '1', rest: '', sets: [{ weight: '', time: '', edge: '' }] }
 }
 
 // Read a hangboard entry in either shape. Legacy entries were a flat
-// { hands, weight }; new ones are { hands, reps, rest, sets: [{ weight, time }] }.
+// { hands, weight }; new ones are { hands, reps, rest, sets: [{ weight, time, edge }] }.
+// Edge size was added later, so older sets simply lack it (treated as blank).
 export function normalizeHang(h) {
   if (h && Array.isArray(h.sets)) {
     return {
       hands: h.hands || 'two',
       reps: h.reps ?? '1',
       rest: h.rest ?? '',
-      sets: h.sets.length ? h.sets : [{ weight: '', time: '' }],
+      sets: h.sets.length
+        ? h.sets.map((s) => ({ edge: '', ...s }))
+        : [{ weight: '', time: '', edge: '' }],
     }
   }
   return {
     hands: h?.hands || 'two',
     reps: h?.reps ?? '1',
     rest: '',
-    sets: [{ weight: h?.weight ?? '', time: '' }],
+    sets: [{ weight: h?.weight ?? '', time: '', edge: '' }],
   }
 }
