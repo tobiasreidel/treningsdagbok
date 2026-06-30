@@ -389,6 +389,7 @@ function Climbing({ view }) {
             { label: 'Onsight', value: sends.onsight, color: 'var(--both)' },
             { label: 'Flash', value: sends.flash, color: 'var(--both)' },
             { label: 'Redpoint', value: sends.redpoint, color: CYCLING },
+            { label: '2. go', value: sends.secondgo, color: CYCLING },
             { label: 'Attempt', value: sends.attempt, color: 'var(--danger)' },
           ]}
         />

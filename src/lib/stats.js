@@ -188,7 +188,7 @@ export function gradePyramid(climbing) {
 }
 
 export function sendStats(climbing) {
-  const m = { onsight: 0, flash: 0, redpoint: 0, attempt: 0 }
+  const m = { onsight: 0, flash: 0, redpoint: 0, secondgo: 0, attempt: 0 }
   for (const s of climbing) {
     for (const r of s.routes || []) if (m[r.send_type] != null) m[r.send_type] += 1
   }

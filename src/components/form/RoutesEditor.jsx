@@ -1,4 +1,4 @@
-import { Field, ChipSelect, NumberField } from '../ui'
+import { Field, ChipSelect } from '../ui'
 import { SEND_TYPES, gradesFor, formatGrade } from '../../lib/constants'
 import { emptyRoute } from '../../lib/formState'
 
@@ -43,36 +43,26 @@ export default function RoutesEditor({ form, update }) {
             />
           </Field>
 
-          <div className="two-col">
-            <Field label="Grade">
-              <select
-                value={formatGrade(route.grade, form.subtype) || ''}
-                onChange={(e) => setRoute(idx, { grade: e.target.value || null })}
-              >
-                <option value="">Grade</option>
-                {grades.map((g) => (
-                  <option key={g} value={g}>
-                    {g}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Attempts" optional>
-              <NumberField
-                value={route.attempts}
-                onChange={(v) => setRoute(idx, { attempts: v })}
-                placeholder="1"
-                step="1"
-                min={1}
-              />
-            </Field>
-          </div>
+          <Field label="Grade">
+            <select
+              value={formatGrade(route.grade, form.subtype) || ''}
+              onChange={(e) => setRoute(idx, { grade: e.target.value || null })}
+            >
+              <option value="">Grade</option>
+              {grades.map((g) => (
+                <option key={g} value={g}>
+                  {g}
+                </option>
+              ))}
+            </select>
+          </Field>
 
           <Field label="Send">
             <ChipSelect
               options={SEND_TYPES}
               value={route.send_type}
               onChange={(v) => setRoute(idx, { send_type: v })}
+              isActive={isSendActive}
             />
           </Field>
         </div>
@@ -83,4 +73,10 @@ export default function RoutesEditor({ form, update }) {
       </button>
     </div>
   )
+}
+
+// A 2nd-go send is also a redpoint, so selecting "2. go" lights up both chips.
+function isSendActive(key, sendType) {
+  if (key === 'redpoint') return sendType === 'redpoint' || sendType === 'secondgo'
+  return sendType === key
 }

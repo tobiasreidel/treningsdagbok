@@ -55,6 +55,9 @@ export const SEND_TYPES = [
   { key: 'onsight', label: 'Onsight', short: 'OS' },
   { key: 'flash', label: 'Flash', short: 'FL' },
   { key: 'redpoint', label: 'Redpoint', short: 'RP' },
+  // A 2nd-go send is a finer-grained redpoint: picking it also marks Redpoint
+  // as active (see RoutesEditor's isSendActive).
+  { key: 'secondgo', label: '2. go', short: '2g' },
   { key: 'attempt', label: 'Attempt', short: 'Att' },
 ]
 

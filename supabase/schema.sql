@@ -48,7 +48,7 @@ create table if not exists public.routes (
   user_id     uuid not null default auth.uid() references auth.users (id) on delete cascade,
   name        text,                                        -- optional
   grade       text,                                        -- French grade
-  send_type   text check (send_type in ('onsight', 'flash', 'redpoint', 'attempt')),
+  send_type   text check (send_type in ('onsight', 'flash', 'redpoint', 'secondgo', 'attempt')),
   attempts    integer check (attempts >= 0),               -- optional
   position    integer not null default 0,                  -- display order
   created_at  timestamptz not null default now()

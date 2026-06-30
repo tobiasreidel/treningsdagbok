@@ -38,7 +38,6 @@ export function sessionToForm(s) {
       name: r.name ?? '',
       grade: r.grade ?? null,
       send_type: r.send_type ?? null,
-      attempts: r.attempts ?? '',
     })),
     photoFile: null,
     photoUrl: s.photo_url ?? null,
@@ -61,7 +60,7 @@ export function usesStrengthModule(form) {
 }
 
 export function emptyRoute() {
-  return { name: '', grade: null, send_type: null, attempts: '' }
+  return { name: '', grade: null, send_type: null }
 }
 
 export function emptyExercise() {

@@ -59,7 +59,6 @@ function buildItem(form, kind = 'create') {
     name: r.name?.trim() || null,
     grade: r.grade || null,
     send_type: r.send_type || null,
-    attempts: r.attempts === '' || r.attempts == null ? null : Number(r.attempts),
     position: i,
   }))
   return {

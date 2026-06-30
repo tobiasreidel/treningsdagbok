@@ -108,18 +108,21 @@ export function Chips({ options, value = [], onChange }) {
   )
 }
 
-// Single-select chip row (e.g. choose one grade for a route).
-export function ChipSelect({ options, value, onChange }) {
+// Single-select chip row (e.g. choose one grade for a route). The selection is
+// still a single value; `isActive(key, value)` lets a caller light up more than
+// one chip for a given value (e.g. a 2nd-go send also marks Redpoint).
+export function ChipSelect({ options, value, onChange, isActive }) {
   return (
     <div className="chips">
       {options.map((opt) => {
         const key = typeof opt === 'string' ? opt : opt.key
         const label = typeof opt === 'string' ? opt : opt.label
+        const active = isActive ? isActive(key, value) : value === key
         return (
           <button
             key={key}
             type="button"
-            className={`chip ${value === key ? 'is-active' : ''}`}
+            className={`chip ${active ? 'is-active' : ''}`}
             onClick={() => onChange(value === key ? null : key)}
           >
             {label}

@@ -231,7 +231,6 @@ export default function SessionDetail() {
                 <span className="route-line-meta">
                   {r.grade && <strong>{formatGrade(r.grade, session.subtype)}</strong>}
                   {r.send_type && <span className="route-send">{sendLabel(r.send_type)}</span>}
-                  {r.attempts ? <span className="muted small">{r.attempts} att</span> : null}
                 </span>
               </div>
             ))}
