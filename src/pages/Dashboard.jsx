@@ -41,6 +41,21 @@ export default function Dashboard() {
     return () => window.removeEventListener('sessions:changed', load)
   }, [load])
 
+  // Tell the user when an offline session couldn't sync and was discarded —
+  // the one case where a logged session is lost (see flushOutbox).
+  useEffect(() => {
+    const onDropped = (e) => {
+      const n = e.detail?.count || 1
+      setToast(
+        n === 1
+          ? "An offline session couldn't sync and was removed — please log it again."
+          : `${n} offline sessions couldn't sync and were removed — please log them again.`,
+      )
+    }
+    window.addEventListener('outbox:dropped', onDropped)
+    return () => window.removeEventListener('outbox:dropped', onDropped)
+  }, [])
+
   // Show + auto-dismiss the toast, then clear navigation state.
   useEffect(() => {
     if (!toast) return

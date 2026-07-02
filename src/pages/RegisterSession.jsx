@@ -9,8 +9,7 @@ import NotesField from '../components/form/NotesField'
 import { emptyForm, isOutdoorClimbing } from '../lib/formState'
 import { SPORTS, SUBTYPES, LOCATIONS } from '../lib/constants'
 import { getEnabledSports } from '../lib/prefs'
-import { createSession } from '../lib/sessions'
-import { notifySessionsChanged } from '../App'
+import { createSession, notifySessionsChanged } from '../lib/sessions'
 
 export default function RegisterSession() {
   const navigate = useNavigate()
@@ -167,13 +166,7 @@ export default function RegisterSession() {
         {(current === 'strength' || current === 'finger') && (
           <section className="stack">
             <div>
-              <h2 className="step-q">
-                {form.sport === 'finger'
-                  ? 'Finger training'
-                  : form.sport === 'strength'
-                    ? 'Strength training'
-                    : 'Strength & finger'}
-              </h2>
+              <h2 className="step-q">Strength &amp; finger</h2>
               <StrengthFields form={form} updateExtra={updateExtra} />
             </div>
             <NotesField form={form} update={update} />

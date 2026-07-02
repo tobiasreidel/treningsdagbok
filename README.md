@@ -40,8 +40,25 @@ React + Vite frontend, Supabase backend.
      Row Level Security, and the private `session-photos` storage bucket.
    - [`supabase/intervals.sql`](supabase/intervals.sql) — `user_settings`
      (intervals.icu credentials), for the cycling import.
+   - [`supabase/dedupe_intervals.sql`](supabase/dedupe_intervals.sql) — unique
+     index that prevents the same intervals.icu activity being imported twice.
+   - [`supabase/strength.sql`](supabase/strength.sql),
+     [`supabase/more_sports.sql`](supabase/more_sports.sql),
+     [`supabase/finger.sql`](supabase/finger.sql) — widen the sport constraint
+     (strength, running/swimming, finger). Each applies the full current list,
+     so order/re-runs are safe.
+   - [`supabase/second_go.sql`](supabase/second_go.sql) — adds the "2. go"
+     route send type.
    - [`supabase/friends.sql`](supabase/friends.sql) — profiles, friendships,
      cross-user visibility policies, and the privacy toggle (Phase 4).
+   - [`supabase/coaches.sql`](supabase/coaches.sql) — coach links: read-only
+     full-account access an athlete grants a coach (Phase 5).
+   - [`supabase/fix_rls.sql`](supabase/fix_rls.sql) — **required** hardening of
+     the friendships/coach_links policies. Run it right after friends.sql +
+     coaches.sql.
+   - [`supabase/feedback.sql`](supabase/feedback.sql) — rate-limited feedback
+     table backing the in-app bug/feature form (paired with `api/feedback.js`;
+     see the env vars documented at the top of that file).
 3. **Auth setting (recommended for a personal app):** go to
    **Authentication → Providers → Email** and turn **off** "Confirm email".
    This lets you create your account and sign in immediately. (If you leave it

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Field, Segmented } from '../components/ui'
 import { SPORTS } from '../lib/constants'
-import { getSettings, saveSettings, fetchActivities, isClimbingActivity } from '../lib/intervals'
+import { getSettings, saveSettings, fetchActivities, activitySport } from '../lib/intervals'
 import { getMyProfile, setDisplayName, getShareSetting, setShareSetting } from '../lib/friends'
 import { sendFeedback } from '../lib/feedback'
 import { THEMES, getTheme, setTheme } from '../lib/theme'
@@ -102,13 +102,18 @@ export default function Settings() {
     setTest({ pending: true })
     try {
       const acts = await fetchActivities({ athleteId, apiKey: keyToUse, sinceDays: 60 })
-      const climbs = acts.filter(isClimbingActivity).length
-      const rides = acts.length - climbs
-      const parts = [
-        `${rides} ride${rides === 1 ? '' : 's'}`,
-        `${climbs} climb${climbs === 1 ? '' : 's'}`,
-      ]
-      setTest({ ok: true, msg: `Connected. Found ${parts.join(' · ')} in the last 60 days.` })
+      const counts = { cycling: 0, running: 0, swimming: 0, climbing: 0 }
+      for (const a of acts) counts[activitySport(a)] += 1
+      const word = { cycling: 'ride', running: 'run', swimming: 'swim', climbing: 'climb' }
+      const parts = Object.entries(counts)
+        .filter(([, n]) => n > 0)
+        .map(([k, n]) => `${n} ${word[k]}${n === 1 ? '' : 's'}`)
+      setTest({
+        ok: true,
+        msg: parts.length
+          ? `Connected. Found ${parts.join(' · ')} in the last 60 days.`
+          : 'Connected. No importable activities in the last 60 days.',
+      })
     } catch (err) {
       setTest({ ok: false, msg: err.message })
     }

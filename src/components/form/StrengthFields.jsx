@@ -1,68 +1,65 @@
 import { useState } from 'react'
 import { Field, NumberField, Segmented } from '../ui'
-import { STRENGTH_EXERCISES } from '../../lib/constants'
+import { SPORTS, STRENGTH_EXERCISES } from '../../lib/constants'
 import { emptyExercise, emptyHang, normalizeHang } from '../../lib/formState'
 
-// The strength + finger-training module. Which panels show depends on the sport:
-//   • strength session → the strength panel (lifts: sets · reps · weight).
-//   • finger session   → the finger panel (campus toggle + hangboard hangs).
-//   • indoor climbing  → both panels (a tab toggles between them), plus two
-//     time fields that carve strength/finger minutes out of the climb.
-// Everything is stored under form.extra ({ strength: [...], finger: {...} }).
+// The strength + finger-training module. Both panels (lifts and campus/
+// hangboard) are always available behind a tab toggle, so a combined workout
+// — finger and strength in one gym visit, or blocks inside an indoor climb —
+// is logged as one session as you go. Time fields carve the minutes that
+// belong to the *other* sport(s) out of the session's duration:
+//   • indoor climbing  → strength + finger time fields (rest stays climbing)
+//   • strength session → a finger time field (rest stays strength)
+//   • finger session   → a strength time field (rest stays finger)
+// Everything is stored under form.extra ({ strength: [...], finger: {...},
+// strength_minutes, finger_minutes }).
 export default function StrengthFields({ form, updateExtra }) {
   const e = form.extra || {}
-  const isClimb = form.sport === 'climbing'
-  const showStrength = form.sport === 'strength' || isClimb
-  const showFinger = form.sport === 'finger' || isClimb
+  const restLabel = SPORTS[form.sport]?.label.toLowerCase() || 'session'
   const [tab, setTab] = useState(form.sport === 'finger' ? 'finger' : 'strength')
-  // On a climb both panels are available behind a toggle; standalone sessions
-  // show their one panel directly.
-  const activePanel = isClimb ? tab : showStrength ? 'strength' : 'finger'
 
   return (
     <div className="stack">
-      {isClimb && (
-        <>
-          <Field
-            label="Time on strength"
-            hint="Counted as strength. The rest of the session stays climbing time."
-          >
-            <NumberField
-              value={e.strength_minutes ?? ''}
-              onChange={(v) => updateExtra({ strength_minutes: v })}
-              placeholder="0"
-              unit="min"
-              step="5"
-            />
-          </Field>
-          <Field
-            label="Time on finger training"
-            hint="Counted as finger training. The rest of the session stays climbing time."
-          >
-            <NumberField
-              value={e.finger_minutes ?? ''}
-              onChange={(v) => updateExtra({ finger_minutes: v })}
-              placeholder="0"
-              unit="min"
-              step="5"
-            />
-          </Field>
-        </>
+      {form.sport !== 'strength' && (
+        <Field
+          label="Time on strength"
+          hint={`Counted as strength. The rest of the session stays ${restLabel} time.`}
+        >
+          <NumberField
+            value={e.strength_minutes ?? ''}
+            onChange={(v) => updateExtra({ strength_minutes: v })}
+            placeholder="0"
+            unit="min"
+            step="5"
+          />
+        </Field>
+      )}
+      {form.sport !== 'finger' && (
+        <Field
+          label="Time on finger training"
+          hint={`Counted as finger training. The rest of the session stays ${restLabel} time.`}
+        >
+          <NumberField
+            value={e.finger_minutes ?? ''}
+            onChange={(v) => updateExtra({ finger_minutes: v })}
+            placeholder="0"
+            unit="min"
+            step="5"
+          />
+        </Field>
       )}
 
-      {isClimb && (
-        <Segmented
-          options={[
-            { key: 'strength', label: '🏋 Strength' },
-            { key: 'finger', label: '🤏 Finger' },
-          ]}
-          value={tab}
-          onChange={setTab}
-          columns={2}
-        />
-      )}
+      <Segmented
+        options={[
+          { key: 'strength', label: '🏋 Strength' },
+          { key: 'finger', label: '🤏 Finger' },
+        ]}
+        value={tab}
+        onChange={setTab}
+        columns={2}
+      />
 
-      {activePanel === 'strength' ? (
+      {tab === 'strength' ? (
         <StrengthPanel exercises={e.strength || []} updateExtra={updateExtra} />
       ) : (
         <FingerPanel finger={e.finger || { campus: false, hangboard: [] }} updateExtra={updateExtra} />

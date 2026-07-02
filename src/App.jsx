@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { isConfigured } from './lib/supabase'
 import { useAuth } from './context/AuthContext'
-import { flushOutbox } from './lib/sessions'
+import { flushOutbox, notifySessionsChanged } from './lib/sessions'
 import { autoImportNewActivities } from './lib/intervals'
 import { isOnboarded } from './lib/prefs'
 import SetupNeeded from './components/SetupNeeded'
@@ -19,14 +19,10 @@ import Logbook from './pages/Logbook'
 import CustomizeDashboard from './pages/CustomizeDashboard'
 import Friends from './pages/Friends'
 import AthleteView from './pages/AthleteView'
-
-// Broadcast helper so views can refresh after the outbox is flushed.
-export function notifySessionsChanged() {
-  window.dispatchEvent(new Event('sessions:changed'))
-}
+import ResetPassword from './components/ResetPassword'
 
 export default function App() {
-  const { session, loading } = useAuth()
+  const { session, loading, recovery } = useAuth()
   // Bumped to re-evaluate onboarding after the picker finishes. The value is
   // unused — onboarding state itself is read from prefs, keyed by user id.
   const [, bumpOnboarding] = useState(0)
@@ -56,6 +52,10 @@ export default function App() {
       </div>
     )
   }
+
+  // Arrived via a password-reset email link: let them set a new password
+  // before anything else.
+  if (recovery) return <ResetPassword />
 
   if (!session) return <Login />
 

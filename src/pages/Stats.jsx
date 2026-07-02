@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { fetchSessions } from '../lib/sessions'
 import { getAthleteProfile } from '../lib/coaches'
+import { PillRow } from '../components/ui'
 import { Bars, Line, HBars } from '../components/charts'
 import { exerciseLabel } from '../lib/constants'
 import { getEnabledSports, ALL_SPORTS } from '../lib/prefs'
@@ -136,23 +137,6 @@ export default function Stats() {
   )
 }
 
-// ---- tabs/range pill control ----
-function PillRow({ options, value, onChange, wide, scroll }) {
-  return (
-    <div className={`pill-row ${wide ? 'pill-row-wide' : ''} ${scroll ? 'pill-row-scroll' : ''}`}>
-      {options.map((o) => (
-        <button
-          key={o.key}
-          className={`pill ${value === o.key ? 'is-active' : ''}`}
-          onClick={() => onChange(o.key)}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  )
-}
-
 function Card({ title, value, children }) {
   return (
     <div className="card chart-card">
@@ -247,7 +231,7 @@ function Cycling({ view }) {
         items={[
           { label: 'Distance', value: Math.round(S.sumDistance(cycling)), sub: 'km' },
           { label: 'Elevation', value: Math.round(S.sumElevation(cycling)), sub: 'm' },
-          { label: 'Longest ride', value: Math.round(S.longestRide(cycling)), sub: 'km' },
+          { label: 'Longest ride', value: Math.round(S.longestDistanceKm(cycling)), sub: 'km' },
           { label: 'Load', value: Math.round(S.sumLoad(cycling)), sub: 'TSS' },
         ]}
       />
@@ -284,7 +268,7 @@ function Running({ view }) {
           { label: 'Distance', value: Math.round(S.sumDistance(running)), sub: 'km' },
           { label: 'Elevation', value: Math.round(S.sumElevation(running)), sub: 'm' },
           { label: 'Hours', value: S.round1(S.sumHours(running)), sub: 'h' },
-          { label: 'Longest run', value: S.round1(S.longestRide(running)), sub: 'km' },
+          { label: 'Longest run', value: S.round1(S.longestDistanceKm(running)), sub: 'km' },
         ]}
       />
       <Card title="Distance" value={`${Math.round(S.sumDistance(running))} km`}>

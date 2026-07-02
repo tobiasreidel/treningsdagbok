@@ -154,14 +154,14 @@ function Leaderboard({ data }) {
       .filter((s) => inRange(s.date, wk) && s.sport === 'cycling')
       .reduce((a, s) => a + (Number(s.extra?.distance_km) || 0), 0)
 
-  // group friend feed by person
+  // Group the friend feed per person by user id (two friends can share a
+  // display name), labelled with their name.
   const byWho = {}
-  for (const s of data.feed) (byWho[s.who] ||= []).push(s)
+  for (const s of data.feed) {
+    ;(byWho[s.user_id] ||= { label: s.who, sessions: [] }).sessions.push(s)
+  }
 
-  const people = [
-    { label: 'You', sessions: data.mine },
-    ...Object.entries(byWho).map(([label, sessions]) => ({ label, sessions })),
-  ]
+  const people = [{ label: 'You', sessions: data.mine }, ...Object.values(byWho)]
 
   if (people.length <= 1 && data.mine.length === 0) {
     return (

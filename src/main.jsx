@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
 import UpdatePrompt from './components/UpdatePrompt.jsx'
+import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { initTheme } from './lib/theme'
 import './styles.css'
 
@@ -11,11 +12,13 @@ initTheme()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
-      <UpdatePrompt />
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+        <UpdatePrompt />
+      </BrowserRouter>
+    </ErrorBoundary>
   </React.StrictMode>,
 )

@@ -101,31 +101,34 @@ export function avgFeeling(arr) {
 
 export const bySport = (arr, sport) => arr.filter((s) => s.sport === sport)
 
-// Minutes of strength work carved out of an indoor climb. The rest of the
-// session's duration counts as climbing. (Clamped to the total.)
+// Minutes of strength work carved out of another session (an indoor climb, or
+// a finger session with a strength block). The rest of the duration stays with
+// the session's own sport. (Clamped to the total.)
 export function embeddedStrengthMinutes(s) {
-  if (s.sport !== 'climbing') return 0
+  if (s.sport !== 'climbing' && s.sport !== 'finger') return 0
   return Math.min(num(s.duration), Math.max(0, num(s.extra?.strength_minutes)))
 }
 
-// Minutes of finger work carved out of an indoor climb, on top of any strength
-// minutes. Clamped to whatever duration the strength block hasn't already used.
+// Minutes of finger work carved out of another session (an indoor climb, or a
+// strength session with a finger block), on top of any strength minutes.
+// Clamped to whatever duration the strength block hasn't already used.
 export function embeddedFingerMinutes(s) {
-  if (s.sport !== 'climbing') return 0
+  if (s.sport !== 'climbing' && s.sport !== 'strength') return 0
   const remaining = Math.max(0, num(s.duration) - embeddedStrengthMinutes(s))
   return Math.min(remaining, Math.max(0, num(s.extra?.finger_minutes)))
 }
 
-// How a session's duration splits across sports. Usually a single entry; an
-// indoor climb with strength/finger blocks splits into climbing + strength +
-// finger. (sessionSports/sportHours drop the zero-minute parts.)
+// How a session's duration splits across sports. Usually a single entry; a
+// session with embedded strength/finger blocks (indoor climb, or a combined
+// strength+finger workout) splits accordingly. (sessionSports/sportHours drop
+// the zero-minute parts.)
 export function sportMinutes(s) {
   const total = num(s.duration)
   const strength = embeddedStrengthMinutes(s)
   const finger = embeddedFingerMinutes(s)
   if (strength > 0 || finger > 0) {
     return [
-      { sport: 'climbing', minutes: total - strength - finger },
+      { sport: s.sport, minutes: total - strength - finger },
       { sport: 'strength', minutes: strength },
       { sport: 'finger', minutes: finger },
     ]
@@ -227,8 +230,9 @@ export function restBalance(sessions, start) {
   return { active, rest: Math.max(0, total - active), total }
 }
 
-export function longestRide(cycling) {
-  return cycling.reduce((m, s) => Math.max(m, num(s.extra?.distance_km)), 0)
+// Longest single-session distance (km) — used for both rides and runs.
+export function longestDistanceKm(arr) {
+  return arr.reduce((m, s) => Math.max(m, num(s.extra?.distance_km)), 0)
 }
 
 export function longestSwim(swimming) {

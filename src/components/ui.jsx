@@ -133,6 +133,25 @@ export function ChipSelect({ options, value, onChange, isActive }) {
   )
 }
 
+// Single-select pill row (range/tab/filter controls). `scroll` makes it
+// horizontally scrollable, `wide` stretches pills to fill the row.
+export function PillRow({ options, value, onChange, wide, scroll }) {
+  return (
+    <div className={`pill-row ${wide ? 'pill-row-wide' : ''} ${scroll ? 'pill-row-scroll' : ''}`}>
+      {options.map((o) => (
+        <button
+          key={o.key}
+          className={`pill ${value === o.key ? 'is-active' : ''}`}
+          onClick={() => onChange(o.key)}
+        >
+          {o.label}
+          {o.badge ? <span className="pill-badge">{o.badge}</span> : null}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export function PendingBadge() {
   return <span className="pending-badge" title="Saved offline, will sync">⟳ offline</span>
 }

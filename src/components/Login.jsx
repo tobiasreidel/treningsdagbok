@@ -2,13 +2,32 @@ import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 
 export default function Login() {
-  const { signIn, signUp } = useAuth()
+  const { signIn, signUp, resetPassword } = useAuth()
   const [mode, setMode] = useState('signin') // 'signin' | 'signup'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [notice, setNotice] = useState(null)
+
+  const forgot = async () => {
+    setError(null)
+    setNotice(null)
+    if (!email.trim()) {
+      setError('Fill in your email above first, then tap “Forgot password?” again.')
+      return
+    }
+    setBusy(true)
+    try {
+      const { error } = await resetPassword(email.trim())
+      if (error) throw error
+      setNotice('Password reset email sent. Open the link on this device to choose a new one.')
+    } catch (err) {
+      setError(err.message || 'Could not send the reset email')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const submit = async (e) => {
     e.preventDefault()
@@ -92,6 +111,12 @@ export default function Login() {
         <button type="submit" className="btn btn-primary btn-block" disabled={busy}>
           {busy ? '…' : mode === 'signin' ? 'Sign in' : 'Create account'}
         </button>
+
+        {mode === 'signin' && (
+          <button type="button" className="link-btn auth-forgot" onClick={forgot} disabled={busy}>
+            Forgot password?
+          </button>
+        )}
       </form>
     </div>
   )

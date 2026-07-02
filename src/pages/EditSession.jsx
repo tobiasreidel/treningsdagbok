@@ -7,8 +7,13 @@ import StrengthFields from '../components/form/StrengthFields'
 import NotesPhoto from '../components/form/NotesPhoto'
 import { sessionToForm, isOutdoorClimbing, usesStrengthModule } from '../lib/formState'
 import { SPORTS, SUBTYPES, LOCATIONS } from '../lib/constants'
-import { getSession, updateSession, deleteSession, getSignedPhotoUrl } from '../lib/sessions'
-import { notifySessionsChanged } from '../App'
+import {
+  getSession,
+  updateSession,
+  deleteSession,
+  getSignedPhotoUrl,
+  notifySessionsChanged,
+} from '../lib/sessions'
 
 export default function EditSession() {
   const { id } = useParams()
@@ -166,13 +171,7 @@ export default function EditSession() {
 
         {usesStrengthModule(form) && (
           <section>
-            <h2 className="step-q">
-              {form.sport === 'finger'
-                ? 'Finger training'
-                : form.sport === 'strength'
-                  ? 'Strength training'
-                  : 'Strength & finger'}
-            </h2>
+            <h2 className="step-q">Strength &amp; finger</h2>
             <StrengthFields form={form} updateExtra={updateExtra} />
           </section>
         )}

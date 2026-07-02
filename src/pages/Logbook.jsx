@@ -12,7 +12,7 @@ import {
 import { fetchSessions, getPendingSessions } from '../lib/sessions'
 import { embeddedStrengthMinutes, embeddedFingerMinutes } from '../lib/stats'
 import { ALL_SPORTS } from '../lib/prefs'
-import { PendingBadge } from '../components/ui'
+import { PendingBadge, PillRow } from '../components/ui'
 
 // Session-length buckets for the filter row (minutes).
 const LENGTHS = [
@@ -144,8 +144,9 @@ export default function Logbook() {
         ) : (
           <>
             <div className="log-filters">
-              <PillRow options={sportOptions} value={sportFilter} onChange={setSportFilter} />
+              <PillRow options={sportOptions} value={sportFilter} onChange={setSportFilter} scroll />
               <PillRow
+                scroll
                 options={LENGTHS}
                 value={customLen ? null : lenFilter}
                 onChange={(k) => {
@@ -229,23 +230,6 @@ export default function Logbook() {
           </>
         )}
       </main>
-    </div>
-  )
-}
-
-// Horizontally scrollable single-select pill row (matches the Stats controls).
-function PillRow({ options, value, onChange }) {
-  return (
-    <div className="pill-row pill-row-scroll">
-      {options.map((o) => (
-        <button
-          key={o.key}
-          className={`pill ${value === o.key ? 'is-active' : ''}`}
-          onClick={() => onChange(o.key)}
-        >
-          {o.label}
-        </button>
-      ))}
     </div>
   )
 }
@@ -360,8 +344,11 @@ function detailTiles(s) {
   const strengthMin = embeddedStrengthMinutes(s)
   const fingerMin = embeddedFingerMinutes(s)
   if (s.duration) {
-    if (s.sport === 'climbing' && (strengthMin > 0 || fingerMin > 0)) {
-      tiles.push({ label: 'Climbing', value: formatDuration(s.duration - strengthMin - fingerMin) })
+    if (strengthMin > 0 || fingerMin > 0) {
+      tiles.push({
+        label: SPORTS[s.sport]?.label || 'Duration',
+        value: formatDuration(s.duration - strengthMin - fingerMin),
+      })
       if (strengthMin > 0) tiles.push({ label: 'Strength', value: formatDuration(strengthMin) })
       if (fingerMin > 0) tiles.push({ label: 'Finger', value: formatDuration(fingerMin) })
     } else {

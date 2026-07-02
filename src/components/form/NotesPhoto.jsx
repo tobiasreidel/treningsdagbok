@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Field } from '../ui'
+import { compressImage } from '../../lib/image'
 import NotesField from './NotesField'
 
 // Final step: free-text notes + an optional photo.
@@ -20,9 +21,11 @@ export default function NotesPhoto({ form, update, existingPhotoSrc }) {
 
   const showExisting = !form.photoFile && !form.removePhoto && existingPhotoSrc
 
-  const onPick = (e) => {
+  const onPick = async (e) => {
     const file = e.target.files?.[0] || null
-    update({ photoFile: file, removePhoto: false })
+    // Downscale before it enters the form, so both the direct upload and the
+    // offline outbox store the small version.
+    update({ photoFile: file ? await compressImage(file) : null, removePhoto: false })
   }
 
   const clearNew = () => update({ photoFile: null })

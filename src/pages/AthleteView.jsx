@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { addMonths } from 'date-fns'
 import { fetchSessions } from '../lib/sessions'
 import { getAthleteProfile } from '../lib/coaches'
-import { ALL_SPORTS } from '../lib/prefs'
+import { ALL_SPORTS, defaultWidgetsForSports } from '../lib/prefs'
 import { StatsIcon } from '../components/icons'
 import SummaryCards from '../components/SummaryCards'
 import Calendar from '../components/Calendar'
@@ -66,9 +66,12 @@ export default function AthleteView() {
         </div>
       ) : (
         <>
+          {/* Summary widgets follow the sports this athlete actually logs. */}
           <SummaryCards
             sessions={sessions}
-            widgets={['week-summary', 'month-summary', 'cycling-month']}
+            widgets={defaultWidgetsForSports(
+              ALL_SPORTS.filter((k) => sessions.some((s) => s.sport === k)),
+            )}
           />
 
           <Calendar

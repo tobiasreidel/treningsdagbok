@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { formatDay } from '../lib/format'
-import { fetchSessions, createSession } from '../lib/sessions'
-import { notifySessionsChanged } from '../App'
+import { fetchSessions, createSession, notifySessionsChanged } from '../lib/sessions'
 import { SPORTS } from '../lib/constants'
 import {
   getSettings,

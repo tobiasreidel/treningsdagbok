@@ -4,6 +4,12 @@
 import { supabase, isConfigured, PHOTO_BUCKET } from './supabase'
 import { enqueue, listPending, remove } from './outbox'
 
+// Broadcast helper so views can refresh after sessions change (create/edit/
+// delete or an outbox flush). Views subscribe to the window event.
+export function notifySessionsChanged() {
+  window.dispatchEvent(new Event('sessions:changed'))
+}
+
 // ---------------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------------
@@ -140,12 +146,16 @@ export async function updateSession(id, form) {
   if (!userId) throw new Error('Not signed in')
   const item = buildItem(form, 'update')
 
+  // The old photo is only deleted after the row update succeeds — deleting
+  // first would leave the session pointing at a missing file if the update
+  // fails.
   let photo_url = item.existingPhotoUrl
+  let oldPhotoToDelete = null
   if (item.photoBlob) {
     photo_url = await uploadPhoto(userId, item.photoBlob, item.photoExt)
-    if (item.existingPhotoUrl) await deletePhoto(item.existingPhotoUrl)
+    oldPhotoToDelete = item.existingPhotoUrl
   } else if (form.removePhoto && item.existingPhotoUrl) {
-    await deletePhoto(item.existingPhotoUrl)
+    oldPhotoToDelete = item.existingPhotoUrl
     photo_url = null
   }
 
@@ -154,6 +164,7 @@ export async function updateSession(id, form) {
     .update({ ...item.data, photo_url })
     .eq('id', id)
   if (error) throw error
+  if (oldPhotoToDelete) await deletePhoto(oldPhotoToDelete).catch(() => {})
 
   // Routes: replace wholesale (small lists, keeps ordering + edits simple).
   const { error: delErr } = await supabase.from('routes').delete().eq('session_id', id)
@@ -242,6 +253,7 @@ export async function flushOutbox() {
 
   const items = await listPending()
   let flushed = 0
+  let dropped = 0
   for (const item of items) {
     try {
       await pushNewToServer(item)
@@ -249,9 +261,16 @@ export async function flushOutbox() {
       flushed += 1
     } catch (err) {
       if (isNetworkError(err)) break // still offline — stop and try again later
-      // A non-network error (e.g. bad data) shouldn't wedge the queue forever.
+      // A non-network error (e.g. bad data) shouldn't wedge the queue forever,
+      // but dropping a logged session silently isn't OK either — count it so
+      // the dashboard can tell the user. (A duplicate isn't a loss: the
+      // session already exists on the server.)
       await remove(item.localId)
+      if (!isDuplicateError(err)) dropped += 1
     }
+  }
+  if (dropped > 0) {
+    window.dispatchEvent(new CustomEvent('outbox:dropped', { detail: { count: dropped } }))
   }
   return flushed
 }
