@@ -5,7 +5,9 @@ import { SPORTS } from '../lib/constants'
 import { getSettings, saveSettings, fetchActivities, activitySport } from '../lib/intervals'
 import { getMyProfile, setDisplayName, getShareSetting, setShareSetting } from '../lib/friends'
 import { sendFeedback } from '../lib/feedback'
+import { deleteAccount } from '../lib/account'
 import { THEMES, getTheme, setTheme } from '../lib/theme'
+import { useAuth } from '../context/AuthContext'
 import {
   getHideRidesUnderKm,
   setHideRidesUnderKm,
@@ -14,8 +16,11 @@ import {
   ALL_SPORTS,
 } from '../lib/prefs'
 
+const DELETE_CONFIRM_WORD = 'DELETE'
+
 export default function Settings() {
   const navigate = useNavigate()
+  const { signOut } = useAuth()
   const [athleteId, setAthleteId] = useState('')
   const [apiKey, setApiKey] = useState('') // only holds a newly-typed key
   const [savedKey, setSavedKey] = useState('') // existing key, never bound to a field
@@ -41,6 +46,12 @@ export default function Settings() {
   const [fbType, setFbType] = useState('bug')
   const [fbMessage, setFbMessage] = useState('')
   const [fb, setFb] = useState(null) // { pending } | { ok, msg } | { error, msg }
+  // Delete-account danger zone: hidden behind a reveal + typed confirmation
+  // so it can't be triggered by a stray tap.
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleteText, setDeleteText] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState(null)
 
   // The key to actually use/save: a freshly-typed one when replacing (or when
   // none is stored yet), otherwise the existing key left untouched.
@@ -95,6 +106,26 @@ export default function Settings() {
       setFbMessage('')
     } catch (err) {
       setFb({ error: true, msg: err.message || 'Could not send.' })
+    }
+  }
+
+  const cancelDelete = () => {
+    setConfirmingDelete(false)
+    setDeleteText('')
+    setDeleteError(null)
+  }
+
+  const confirmDelete = async () => {
+    if (deleteText.trim() !== DELETE_CONFIRM_WORD) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      await deleteAccount()
+      await signOut()
+      navigate('/', { replace: true })
+    } catch (err) {
+      setDeleteError(err.message || 'Could not delete account')
+      setDeleting(false)
     }
   }
 
@@ -386,6 +417,59 @@ export default function Settings() {
           </button>
           {fb && !fb.pending && (
             <p className={fb.ok ? 'auth-notice' : 'auth-error'}>{fb.msg}</p>
+          )}
+        </section>
+
+        <section className="card settings-card stack">
+          <h2 className="step-q">Account</h2>
+          <button type="button" className="btn btn-secondary btn-block" onClick={signOut}>
+            Sign out
+          </button>
+
+          {!confirmingDelete ? (
+            <button
+              type="button"
+              className="btn btn-danger btn-block"
+              onClick={() => setConfirmingDelete(true)}
+            >
+              Delete account
+            </button>
+          ) : (
+            <div className="stack">
+              <p className="auth-error">
+                This permanently deletes your account and all your data (sessions,
+                stats, friends). This cannot be undone.
+              </p>
+              <Field label={`Type ${DELETE_CONFIRM_WORD} to confirm`}>
+                <input
+                  type="text"
+                  value={deleteText}
+                  onChange={(e) => setDeleteText(e.target.value)}
+                  placeholder={DELETE_CONFIRM_WORD}
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+              </Field>
+              {deleteError && <p className="auth-error">{deleteError}</p>}
+              <div className="settings-danger-actions">
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={cancelDelete}
+                  disabled={deleting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={confirmDelete}
+                  disabled={deleteText.trim() !== DELETE_CONFIRM_WORD || deleting}
+                >
+                  {deleting ? 'Deleting…' : 'Permanently delete account'}
+                </button>
+              </div>
+            </div>
           )}
         </section>
 

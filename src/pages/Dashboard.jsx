@@ -1,19 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { addMonths } from 'date-fns'
-import { useAuth } from '../context/AuthContext'
 import { fetchSessions, getPendingSessions } from '../lib/sessions'
 import { useOnline } from '../components/ui'
 import Calendar from '../components/Calendar'
 import SummaryCards from '../components/SummaryCards'
 import WeekTable from '../components/WeekTable'
 import DaySheet from '../components/DaySheet'
-import { FriendsIcon, LogbookIcon, StatsIcon, SettingsIcon, SignOutIcon } from '../components/icons'
+import { FriendsIcon, LogbookIcon, StatsIcon, SettingsIcon } from '../components/icons'
 
 export default function Dashboard() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { signOut } = useAuth()
   const online = useOnline()
 
   const [sessions, setSessions] = useState([])
@@ -104,9 +102,6 @@ export default function Dashboard() {
             aria-label="Settings"
           >
             <SettingsIcon />
-          </button>
-          <button className="icon-btn" onClick={signOut} title="Sign out" aria-label="Sign out">
-            <SignOutIcon />
           </button>
         </div>
       </header>

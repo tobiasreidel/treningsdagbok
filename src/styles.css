@@ -240,6 +240,11 @@ button {
   color: var(--text-muted);
   border-color: var(--border);
 }
+.btn-danger {
+  background: transparent;
+  color: var(--danger);
+  border-color: var(--danger);
+}
 .btn-block {
   width: 100%;
 }
@@ -1000,6 +1005,13 @@ textarea {
 .settings-autosave {
   text-align: center;
   padding: 4px 0 max(env(safe-area-inset-bottom), 8px);
+}
+.settings-danger-actions {
+  display: flex;
+  gap: 8px;
+}
+.settings-danger-actions .btn {
+  flex: 1;
 }
 
 /* ----- theme picker (Appearance) ----- */
