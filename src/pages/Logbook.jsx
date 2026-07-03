@@ -9,7 +9,12 @@ import {
   pacePerKm,
   pacePer100m,
 } from '../lib/format'
-import { fetchSessions, getPendingSessions } from '../lib/sessions'
+import {
+  fetchSessions,
+  getPendingSessions,
+  deletePendingSession,
+  notifySessionsChanged,
+} from '../lib/sessions'
 import { embeddedStrengthMinutes, embeddedFingerMinutes } from '../lib/stats'
 import { ALL_SPORTS } from '../lib/prefs'
 import { PendingBadge, PillRow } from '../components/ui'
@@ -44,6 +49,19 @@ function matchesCustomLength(duration, lo, hi) {
   return true
 }
 
+// Free-text search over the diary-ish fields: notes, route names/grades,
+// subtype and location. Case-insensitive substring match.
+function matchesQuery(s, q) {
+  if (!q) return true
+  const hay = [
+    s.notes,
+    s.subtype,
+    s.location,
+    ...(s.routes || []).flatMap((r) => [r.name, r.grade]),
+  ]
+  return hay.some((v) => v && String(v).toLowerCase().includes(q))
+}
+
 // A "logbook" view: every session, newest first, grouped into months like the
 // pages of a diary. Each entry shows the essentials at a glance; tap it to
 // unfold the richer summary, or open the full session from there. Scroll down
@@ -55,6 +73,7 @@ export default function Logbook() {
   const [openId, setOpenId] = useState(null)
   const [sportFilter, setSportFilter] = useState('all')
   const [lenFilter, setLenFilter] = useState('all')
+  const [query, setQuery] = useState('')
   // Custom length range (minutes). When either is set it overrides the preset
   // length pills; choosing a preset clears it.
   const [lenMin, setLenMin] = useState('')
@@ -91,6 +110,7 @@ export default function Logbook() {
   }, [sessions])
 
   const customLen = lenMin !== '' || lenMax !== ''
+  const q = query.trim().toLowerCase()
   const filtered = useMemo(
     () =>
       sessions.filter(
@@ -98,9 +118,10 @@ export default function Logbook() {
           (sportFilter === 'all' || s.sport === sportFilter) &&
           (customLen
             ? matchesCustomLength(s.duration, lenMin, lenMax)
-            : matchesLength(s.duration, lenFilter)),
+            : matchesLength(s.duration, lenFilter)) &&
+          matchesQuery(s, q),
       ),
-    [sessions, sportFilter, lenFilter, lenMin, lenMax, customLen],
+    [sessions, sportFilter, lenFilter, lenMin, lenMax, customLen, q],
   )
 
   // Group filtered sessions by calendar month, newest month first. Sessions
@@ -144,6 +165,13 @@ export default function Logbook() {
         ) : (
           <>
             <div className="log-filters">
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search notes, routes, grades…"
+                aria-label="Search logbook"
+              />
               <PillRow options={sportOptions} value={sportFilter} onChange={setSportFilter} scroll />
               <PillRow
                 scroll
@@ -202,7 +230,7 @@ export default function Logbook() {
             {months.length === 0 ? (
               <div className="card empty-state">
                 <p>No sessions match these filters.</p>
-                <p className="muted small">Try a different sport or length.</p>
+                <p className="muted small">Try a different search, sport or length.</p>
               </div>
             ) : (
               <div className="logbook">
@@ -295,7 +323,18 @@ function Expanded({ session: s, onOpenFull }) {
 
       {s.notes && <p className="detail-notes log-notes">{s.notes}</p>}
 
-      {!s.pending && (
+      {s.pending ? (
+        <button
+          className="btn btn-danger btn-sm btn-block"
+          onClick={async () => {
+            if (!window.confirm('Delete this offline session? It has not been synced.')) return
+            await deletePendingSession(s.id)
+            notifySessionsChanged()
+          }}
+        >
+          Delete offline session
+        </button>
+      ) : (
         <button className="btn btn-secondary btn-sm btn-block" onClick={onOpenFull}>
           Open full session ›
         </button>

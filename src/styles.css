@@ -1863,3 +1863,59 @@ textarea {
     transform: translateY(-4px);
   }
 }
+
+/* ----- bottom tab bar ----- */
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40; /* under toasts (50) and sheets (60) */
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  align-items: end;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 6px 10px calc(env(safe-area-inset-bottom) + 6px);
+}
+.tab-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 0;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.62rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tab-btn.is-active {
+  color: var(--primary);
+}
+/* The centre "Log" action floats above the bar as a round primary button. */
+.tab-plus {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin-top: -20px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+}
+/* Keep page content and toasts clear of the bar when it's shown. */
+.with-tabbar .page {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 88px);
+}
+.with-tabbar .toast {
+  bottom: calc(env(safe-area-inset-bottom) + 86px);
+}
+
+/* Quick-pick chips under the duration field. */
+.duration-chips {
+  margin-top: 8px;
+}

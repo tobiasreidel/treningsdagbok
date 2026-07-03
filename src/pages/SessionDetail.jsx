@@ -7,6 +7,7 @@ import {
   getSignedPhotoUrl,
   getCurrentUserId,
   deleteSession,
+  deletePendingSession,
   notifySessionsChanged,
 } from '../lib/sessions'
 import { embeddedStrengthMinutes, embeddedFingerMinutes } from '../lib/stats'
@@ -91,12 +92,21 @@ export default function SessionDetail() {
   }
 
   if (isPending) {
+    const removePendingItem = async () => {
+      if (!window.confirm('Delete this offline session? It has not been synced.')) return
+      await deletePendingSession(id)
+      notifySessionsChanged()
+      navigate('/', { state: { toast: 'Offline session deleted' } })
+    }
     return (
       <Shell onBack={back} title="Activity">
         <p className="muted">
           This activity is still saved offline and will sync when you're back
           online.
         </p>
+        <button className="btn btn-danger btn-block" onClick={removePendingItem}>
+          Delete offline session
+        </button>
       </Shell>
     )
   }

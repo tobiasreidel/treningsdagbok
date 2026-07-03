@@ -7,7 +7,7 @@ import Calendar from '../components/Calendar'
 import SummaryCards from '../components/SummaryCards'
 import WeekTable from '../components/WeekTable'
 import DaySheet from '../components/DaySheet'
-import { FriendsIcon, LogbookIcon, StatsIcon, SettingsIcon } from '../components/icons'
+import { SettingsIcon } from '../components/icons'
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -54,11 +54,23 @@ export default function Dashboard() {
     return () => window.removeEventListener('outbox:dropped', onDropped)
   }, [])
 
-  // Show + auto-dismiss the toast, then clear navigation state.
+  // Activities pulled in by the background intervals.icu import would
+  // otherwise appear with no explanation.
+  useEffect(() => {
+    const onImported = (e) => {
+      const n = e.detail?.count || 1
+      setToast(`Imported ${n} activit${n === 1 ? 'y' : 'ies'} from intervals.icu`)
+    }
+    window.addEventListener('activities:imported', onImported)
+    return () => window.removeEventListener('activities:imported', onImported)
+  }, [])
+
+  // Show + auto-dismiss the toast, then clear navigation state. Longer
+  // messages stay up longer so they can actually be read.
   useEffect(() => {
     if (!toast) return
     navigate('.', { replace: true, state: {} })
-    const t = setTimeout(() => setToast(null), 2600)
+    const t = setTimeout(() => setToast(null), Math.min(7000, Math.max(2600, toast.length * 55)))
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toast])
@@ -71,30 +83,7 @@ export default function Dashboard() {
           {!online && <span className="offline-tag">offline</span>}
         </div>
         <div className="head-actions">
-          <button
-            className="icon-btn"
-            onClick={() => navigate('/friends')}
-            title="Friends"
-            aria-label="Friends"
-          >
-            <FriendsIcon />
-          </button>
-          <button
-            className="icon-btn"
-            onClick={() => navigate('/logbook')}
-            title="Logbook"
-            aria-label="Logbook"
-          >
-            <LogbookIcon />
-          </button>
-          <button
-            className="icon-btn"
-            onClick={() => navigate('/stats')}
-            title="Stats"
-            aria-label="Stats"
-          >
-            <StatsIcon />
-          </button>
+          {/* Friends/Logbook/Stats live in the bottom tab bar now. */}
           <button
             className="icon-btn"
             onClick={() => navigate('/settings')}

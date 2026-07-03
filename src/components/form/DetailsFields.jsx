@@ -49,6 +49,19 @@ export default function DetailsFields({ form, update, updateExtra }) {
           unit="min"
           step="1"
         />
+        {/* Common lengths, one tap instead of typing. */}
+        <div className="chips duration-chips">
+          {[30, 45, 60, 90, 120].map((m) => (
+            <button
+              key={m}
+              type="button"
+              className={`chip ${Number(form.duration) === m ? 'is-active' : ''}`}
+              onClick={() => update({ duration: String(m) })}
+            >
+              {m}m
+            </button>
+          ))}
+        </div>
       </Field>
 
       {isCycling && <CyclingFields form={form} updateExtra={updateExtra} />}

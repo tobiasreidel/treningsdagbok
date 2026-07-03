@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { isConfigured } from './lib/supabase'
 import { useAuth } from './context/AuthContext'
 import { flushOutbox, notifySessionsChanged } from './lib/sessions'
@@ -20,9 +20,11 @@ import CustomizeDashboard from './pages/CustomizeDashboard'
 import Friends from './pages/Friends'
 import AthleteView from './pages/AthleteView'
 import ResetPassword from './components/ResetPassword'
+import TabBar, { TABBAR_PATHS } from './components/TabBar'
 
 export default function App() {
   const { session, loading, recovery } = useAuth()
+  const location = useLocation()
   // Bumped to re-evaluate onboarding after the picker finishes. The value is
   // unused — onboarding state itself is read from prefs, keyed by user id.
   const [, bumpOnboarding] = useState(0)
@@ -36,7 +38,14 @@ export default function App() {
       // Pull any new rides/climbs from intervals.icu so they appear without a
       // manual visit to the import screen. Best-effort; failures are ignored.
       const imported = await autoImportNewActivities().catch(() => 0)
-      if (imported > 0) notifySessionsChanged()
+      if (imported > 0) {
+        notifySessionsChanged()
+        // Sessions appearing out of nowhere is confusing — tell the user why
+        // (the dashboard shows this as a toast).
+        window.dispatchEvent(
+          new CustomEvent('activities:imported', { detail: { count: imported } }),
+        )
+      }
     }
     sync()
     window.addEventListener('online', sync)
@@ -64,21 +73,26 @@ export default function App() {
     return <Onboarding userId={userId} onDone={() => bumpOnboarding((n) => n + 1)} />
   }
 
+  const showTabs = TABBAR_PATHS.includes(location.pathname)
+
   return (
-    <Routes>
-      <Route path="/" element={<Dashboard />} />
-      <Route path="/new" element={<RegisterSession />} />
-      <Route path="/session/:id" element={<SessionDetail />} />
-      <Route path="/session/:id/edit" element={<EditSession />} />
-      <Route path="/import" element={<ImportRides />} />
-      <Route path="/settings" element={<Settings />} />
-      <Route path="/stats" element={<Stats />} />
-      <Route path="/logbook" element={<Logbook />} />
-      <Route path="/widgets" element={<CustomizeDashboard />} />
-      <Route path="/friends" element={<Friends />} />
-      <Route path="/athlete/:id" element={<AthleteView />} />
-      <Route path="/athlete/:id/stats" element={<Stats />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <div className={showTabs ? 'with-tabbar' : ''}>
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/new" element={<RegisterSession />} />
+        <Route path="/session/:id" element={<SessionDetail />} />
+        <Route path="/session/:id/edit" element={<EditSession />} />
+        <Route path="/import" element={<ImportRides />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/stats" element={<Stats />} />
+        <Route path="/logbook" element={<Logbook />} />
+        <Route path="/widgets" element={<CustomizeDashboard />} />
+        <Route path="/friends" element={<Friends />} />
+        <Route path="/athlete/:id" element={<AthleteView />} />
+        <Route path="/athlete/:id/stats" element={<Stats />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      {showTabs && <TabBar />}
+    </div>
   )
 }

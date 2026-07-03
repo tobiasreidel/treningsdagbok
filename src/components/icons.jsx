@@ -60,6 +60,25 @@ export function SettingsIcon(props) {
   )
 }
 
+export function HomeIcon(props) {
+  return (
+    <Icon {...props}>
+      <path d="M3 9.5 12 3l9 6.5" />
+      <path d="M5 8.5V21h14V8.5" />
+      <path d="M9 21v-6h6v6" />
+    </Icon>
+  )
+}
+
+export function PlusIcon(props) {
+  return (
+    <Icon {...props}>
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </Icon>
+  )
+}
+
 export function SignOutIcon(props) {
   return (
     <Icon {...props}>

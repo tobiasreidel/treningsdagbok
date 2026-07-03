@@ -234,6 +234,12 @@ export async function getSignedPhotoUrl(path) {
   return data.signedUrl
 }
 
+// Remove a queued offline session (it has no server row yet) — the escape
+// hatch for an entry the user regrets or one that's stuck unsynced.
+export async function deletePendingSession(localId) {
+  await remove(localId)
+}
+
 // Pending (offline) sessions, normalised to look like server rows for display.
 export async function getPendingSessions() {
   const items = await listPending()

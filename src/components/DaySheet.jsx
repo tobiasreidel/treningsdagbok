@@ -32,11 +32,7 @@ export default function DaySheet({ date, sessions, onClose, onSelect, onAdd, rea
               const sport = SPORTS[s.sport]
               return (
                 <li key={s.id}>
-                  <button
-                    className="sheet-item"
-                    onClick={() => !s.pending && onSelect(s)}
-                    disabled={s.pending}
-                  >
+                  <button className="sheet-item" onClick={() => onSelect(s)}>
                     <span className="sheet-item-main">
                       <span className="sheet-item-emoji">{sport?.emoji}</span>
                       <span>{labelFor(s)}</span>

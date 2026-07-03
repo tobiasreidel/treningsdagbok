@@ -44,11 +44,7 @@ export default function WeekTable({ sessions, onSelect }) {
             const strengthMin = embeddedStrengthMinutes(s)
             const fingerMin = embeddedFingerMinutes(s)
             return (
-              <tr
-                key={s.id}
-                className={s.pending ? '' : 'clickable'}
-                onClick={() => !s.pending && onSelect?.(s)}
-              >
+              <tr key={s.id} className="clickable" onClick={() => onSelect?.(s)}>
                 <td>{formatDayShort(s.date)}</td>
                 <td>
                   <span className="sport-cell">

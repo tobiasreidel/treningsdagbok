@@ -92,7 +92,7 @@ export default function Friends() {
             <div className="spinner" />
           </div>
         ) : tab === 'feed' ? (
-          <Feed feed={data.feed} />
+          <Feed feed={data.feed} navigate={navigate} />
         ) : tab === 'leaderboard' ? (
           <Leaderboard data={data} />
         ) : tab === 'friends' ? (
@@ -111,13 +111,20 @@ function summary(s) {
     const km = Number(s.extra?.distance_km)
     return [km ? `${Math.round(km)} km` : null, formatDuration(d)].filter(Boolean).join(' · ')
   }
+  // Outdoor climbs carry a route log; indoor ones may have "grades worked".
+  const nRoutes = s.routes?.length || 0
   const grades = s.extra?.grades || []
-  return [s.subtype, formatDuration(d), grades.length ? `${grades.length} grades` : null]
-    .filter(Boolean)
-    .join(' · ')
+  const climbs = nRoutes
+    ? `${nRoutes} route${nRoutes === 1 ? '' : 's'}`
+    : grades.length
+      ? `${grades.length} grades`
+      : null
+  return [s.subtype, formatDuration(d), climbs].filter(Boolean).join(' · ')
 }
 
-function Feed({ feed }) {
+// Each entry opens the friend's session read-only — RLS only ever returns
+// shared sessions, and the detail page hides edit/delete for non-owners.
+function Feed({ feed, navigate }) {
   if (!feed.length) {
     return (
       <div className="card empty-state">
@@ -129,7 +136,11 @@ function Feed({ feed }) {
   return (
     <div className="stack">
       {feed.map((s) => (
-        <div className="card feed-item" key={s.id}>
+        <button
+          className="card feed-item clickable-row"
+          key={s.id}
+          onClick={() => navigate(`/session/${s.id}`)}
+        >
           <div className="feed-top">
             <span className="feed-who">{s.who}</span>
             <span className="muted small">{formatDayShort(s.date)}</span>
@@ -139,7 +150,7 @@ function Feed({ feed }) {
             <span className="feed-summary">{summary(s)}</span>
             {s.feeling ? <span className="muted small">feeling {s.feeling}/5</span> : null}
           </div>
-        </div>
+        </button>
       ))}
     </div>
   )
