@@ -1,5 +1,5 @@
 /* ===========================================================================
-   Treningsdagbok — styles. Mobile-first, dark-mode aware, iOS safe-area aware.
+   Treningsdagbok - styles. Mobile-first, dark-mode aware, iOS safe-area aware.
    =========================================================================== */
 
 :root {
@@ -32,7 +32,7 @@
    everywhere. The active theme is chosen via data-theme on <html> (see
    src/lib/theme.js). "System" follows the OS through the media query. */
 
-/* Shared dark palette — used by the explicit Dark theme and by System on a
+/* Shared dark palette - used by the explicit Dark theme and by System on a
    dark device. (Kept in two places because a selector list can't span a media
    query; it's only a handful of tokens.) */
 [data-theme='dark'] {
@@ -62,7 +62,7 @@
   }
 }
 
-/* Midnight — OLED black with a violet accent. */
+/* Midnight - OLED black with a violet accent. */
 [data-theme='midnight'] {
   --bg: #000000;
   --surface: #0c0c14;
@@ -75,7 +75,7 @@
   --shadow: none;
 }
 
-/* Forest — deep green dusk with an emerald accent. */
+/* Forest - deep green dusk with an emerald accent. */
 [data-theme='forest'] {
   --bg: #0c1410;
   --surface: #122019;
@@ -88,7 +88,7 @@
   --shadow: none;
 }
 
-/* Sunset — warm cream light theme with an orange accent. */
+/* Sunset - warm cream light theme with an orange accent. */
 [data-theme='sunset'] {
   --bg: #fdf6f0;
   --surface: #ffffff;
@@ -265,7 +265,7 @@ button {
   width: 40px;
   height: 40px;
   /* padding:0 kills the asymmetric native button padding that iOS leaves
-     in place even with appearance:none — that padding was shifting the
+     in place even with appearance:none - that padding was shifting the
      content (text ‹ and SVG icons alike) off-center. */
   padding: 0;
   border-radius: 12px;
@@ -493,7 +493,7 @@ textarea {
 }
 .scale {
   display: grid;
-  /* minmax(0, …) lets all columns shrink to fit — without the 0 floor,
+  /* minmax(0, …) lets all columns shrink to fit - without the 0 floor,
      iOS WebKit keeps each <button> at its intrinsic min width and the
      10-wide RPE row overflows the screen. */
   grid-template-columns: repeat(var(--n, 5), minmax(0, 1fr));
@@ -610,7 +610,7 @@ textarea {
   flex: none;
 }
 /* With four action buttons (Sign out now lives in Settings) the title fits at
-   full size on all but the narrowest phones — the freed-up button width is
+   full size on all but the narrowest phones - the freed-up button width is
    exactly what used to force it to clip to "Treningsda…". The buttons still
    step down a little in bands so the row never wraps, and only sub-360px
    screens shrink the title itself. Content is capped at a 480px wrapper, so
@@ -1027,7 +1027,7 @@ textarea {
   position: relative;
   /* The preview's children are all absolutely positioned, so it has no
      intrinsic width. iOS Safari then collapses this flex item to ~0 wide
-     (Chrome stretches it) — so set the width explicitly. */
+     (Chrome stretches it) - so set the width explicitly. */
   width: 100%;
   height: 44px;
   border-radius: 8px;
@@ -1195,6 +1195,9 @@ textarea {
   color: var(--text-muted);
   font-size: 0.78rem;
   font-variant-numeric: tabular-nums;
+  /* Each extra (strength, finger, warm-up, rehab) on its own row under the
+     sport label, instead of flowing beside it. */
+  flex-basis: 100%;
 }
 .empty-state {
   text-align: center;
@@ -1865,10 +1868,14 @@ textarea {
 }
 
 /* ----- bottom tab bar ----- */
+/* Centred and capped at the app column width, so it hugs the content on
+   desktop instead of stretching across the whole window. */
 .tabbar {
   position: fixed;
-  left: 0;
-  right: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: var(--maxw);
   bottom: 0;
   z-index: 40; /* under toasts (50) and sheets (60) */
   display: grid;
@@ -1877,6 +1884,13 @@ textarea {
   background: var(--surface);
   border-top: 1px solid var(--border);
   padding: 6px 10px calc(env(safe-area-inset-bottom) + 6px);
+}
+@media (min-width: 500px) {
+  .tabbar {
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    border-radius: 14px 14px 0 0;
+  }
 }
 .tab-btn {
   display: flex;
@@ -1918,4 +1932,92 @@ textarea {
 /* Quick-pick chips under the duration field. */
 .duration-chips {
   margin-top: 8px;
+}
+
+/* ----- period tracking ----- */
+.cal-day {
+  position: relative;
+}
+.cal-drop {
+  position: absolute;
+  top: 1px;
+  right: 2px;
+  font-size: 9px;
+  line-height: 1;
+}
+.cal-drop.predicted {
+  opacity: 0.35;
+}
+.cycle-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cycle-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.cycle-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.cycle-card p {
+  margin: 0;
+}
+
+/* ----- warm-up / rehab row in the details form ----- */
+.wr-row {
+  display: flex;
+  gap: 8px;
+}
+.wr-row .num-field {
+  flex: 0 0 128px;
+}
+.wr-row input[type='text'] {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ----- injuries (Settings) ----- */
+.injury-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.injury-row:last-child {
+  border-bottom: none;
+}
+.injury-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.injury-note {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.injury-actions {
+  display: flex;
+  gap: 6px;
+  flex: none;
+}
+
+/* Dashboard header subtitle (date + streak) under the title. */
+.dash-sub {
+  margin: 2px 0 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+/* Tiny drop marking a session that falls on a logged period day. */
+.period-drop {
+  font-size: 0.72em;
 }

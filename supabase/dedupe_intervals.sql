@@ -1,5 +1,5 @@
 -- ============================================================================
--- Treningsdagbok — prevent duplicate intervals.icu imports
+-- Treningsdagbok - prevent duplicate intervals.icu imports
 -- ============================================================================
 -- Run this in the Supabase SQL editor (after schema.sql + intervals.sql).
 --

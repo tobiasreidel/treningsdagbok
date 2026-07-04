@@ -29,7 +29,19 @@ const MAX_DOTS = 6 // guard against a freakishly busy day overflowing the cell
 //   climbing = blue · cycling = amber · strength = violet
 //   multiple sessions on a day = multiple dots (one per session)
 // A climb that includes a strength block gets both a climbing and a strength dot.
-export default function Calendar({ monthRef, sessions, onPrev, onNext, onSelectDay, enabledSports }) {
+// `periodDays` / `predictedDays` (Sets of ISO dates, or null when tracking is
+// off) draw a small blood drop in a day's corner - full for logged days, pale
+// for the predicted next period.
+export default function Calendar({
+  monthRef,
+  sessions,
+  onPrev,
+  onNext,
+  onSelectDay,
+  enabledSports,
+  periodDays,
+  predictedDays,
+}) {
   // Count sessions per sport on each day (splitting climb + strength blocks).
   const byDay = {}
   for (const s of sessions) {
@@ -90,6 +102,11 @@ export default function Calendar({ monthRef, sessions, onPrev, onNext, onSelectD
               onClick={() => onSelectDay?.(key)}
               type="button"
             >
+              {periodDays?.has(key) ? (
+                <span className="cal-drop">🩸</span>
+              ) : predictedDays?.has(key) ? (
+                <span className="cal-drop predicted">🩸</span>
+              ) : null}
               <span className="cal-daynum">{format(day, 'd')}</span>
               {dots.length > 0 && (
                 <span className="cal-dots">
@@ -109,6 +126,7 @@ export default function Calendar({ monthRef, sessions, onPrev, onNext, onSelectD
             <i className={`dot-${sport}`} /> {SPORT_LABELS[sport]}
           </span>
         ))}
+        {periodDays && <span>🩸 Period (pale = expected)</span>}
       </div>
     </div>
   )

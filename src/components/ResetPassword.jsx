@@ -31,7 +31,7 @@ export default function ResetPassword() {
         <div className="auth-brand">
           <span className="auth-logo">🔑</span>
           <h1>Choose a new password</h1>
-          <p className="muted">You're signed in — just set a new password to finish.</p>
+          <p className="muted">You're signed in. Just set a new password to finish.</p>
         </div>
 
         <label className="field">

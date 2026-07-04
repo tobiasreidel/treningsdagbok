@@ -1,10 +1,24 @@
 import { SPORTS } from '../lib/constants'
 import { formatDay, formatDuration } from '../lib/format'
+import { cycleInfoFor } from '../lib/health'
 import { PendingBadge } from './ui'
 
 // Bottom sheet shown when a calendar day is tapped: lists that day's sessions
 // (tap one for its detail) and offers to add a new session on the same date.
-export default function DaySheet({ date, sessions, onClose, onSelect, onAdd, readOnly }) {
+// With period tracking on it also shows the day's cycle phase and lets the
+// user mark/unmark the day.
+export default function DaySheet({
+  date,
+  sessions,
+  onClose,
+  onSelect,
+  onAdd,
+  readOnly,
+  periodEnabled,
+  isPeriodDay,
+  cycle,
+  onTogglePeriod,
+}) {
   const list = sessions
     .filter((s) => s.date === date)
     .sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''))
@@ -18,7 +32,10 @@ export default function DaySheet({ date, sessions, onClose, onSelect, onAdd, rea
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sheet-head">
-          <strong>{formatDay(date)}</strong>
+          <strong>
+            {formatDay(date)}
+            {periodEnabled && isPeriodDay && <span className="period-drop"> 🩸</span>}
+          </strong>
           <button className="icon-btn" onClick={onClose} aria-label="Close">
             ✕
           </button>
@@ -44,6 +61,25 @@ export default function DaySheet({ date, sessions, onClose, onSelect, onAdd, rea
               )
             })}
           </ul>
+        )}
+
+        {periodEnabled && !readOnly && (
+          <>
+            {(() => {
+              const info = cycle ? cycleInfoFor(cycle, date) : null
+              return info ? (
+                <p className="muted small sheet-empty">
+                  Cycle day {info.day} · {info.label}
+                </p>
+              ) : null
+            })()}
+            <button
+              className="btn btn-secondary btn-block"
+              onClick={() => onTogglePeriod(date)}
+            >
+              {isPeriodDay ? 'Remove period mark' : '🩸 Log period on this day'}
+            </button>
+          </>
         )}
 
         {!readOnly && (

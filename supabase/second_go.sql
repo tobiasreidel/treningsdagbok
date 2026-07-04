@@ -1,5 +1,5 @@
 -- ============================================================================
--- Treningsdagbok — add the "2. go" (second-go) route send type
+-- Treningsdagbok - add the "2. go" (second-go) route send type
 -- ============================================================================
 -- Run in the Supabase SQL editor (after schema.sql). Safe to re-run.
 --

@@ -31,7 +31,7 @@ function isNetworkError(err) {
   )
 }
 
-// Postgres unique-violation — hit when the same intervals.icu activity is
+// Postgres unique-violation - hit when the same intervals.icu activity is
 // imported twice (see supabase/dedupe_intervals.sql). Not a real failure:
 // the session already exists, so we treat it as a no-op.
 function isDuplicateError(err) {
@@ -146,7 +146,7 @@ export async function updateSession(id, form) {
   if (!userId) throw new Error('Not signed in')
   const item = buildItem(form, 'update')
 
-  // The old photo is only deleted after the row update succeeds — deleting
+  // The old photo is only deleted after the row update succeeds - deleting
   // first would leave the session pointing at a missing file if the update
   // fails.
   let photo_url = item.existingPhotoUrl
@@ -193,7 +193,7 @@ export async function getCurrentUserId() {
 
 // Fetch a user's sessions, newest first, with their route logs joined in.
 // Defaults to *your own*; pass an athlete's id to read theirs (only works when
-// you're an accepted coach — RLS enforces it). Scoping by user_id is required:
+// you're an accepted coach - RLS enforces it). Scoping by user_id is required:
 // once you have friends/coaches, RLS also permits selecting their shared
 // sessions, so an unscoped select would pull other people's sessions into your
 // personal dashboard/stats. (The friends feed fetches those separately.)
@@ -234,7 +234,7 @@ export async function getSignedPhotoUrl(path) {
   return data.signedUrl
 }
 
-// Remove a queued offline session (it has no server row yet) — the escape
+// Remove a queued offline session (it has no server row yet) - the escape
 // hatch for an entry the user regrets or one that's stuck unsynced.
 export async function deletePendingSession(localId) {
   await remove(localId)
@@ -266,9 +266,9 @@ export async function flushOutbox() {
       await remove(item.localId)
       flushed += 1
     } catch (err) {
-      if (isNetworkError(err)) break // still offline — stop and try again later
+      if (isNetworkError(err)) break // still offline - stop and try again later
       // A non-network error (e.g. bad data) shouldn't wedge the queue forever,
-      // but dropping a logged session silently isn't OK either — count it so
+      // but dropping a logged session silently isn't OK either - count it so
       // the dashboard can tell the user. (A duplicate isn't a loss: the
       // session already exists on the server.)
       await remove(item.localId)

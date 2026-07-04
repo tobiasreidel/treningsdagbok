@@ -1,6 +1,6 @@
 // App colour themes. "system" follows the device's light/dark setting; every
 // other key forces a fixed palette. A theme is applied by setting data-theme on
-// <html> — the matching CSS lives in styles.css. Choice is per-device (local).
+// <html> - the matching CSS lives in styles.css. Choice is per-device (local).
 const KEY = 'pref.theme'
 
 // `bg`/`surface`/`accent` are only used to draw the little swatch preview in

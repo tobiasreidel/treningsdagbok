@@ -1,7 +1,7 @@
 // Vercel serverless function: POST /api/delete-account
 //
 // A signed-in user permanently deletes their own account. We verify their
-// session, then delete the auth user with the service-role key — all
+// session, then delete the auth user with the service-role key - all
 // user-owned rows (sessions, routes, profile, friendships, ...) cascade-delete
 // via their `references auth.users(id) on delete cascade` foreign keys, so no
 // extra cleanup queries are needed here.
@@ -30,7 +30,7 @@ export default async function handler(req, res) {
   const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim()
   if (!token) return res.status(401).json({ error: 'Not signed in.' })
 
-  // 1) Verify the session against Supabase Auth — this is what gates the
+  // 1) Verify the session against Supabase Auth - this is what gates the
   //    endpoint to signed-in users and gives us the id to delete.
   let user
   try {
@@ -38,13 +38,13 @@ export default async function handler(req, res) {
       headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${token}` },
     })
     if (!ur.ok) {
-      return res.status(401).json({ error: 'Your session expired — sign in again.' })
+      return res.status(401).json({ error: 'Your session expired - sign in again.' })
     }
     user = await ur.json()
   } catch (err) {
     return res.status(502).json({ error: 'Could not verify your session.', detail: String(err) })
   }
-  if (!user?.id) return res.status(401).json({ error: 'Your session expired — sign in again.' })
+  if (!user?.id) return res.status(401).json({ error: 'Your session expired - sign in again.' })
 
   // 2) Delete the auth user with the service role. Postgres FK cascades
   //    remove every row that references it.

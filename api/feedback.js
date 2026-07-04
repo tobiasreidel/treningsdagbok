@@ -6,13 +6,13 @@
 // never in the browser bundle.
 //
 // Required env vars (Vercel → Project → Settings → Environment Variables):
-//   RESEND_API_KEY                 — from resend.com
-//   SUPABASE_SERVICE_ROLE_KEY      — Supabase → Project Settings → API → service_role (secret!)
-//   SUPABASE_URL / VITE_SUPABASE_URL        — your project URL (already set for the build)
-//   SUPABASE_ANON_KEY / VITE_SUPABASE_ANON_KEY — your anon key (already set for the build)
+//   RESEND_API_KEY                 - from resend.com
+//   SUPABASE_SERVICE_ROLE_KEY      - Supabase → Project Settings → API → service_role (secret!)
+//   SUPABASE_URL / VITE_SUPABASE_URL        - your project URL (already set for the build)
+//   SUPABASE_ANON_KEY / VITE_SUPABASE_ANON_KEY - your anon key (already set for the build)
 // Optional:
-//   FEEDBACK_TO    — recipient (default tobias@reidel.net)
-//   FEEDBACK_FROM  — sender (default Resend's shared test sender)
+//   FEEDBACK_TO    - recipient (default tobias@reidel.net)
+//   FEEDBACK_FROM  - sender (default Resend's shared test sender)
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY
@@ -56,7 +56,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Message is too long (max 2000 characters).' })
   }
 
-  // 1) Verify the session against Supabase Auth — this is what gates the
+  // 1) Verify the session against Supabase Auth - this is what gates the
   //    endpoint to signed-in users and gives us a trustworthy id + email.
   let user
   try {
@@ -64,13 +64,13 @@ export default async function handler(req, res) {
       headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${token}` },
     })
     if (!ur.ok) {
-      return res.status(401).json({ error: 'Your session expired — sign in again.' })
+      return res.status(401).json({ error: 'Your session expired - sign in again.' })
     }
     user = await ur.json()
   } catch (err) {
     return res.status(502).json({ error: 'Could not verify your session.', detail: String(err) })
   }
-  if (!user?.id) return res.status(401).json({ error: 'Your session expired — sign in again.' })
+  if (!user?.id) return res.status(401).json({ error: 'Your session expired - sign in again.' })
 
   // 2) Record it with the service role (bypasses RLS; the per-user rate-limit
   //    trigger still fires, so abuse protection is unchanged).
@@ -98,7 +98,7 @@ export default async function handler(req, res) {
       if (pgMsg.includes('rate_limit')) {
         return res
           .status(429)
-          .json({ error: "You've sent a lot of feedback recently — please try again later." })
+          .json({ error: "You've sent a lot of feedback recently - please try again later." })
       }
       return res.status(502).json({
         error: `Could not record your message (Supabase ${r.status}).`,
@@ -110,7 +110,7 @@ export default async function handler(req, res) {
     return res.status(502).json({ error: 'Could not reach the database.', detail: String(err) })
   }
 
-  // 3) Email it. The message is already saved, so delivery is best-effort —
+  // 3) Email it. The message is already saved, so delivery is best-effort -
   //    a failure here still returns success (nothing is lost).
   if (!RESEND_API_KEY) {
     return res.status(200).json({ ok: true, emailed: false })

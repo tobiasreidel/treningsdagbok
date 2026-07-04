@@ -1,6 +1,6 @@
 // The catalog of dashboard widgets. Each entry is a small stat card the user
 // can place on the front page from the Customize screen. What shows is entirely
-// the user's choice — nothing here keys off which sports are "enabled".
+// the user's choice - nothing here keys off which sports are "enabled".
 import { startOfYear, endOfYear } from 'date-fns'
 import { lastNDaysRange, monthRange, inRange, toHours } from '../lib/format'
 import { SPORTS } from '../lib/constants'

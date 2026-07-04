@@ -15,8 +15,9 @@ import {
   deletePendingSession,
   notifySessionsChanged,
 } from '../lib/sessions'
+import { fetchPeriodDays } from '../lib/health'
 import { embeddedStrengthMinutes, embeddedFingerMinutes } from '../lib/stats'
-import { ALL_SPORTS } from '../lib/prefs'
+import { ALL_SPORTS, getLogPeriod } from '../lib/prefs'
 import { PendingBadge, PillRow } from '../components/ui'
 
 // Session-length buckets for the filter row (minutes).
@@ -79,14 +80,21 @@ export default function Logbook() {
   const [lenMin, setLenMin] = useState('')
   const [lenMax, setLenMax] = useState('')
 
+  // Period days (when tracking is on) so entries on those days get a drop.
+  const [periodSet, setPeriodSet] = useState(null)
+
   const load = useCallback(async () => {
-    const [server, pending] = await Promise.allSettled([
+    const [server, pending, period] = await Promise.allSettled([
       fetchSessions(),
       getPendingSessions(),
+      getLogPeriod() ? fetchPeriodDays() : Promise.resolve(null),
     ])
     const serverRows = server.status === 'fulfilled' ? server.value : []
     const pendingRows = pending.status === 'fulfilled' ? pending.value : []
     setSessions([...pendingRows, ...serverRows])
+    setPeriodSet(
+      period.status === 'fulfilled' && period.value ? new Set(period.value) : null,
+    )
     setLoading(false)
   }, [])
 
@@ -245,6 +253,7 @@ export default function Logbook() {
                         <Entry
                           key={s.id}
                           session={s}
+                          period={periodSet?.has(s.date) || false}
                           open={openId === s.id}
                           onToggle={() => setOpenId((id) => (id === s.id ? null : s.id))}
                           onOpenFull={() => navigate(`/session/${s.id}`)}
@@ -262,7 +271,7 @@ export default function Logbook() {
   )
 }
 
-function Entry({ session: s, open, onToggle, onOpenFull }) {
+function Entry({ session: s, period, open, onToggle, onOpenFull }) {
   const sport = SPORTS[s.sport]
   const facts = keyFacts(s)
   return (
@@ -275,7 +284,10 @@ function Entry({ session: s, open, onToggle, onOpenFull }) {
             {s.pending && <PendingBadge />}
           </span>
           <span className="log-entry-facts">
-            <span className="log-entry-date">{formatDay(s.date)}</span>
+            <span className="log-entry-date">
+              {formatDay(s.date)}
+              {period && <span className="period-drop"> 🩸</span>}
+            </span>
             {facts.map((f) => (
               <span key={f}>{f}</span>
             ))}
@@ -410,6 +422,12 @@ function detailTiles(s) {
     if (Number(e.distance_m)) tiles.push({ label: 'Distance', value: Math.round(Number(e.distance_m)), sub: 'm' })
     const pace = pacePer100m(e.distance_m, s.duration)
     if (pace) tiles.push({ label: 'Pace', value: pace, sub: '/100m' })
+  }
+  if (Number(e.warmup_minutes) > 0) {
+    tiles.push({ label: 'Warm-up', value: formatDuration(Number(e.warmup_minutes)) })
+  }
+  if (Number(e.rehab_minutes) > 0) {
+    tiles.push({ label: 'Rehab', value: formatDuration(Number(e.rehab_minutes)) })
   }
   return tiles
 }

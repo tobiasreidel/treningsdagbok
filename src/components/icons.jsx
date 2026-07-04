@@ -1,5 +1,5 @@
 // Inline line icons (Lucide-style). They use `currentColor` and a square
-// 24×24 viewBox, so they center perfectly inside a button — unlike emoji,
+// 24×24 viewBox, so they center perfectly inside a button - unlike emoji,
 // whose font metrics render them off-center on iOS.
 
 function Icon({ children, size = 22 }) {

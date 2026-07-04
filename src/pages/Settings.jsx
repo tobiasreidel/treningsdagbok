@@ -6,6 +6,8 @@ import { getSettings, saveSettings, fetchActivities, activitySport } from '../li
 import { getMyProfile, setDisplayName, getShareSetting, setShareSetting } from '../lib/friends'
 import { sendFeedback } from '../lib/feedback'
 import { deleteAccount } from '../lib/account'
+import { fetchInjuries, addInjury, endInjury, deleteInjury } from '../lib/health'
+import { formatDayShort, todayISO } from '../lib/format'
 import { THEMES, getTheme, setTheme } from '../lib/theme'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -13,6 +15,8 @@ import {
   setHideRidesUnderKm,
   getEnabledSports,
   setEnabledSports,
+  getLogPeriod,
+  setLogPeriod,
   ALL_SPORTS,
 } from '../lib/prefs'
 
@@ -32,6 +36,7 @@ export default function Settings() {
     return v > 0 ? String(v) : ''
   })
   const [enabledSports, setEnabledSportsState] = useState(getEnabledSports)
+  const [logPeriod, setLogPeriodState] = useState(getLogPeriod)
   const [theme, setThemeState] = useState(getTheme)
   const [loading, setLoading] = useState(true)
   const [test, setTest] = useState(null)
@@ -82,7 +87,7 @@ export default function Settings() {
     flashTimer.current = setTimeout(() => setFlash(null), 1600)
   }
 
-  // Sport toggles persist immediately (local pref) — independent of Save.
+  // Sport toggles persist immediately (local pref) - independent of Save.
   const toggleSport = (key) => {
     setEnabledSportsState((prev) => {
       const next = prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
@@ -93,8 +98,16 @@ export default function Settings() {
     })
   }
 
-  // Theme applies live (and persists) the moment it's tapped — no Save needed.
+  // Theme applies live (and persists) the moment it's tapped - no Save needed.
   const chooseTheme = (key) => setThemeState(setTheme(key))
+
+  const toggleLogPeriod = () => {
+    setLogPeriodState((prev) => {
+      setLogPeriod(!prev)
+      return !prev
+    })
+    showFlash()
+  }
 
   const submitFeedback = async () => {
     const msg = fbMessage.trim()
@@ -153,7 +166,7 @@ export default function Settings() {
   // ---- auto-save -----------------------------------------------------------
   // Each field persists on its own: text inputs on blur (so we don't write a
   // character at a time), the privacy toggle on change. Profile/privacy are
-  // best-effort — they depend on friends.sql having been run — so a failure
+  // best-effort - they depend on friends.sql having been run - so a failure
   // there is swallowed rather than shown as an error.
   const commitName = () => {
     if (displayName === savedName.current) return
@@ -278,6 +291,30 @@ export default function Settings() {
               )
             })}
           </div>
+        </section>
+
+        <section className="card settings-card stack">
+          <h2 className="step-q">Health</h2>
+          <div className="toggle-list">
+            <label className="toggle-row">
+              <span className="toggle-label">
+                <span className="toggle-emoji">🩸</span>
+                Log period
+              </span>
+              <span className="switch">
+                <input type="checkbox" checked={logPeriod} onChange={toggleLogPeriod} />
+                <span className="switch-track" />
+                <span className="switch-thumb" />
+              </span>
+            </label>
+          </div>
+          <p className="muted small">
+            Log period days by tapping a day in the dashboard calendar. After a
+            couple of cycles the app predicts your next period and shows where
+            you are in your cycle. Only you can ever see this, never friends
+            or coaches.
+          </p>
+          <InjuriesCard />
         </section>
 
         <section className="card settings-card stack">
@@ -479,6 +516,155 @@ export default function Settings() {
       </main>
 
       {flash && <div className="toast">{flash}</div>}
+    </div>
+  )
+}
+
+// Injury log: note + start date; "Healed" stamps the end date, ✕ deletes.
+// Lives in Settings → Health. Data is owner-only (see supabase/health.sql).
+function InjuriesCard() {
+  const [injuries, setInjuries] = useState(null) // null = loading
+  const [loadErr, setLoadErr] = useState(false)
+  const [note, setNote] = useState('')
+  const [started, setStarted] = useState(todayISO())
+  const [busy, setBusy] = useState(false)
+
+  const load = () =>
+    fetchInjuries()
+      .then((rows) => {
+        setInjuries(rows)
+        setLoadErr(false)
+      })
+      .catch(() => {
+        setInjuries([])
+        setLoadErr(true)
+      })
+
+  useEffect(() => {
+    load()
+  }, [])
+
+  const act = async (fn) => {
+    setBusy(true)
+    try {
+      await fn()
+      await load()
+    } catch {
+      setLoadErr(true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const add = () =>
+    act(async () => {
+      await addInjury(note, started)
+      setNote('')
+      setStarted(todayISO())
+    })
+
+  const active = (injuries || []).filter((i) => !i.ended)
+  const healed = (injuries || []).filter((i) => i.ended)
+
+  return (
+    <div className="stack">
+      <span className="field-label">Injuries</span>
+      {loadErr && (
+        <p className="auth-error">
+          Couldn’t load injuries. Has supabase/health.sql been run?
+        </p>
+      )}
+
+      {injuries !== null && injuries.length === 0 && !loadErr && (
+        <p className="muted small">No injuries logged. 🤞</p>
+      )}
+
+      {active.length > 0 && (
+        <div className="toggle-list">
+          {active.map((i) => (
+            <div className="injury-row" key={i.id}>
+              <span className="injury-main">
+                <span className="injury-note">{i.note}</span>
+                <span className="muted small">since {formatDayShort(i.started)} · active</span>
+              </span>
+              <span className="injury-actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  disabled={busy}
+                  onClick={() => act(() => endInjury(i.id))}
+                >
+                  Healed
+                </button>
+                <button
+                  type="button"
+                  className="icon-btn danger"
+                  aria-label="Delete injury"
+                  disabled={busy}
+                  onClick={() => act(() => deleteInjury(i.id))}
+                >
+                  ✕
+                </button>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {healed.length > 0 && (
+        <div className="toggle-list">
+          {healed.map((i) => (
+            <div className="injury-row" key={i.id}>
+              <span className="injury-main">
+                <span className="injury-note muted">{i.note}</span>
+                <span className="muted small">
+                  {formatDayShort(i.started)} – {formatDayShort(i.ended)} · healed
+                </span>
+              </span>
+              <span className="injury-actions">
+                <button
+                  type="button"
+                  className="icon-btn"
+                  aria-label="Delete injury"
+                  disabled={busy}
+                  onClick={() => act(() => deleteInjury(i.id))}
+                >
+                  ✕
+                </button>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Field label="Log an injury" optional>
+        <div className="stack" style={{ gap: 8 }}>
+          <input
+            type="text"
+            value={note}
+            maxLength={500}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="e.g. A2 pulley, right ring finger"
+          />
+          <div className="wr-row">
+            <input
+              type="date"
+              value={started}
+              onChange={(e) => setStarted(e.target.value)}
+              style={{ flex: '0 0 160px' }}
+            />
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ flex: 1 }}
+              disabled={!note.trim() || !started || busy}
+              onClick={add}
+            >
+              + Add
+            </button>
+          </div>
+        </div>
+      </Field>
     </div>
   )
 }

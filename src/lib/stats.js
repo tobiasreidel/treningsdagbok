@@ -17,7 +17,7 @@ const WEEK_OPTS = { weekStartsOn: 1 }
 const num = (v) => Number(v) || 0
 
 // Ranges are defined by a whole number of periods (not raw days) so the chart
-// comes out to exactly that many bars — e.g. 4W is 4 weekly bars, not 4-and-a-
+// comes out to exactly that many bars - e.g. 4W is 4 weekly bars, not 4-and-a-
 // bit. 'all' spans from the first session.
 export const RANGES = [
   { key: '4w', label: '4W', weeks: 4, grain: 'week' },
@@ -42,7 +42,7 @@ export function windowStart(key, sessions) {
   if (cfg.months) {
     return addMonths(startOfMonth(today), -(cfg.months - 1))
   }
-  // 'all' — from the earliest session (sessions are newest-first).
+  // 'all' - from the earliest session (sessions are newest-first).
   const earliest = sessions.length ? sessions[sessions.length - 1].date : null
   return earliest ? asDate(earliest) : subDays(today, 30)
 }
@@ -143,7 +143,7 @@ export function sportHours(arr, sport) {
   return m / 60
 }
 
-// Distinct sports a session represents — a climb with a strength block counts
+// Distinct sports a session represents - a climb with a strength block counts
 // as both climbing and strength. Used for the calendar dots + week table.
 export function sessionSports(s) {
   return sportMinutes(s)
@@ -165,7 +165,7 @@ export function locationSplit(climbing) {
 }
 
 // Rank a French grade (route or boulder) so they order by difficulty across
-// both scales — e.g. 5c < 6a < 6a+ < 6b.
+// both scales - e.g. 5c < 6a < 6a+ < 6b.
 function gradeRank(g) {
   const m = /^(\d+)\s*([abc])?\s*(\+)?$/i.exec(String(g).trim())
   if (!m) return 999
@@ -201,7 +201,7 @@ export function sendStats(climbing) {
 // ---- general ---------------------------------------------------------------
 // Consecutive weeks (Mon-anchored) with at least one session, ending now. The
 // current week is still "in progress": an empty current week doesn't break the
-// streak — we count back from last week — but training this week extends it.
+// streak - we count back from last week - but training this week extends it.
 export function currentWeekStreak(sessions) {
   if (!sessions.length) return 0
   // Broken once you've gone more than 7 days without training, even if that gap
@@ -230,7 +230,7 @@ export function restBalance(sessions, start) {
   return { active, rest: Math.max(0, total - active), total }
 }
 
-// Longest single-session distance (km) — used for both rides and runs.
+// Longest single-session distance (km) - used for both rides and runs.
 export function longestDistanceKm(arr) {
   return arr.reduce((m, s) => Math.max(m, num(s.extra?.distance_km)), 0)
 }

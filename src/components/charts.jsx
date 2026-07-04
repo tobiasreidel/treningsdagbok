@@ -113,7 +113,7 @@ export function Line({ data, height = 170, color = 'var(--primary)' }) {
   )
 }
 
-// Horizontal bars (HTML) — good for labelled categories like the grade pyramid.
+// Horizontal bars (HTML) - good for labelled categories like the grade pyramid.
 export function HBars({ data, color = 'var(--primary)', unit = '' }) {
   if (!data.length) return <ChartEmpty />
   const max = Math.max(1, ...data.map((d) => d.value || 0))

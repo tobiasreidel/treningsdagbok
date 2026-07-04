@@ -1,5 +1,5 @@
 -- ============================================================================
--- Treningsdagbok — add running + swimming as sports
+-- Treningsdagbok - add running + swimming as sports
 -- ============================================================================
 -- Run in the Supabase SQL editor (after schema.sql). Safe to re-run.
 --

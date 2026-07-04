@@ -26,7 +26,7 @@ export async function deleteAccount() {
     // non-JSON response
   }
   if (!res.ok) {
-    // A 404 here means the serverless function isn't running — e.g. the app is
+    // A 404 here means the serverless function isn't running - e.g. the app is
     // served by plain `vite` (dev) rather than Vercel, or hasn't been
     // redeployed. Surface the status so that's obvious instead of a vague fail.
     const base =

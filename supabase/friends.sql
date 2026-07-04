@@ -1,19 +1,19 @@
 -- ============================================================================
--- Treningsdagbok — Phase 4: friends, shared feed/leaderboard, privacy
+-- Treningsdagbok - Phase 4: friends, shared feed/leaderboard, privacy
 -- ============================================================================
 -- Run in the Supabase SQL editor (after schema.sql + intervals.sql).
 -- Safe to re-run.
 --
 -- Model:
---   * profiles      — public-ish display name/email per user (auth.users isn't
+--   * profiles      - public-ish display name/email per user (auth.users isn't
 --                     queryable from the client), auto-created on signup.
---   * friendships   — a request row (requester → addressee) that becomes
+--   * friendships   - a request row (requester → addressee) that becomes
 --                     'accepted'. Friendship is symmetric once accepted.
---   * privacy       — user_settings.share_activities toggles whether accepted
+--   * privacy       - user_settings.share_activities toggles whether accepted
 --                     friends can see your sessions. Default on; only ever
 --                     visible to *accepted* friends, never strangers.
 --
--- NOTE: tables are created first, then policies — a policy that references
+-- NOTE: tables are created first, then policies - a policy that references
 -- another table (profiles → friendships) needs that table to already exist.
 -- ============================================================================
 

@@ -10,6 +10,8 @@ import {
   deletePendingSession,
   notifySessionsChanged,
 } from '../lib/sessions'
+import { isPeriodDay } from '../lib/health'
+import { getLogPeriod } from '../lib/prefs'
 import { embeddedStrengthMinutes, embeddedFingerMinutes } from '../lib/stats'
 import { normalizeHang } from '../lib/formState'
 
@@ -58,6 +60,7 @@ export default function SessionDetail() {
   const [error, setError] = useState(null)
   const [myId, setMyId] = useState(null)
   const [deleting, setDeleting] = useState(false)
+  const [periodMark, setPeriodMark] = useState(false)
   const isPending = id?.startsWith('local-')
 
   useEffect(() => {
@@ -68,6 +71,10 @@ export default function SessionDetail() {
       .then(async (s) => {
         if (!alive) return
         setSession(s)
+        // Badge sessions that fall on one of your logged period days.
+        if (getLogPeriod()) {
+          isPeriodDay(s.date).then((v) => alive && setPeriodMark(v))
+        }
         if (s.photo_url) setPhotoSrc(await getSignedPhotoUrl(s.photo_url))
       })
       .catch(() => alive && setError('Activity not found'))
@@ -180,7 +187,12 @@ export default function SessionDetail() {
   const finger = e.finger || {}
   const hangs = finger.hangboard || []
   const hasFinger = finger.campus || hangs.length > 0
-  // A coach views athletes' sessions read-only — only the owner can edit.
+  const warmupMin = Number(e.warmup_minutes) || 0
+  const warmupNote = (e.warmup_note || '').trim()
+  const rehabMin = Number(e.rehab_minutes) || 0
+  const rehabNote = (e.rehab_note || '').trim()
+  const hasWarmupRehab = warmupMin > 0 || warmupNote || rehabMin > 0 || rehabNote
+  // A coach views athletes' sessions read-only - only the owner can edit.
   const isOwner = myId && session.user_id === myId
 
   return (
@@ -209,7 +221,11 @@ export default function SessionDetail() {
         <span className="detail-sport">
           {sport?.emoji} {subtitle || sport?.label}
         </span>
-        <span className="detail-date">{formatDay(session.date)}</span>
+        <span className="detail-date">
+          {formatDay(session.date)}
+          {/* Period drop only on your own sessions, never a friend's/athlete's. */}
+          {isOwner && periodMark && <span className="period-drop"> 🩸</span>}
+        </span>
       </div>
 
       {tiles.length > 0 && (
@@ -223,6 +239,34 @@ export default function SessionDetail() {
               </span>
             </div>
           ))}
+        </div>
+      )}
+
+      {hasWarmupRehab && (
+        <div className="detail-block">
+          <h2 className="section-title">Warm-up &amp; rehab</h2>
+          <div className="stack">
+            {(warmupMin > 0 || warmupNote) && (
+              <div className="route-line">
+                <span className="route-line-name">
+                  🔥 Warm-up{warmupNote ? ` · ${warmupNote}` : ''}
+                </span>
+                <span className="route-line-meta">
+                  {warmupMin > 0 ? formatDuration(warmupMin) : ''}
+                </span>
+              </div>
+            )}
+            {(rehabMin > 0 || rehabNote) && (
+              <div className="route-line">
+                <span className="route-line-name">
+                  🩹 Rehab{rehabNote ? ` · ${rehabNote}` : ''}
+                </span>
+                <span className="route-line-meta">
+                  {rehabMin > 0 ? formatDuration(rehabMin) : ''}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

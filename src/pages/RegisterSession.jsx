@@ -23,7 +23,7 @@ export default function RegisterSession() {
     if (location.state?.date) f.date = location.state.date
     return f
   })
-  // Skip sport/subtype for imports — jump straight to the details step.
+  // Skip sport/subtype for imports - jump straight to the details step.
   const [step, setStep] = useState(prefill ? 2 : 0)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)

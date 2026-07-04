@@ -122,7 +122,7 @@ function summary(s) {
   return [s.subtype, formatDuration(d), climbs].filter(Boolean).join(' · ')
 }
 
-// Each entry opens the friend's session read-only — RLS only ever returns
+// Each entry opens the friend's session read-only - RLS only ever returns
 // shared sessions, and the detail page hides edit/delete for non-owners.
 function Feed({ feed, navigate }) {
   if (!feed.length) {

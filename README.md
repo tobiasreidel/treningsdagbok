@@ -12,11 +12,11 @@ React + Vite frontend, Supabase backend.
 
 ## Features
 
-- **Email + password auth** (Supabase) — multi-user ready.
+- **Email + password auth** (Supabase) - multi-user ready.
 - **Register session** wizard: sport → type/location → details → routes → notes/photo,
   with the outdoor-climbing route log. Tap any session for a detail view; edit & delete.
 - **Dashboard**: color-coded month calendar, last-week table, summary cards.
-- **Stats** (`/stats`): date-range Overview / Cycling / Climbing dashboards —
+- **Stats** (`/stats`): date-range Overview / Cycling / Climbing dashboards -
   training load, distance/elevation, speed & feeling trends, discipline split,
   grade pyramid, send rate.
 - **intervals.icu import** (`/import`): pulls rides (synced from Garmin), pre-fills
@@ -36,29 +36,32 @@ React + Vite frontend, Supabase backend.
 
 1. Create a new project at [supabase.com](https://supabase.com) (no credit card needed).
 2. In the dashboard, open **SQL Editor → New query** and run these in order:
-   - [`supabase/schema.sql`](supabase/schema.sql) — `sessions` + `routes` tables,
+   - [`supabase/schema.sql`](supabase/schema.sql) - `sessions` + `routes` tables,
      Row Level Security, and the private `session-photos` storage bucket.
-   - [`supabase/intervals.sql`](supabase/intervals.sql) — `user_settings`
+   - [`supabase/intervals.sql`](supabase/intervals.sql) - `user_settings`
      (intervals.icu credentials), for the cycling import.
-   - [`supabase/dedupe_intervals.sql`](supabase/dedupe_intervals.sql) — unique
+   - [`supabase/dedupe_intervals.sql`](supabase/dedupe_intervals.sql) - unique
      index that prevents the same intervals.icu activity being imported twice.
    - [`supabase/strength.sql`](supabase/strength.sql),
      [`supabase/more_sports.sql`](supabase/more_sports.sql),
-     [`supabase/finger.sql`](supabase/finger.sql) — widen the sport constraint
+     [`supabase/finger.sql`](supabase/finger.sql) - widen the sport constraint
      (strength, running/swimming, finger). Each applies the full current list,
      so order/re-runs are safe.
-   - [`supabase/second_go.sql`](supabase/second_go.sql) — adds the "2. go"
+   - [`supabase/second_go.sql`](supabase/second_go.sql) - adds the "2. go"
      route send type.
-   - [`supabase/friends.sql`](supabase/friends.sql) — profiles, friendships,
+   - [`supabase/friends.sql`](supabase/friends.sql) - profiles, friendships,
      cross-user visibility policies, and the privacy toggle (Phase 4).
-   - [`supabase/coaches.sql`](supabase/coaches.sql) — coach links: read-only
+   - [`supabase/coaches.sql`](supabase/coaches.sql) - coach links: read-only
      full-account access an athlete grants a coach (Phase 5).
-   - [`supabase/fix_rls.sql`](supabase/fix_rls.sql) — **required** hardening of
+   - [`supabase/fix_rls.sql`](supabase/fix_rls.sql) - **required** hardening of
      the friendships/coach_links policies. Run it right after friends.sql +
      coaches.sql.
-   - [`supabase/feedback.sql`](supabase/feedback.sql) — rate-limited feedback
+   - [`supabase/feedback.sql`](supabase/feedback.sql) - rate-limited feedback
      table backing the in-app bug/feature form (paired with `api/feedback.js`;
      see the env vars documented at the top of that file).
+   - [`supabase/health.sql`](supabase/health.sql) - period tracking + injury
+     log (both strictly private to the owner; never visible to friends or
+     coaches).
 3. **Auth setting (recommended for a personal app):** go to
    **Authentication → Providers → Email** and turn **off** "Confirm email".
    This lets you create your account and sign in immediately. (If you leave it
@@ -67,7 +70,7 @@ React + Vite frontend, Supabase backend.
    - Project URL → `VITE_SUPABASE_URL`
    - `anon` `public` key → `VITE_SUPABASE_ANON_KEY`
 
-The anon key is safe to ship in a client app **because** RLS is enabled — every
+The anon key is safe to ship in a client app **because** RLS is enabled - every
 row is locked to its owner.
 
 ## 3. Run locally
@@ -90,7 +93,7 @@ Deploy `dist/` to **Vercel** or **Netlify** (both free). Two things to set:
 
 - **Environment variables**: add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
   in the host's project settings (they're build-time vars).
-- **SPA routing**: already handled — [`vercel.json`](vercel.json) and
+- **SPA routing**: already handled - [`vercel.json`](vercel.json) and
   [`public/_redirects`](public/_redirects) rewrite all paths to `index.html`.
 
 ## 5. Install on your iPhone
@@ -106,7 +109,7 @@ full-screen with its own icon, like a native app.
   requests. Regular use keeps it awake; if you're away for a week, just reopen
   the dashboard to wake it.
 - **Offline:** writes never block on the network. If you log at a crag with no
-  signal, the session is queued locally and uploaded when you reconnect — you'll
+  signal, the session is queued locally and uploaded when you reconnect - you'll
   see an "offline" badge on it until then. (Editing/deleting needs a connection.)
 - **Photos** are stored privately per-user; the app fetches short-lived signed
   URLs to display them.
@@ -143,16 +146,16 @@ scripts/
   duration (min), notes, photo_url`, plus an **`extra` JSONB** column for
   sport-specific fields (cycling: distance/elevation/speed/HR/power; climbing:
   grades worked). New fields can be added with zero migrations.
-- `routes`: the outdoor-climbing route log — one row per climb
+- `routes`: the outdoor-climbing route log - one row per climb
   (`name, grade, send_type, attempts`), linked to a session.
 
 ---
 
 ## Roadmap (from the spec)
 
-- ✅ **Phase 1** — Data model, manual logging, landing dashboard.
-- ✅ **Phase 2** — Stats & dashboards (discipline split, grade pyramid, send-rate;
+- ✅ **Phase 1** - Data model, manual logging, landing dashboard.
+- ✅ **Phase 2** - Stats & dashboards (discipline split, grade pyramid, send-rate;
   cycling distance/elevation/load; streaks & trends).
-- ✅ **Phase 3** — Automatic cycling import via [intervals.icu](https://intervals.icu),
+- ✅ **Phase 3** - Automatic cycling import via [intervals.icu](https://intervals.icu),
   pre-filling objective fields and avoiding duplicates.
-- ✅ **Phase 4** — Friends: connections, shared feed/leaderboard, privacy controls.
+- ✅ **Phase 4** - Friends: connections, shared feed/leaderboard, privacy controls.

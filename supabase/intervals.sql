@@ -1,5 +1,5 @@
 -- ============================================================================
--- Treningsdagbok — Phase 3: intervals.icu integration
+-- Treningsdagbok - Phase 3: intervals.icu integration
 -- ============================================================================
 -- Run this in the Supabase SQL editor (after schema.sql).
 --
@@ -8,7 +8,7 @@
 -- auth, so no server proxy is needed). RLS keeps the key private to its owner.
 --
 -- Imported rides are de-duplicated via sessions.extra->>'intervals_id'
--- (a JSONB field — no schema change needed for that).
+-- (a JSONB field - no schema change needed for that).
 -- ============================================================================
 
 create table if not exists public.user_settings (

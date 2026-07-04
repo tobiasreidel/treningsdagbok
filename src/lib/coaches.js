@@ -1,7 +1,7 @@
 // Coaches: an athlete grants a coach read-only access to their whole account.
 // All access is RLS-guarded server-side (see supabase/coaches.sql). The athlete
-// sends the request; the coach accepts. Once accepted the coach can view — but
-// never change — the athlete's sessions, calendar and stats.
+// sends the request; the coach accepts. Once accepted the coach can view - but
+// never change - the athlete's sessions, calendar and stats.
 import { supabase } from './supabase'
 
 async function uid() {
@@ -43,7 +43,7 @@ export async function loadCoachLinks() {
 
   return {
     me,
-    // people who coach me (I'm the athlete) — pending + accepted
+    // people who coach me (I'm the athlete) - pending + accepted
     coaches: links.filter((l) => l.athlete === me).map(decorate),
     // requests for me to coach someone (I'm the coach, still pending)
     requests: links.filter((l) => l.coach === me && l.status === 'pending').map(decorate),

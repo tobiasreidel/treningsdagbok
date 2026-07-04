@@ -1,13 +1,13 @@
 -- ============================================================================
--- Treningsdagbok — Feedback (bug reports + feature requests)
+-- Treningsdagbok - Feedback (bug reports + feature requests)
 -- ============================================================================
 -- Run once in the Supabase SQL editor (after schema.sql). Safe to re-run.
 --
 -- Every report is recorded here first (a durable record you can read in the
 -- dashboard), then emailed to you by the /api/feedback Vercel function. Two
 -- layers keep this from being abused/flooded:
---   1. RLS — only *signed-in* users can insert, and only as themselves.
---   2. A per-user rate-limit trigger — caps how many a single account can file
+--   1. RLS - only *signed-in* users can insert, and only as themselves.
+--   2. A per-user rate-limit trigger - caps how many a single account can file
 --      in a rolling hour/day, so one user (or a leaked token) can't DDoS your
 --      inbox. The email only goes out after a row is successfully inserted, so
 --      the cap throttles the email too.
@@ -27,7 +27,7 @@ create index if not exists feedback_user_created_idx
 
 -- ---------------------------------------------------------------------------
 -- Row Level Security: signed-in users may file their own feedback, nothing
--- else. There is intentionally no select/update/delete policy — you read the
+-- else. There is intentionally no select/update/delete policy - you read the
 -- table from the Supabase dashboard / SQL editor, not through the public API.
 -- ---------------------------------------------------------------------------
 alter table public.feedback enable row level security;

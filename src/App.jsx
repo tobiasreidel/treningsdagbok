@@ -26,7 +26,7 @@ export default function App() {
   const { session, loading, recovery } = useAuth()
   const location = useLocation()
   // Bumped to re-evaluate onboarding after the picker finishes. The value is
-  // unused — onboarding state itself is read from prefs, keyed by user id.
+  // unused - onboarding state itself is read from prefs, keyed by user id.
   const [, bumpOnboarding] = useState(0)
 
   // Flush any queued offline sessions on load and whenever we come back online.
@@ -40,7 +40,7 @@ export default function App() {
       const imported = await autoImportNewActivities().catch(() => 0)
       if (imported > 0) {
         notifySessionsChanged()
-        // Sessions appearing out of nowhere is confusing — tell the user why
+        // Sessions appearing out of nowhere is confusing - tell the user why
         // (the dashboard shows this as a toast).
         window.dispatchEvent(
           new CustomEvent('activities:imported', { detail: { count: imported } }),

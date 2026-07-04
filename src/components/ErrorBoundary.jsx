@@ -1,7 +1,7 @@
 import { Component } from 'react'
 
 // Last-resort catch for render errors, so the installed PWA never dies to a
-// blank white screen — friends get a reload button instead of a broken app.
+// blank white screen - friends get a reload button instead of a broken app.
 export default class ErrorBoundary extends Component {
   state = { error: null }
 

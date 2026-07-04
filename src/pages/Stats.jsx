@@ -70,7 +70,7 @@ export default function Stats() {
       windowed,
       enabled,
       // Computed over the full (enabled) history, not the window, so the streak
-      // isn't capped by the selected range — matches the dashboard widget.
+      // isn't capped by the selected range - matches the dashboard widget.
       weekStreak: S.currentWeekStreak(base),
       buckets: S.buckets(windowed, start, grain),
       cycling: S.bySport(windowed, 'cycling'),

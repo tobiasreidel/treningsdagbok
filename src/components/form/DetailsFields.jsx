@@ -8,6 +8,7 @@ export default function DetailsFields({ form, update, updateExtra }) {
   const isClimbing = form.sport === 'climbing'
   const isRunning = form.sport === 'running'
   const isSwimming = form.sport === 'swimming'
+  const extra = form.extra || {}
 
   return (
     <div className="stack">
@@ -61,6 +62,44 @@ export default function DetailsFields({ form, update, updateExtra }) {
               {m}m
             </button>
           ))}
+        </div>
+      </Field>
+
+      {/* Warm-up and rehab ride along on any sport: minutes + a short note.
+          Display-only extras - they never split hours or add calendar dots. */}
+      <Field label="Warm-up" optional>
+        <div className="wr-row">
+          <NumberField
+            value={extra.warmup_minutes}
+            onChange={(v) => updateExtra({ warmup_minutes: v })}
+            placeholder="0"
+            unit="min"
+            step="5"
+          />
+          <input
+            type="text"
+            value={extra.warmup_note ?? ''}
+            onChange={(e) => updateExtra({ warmup_note: e.target.value })}
+            placeholder="what you did"
+          />
+        </div>
+      </Field>
+
+      <Field label="Rehab" optional>
+        <div className="wr-row">
+          <NumberField
+            value={extra.rehab_minutes}
+            onChange={(v) => updateExtra({ rehab_minutes: v })}
+            placeholder="0"
+            unit="min"
+            step="5"
+          />
+          <input
+            type="text"
+            value={extra.rehab_note ?? ''}
+            onChange={(e) => updateExtra({ rehab_note: e.target.value })}
+            placeholder="what you did"
+          />
         </div>
       </Field>
 

@@ -59,7 +59,7 @@ export default function EditSession() {
       await updateSession(id, form)
       notifySessionsChanged()
       // Pop back to the detail screen we came from rather than pushing a new
-      // entry — otherwise the edit screen stays in the history and Back walks
+      // entry - otherwise the edit screen stays in the history and Back walks
       // through it on the way out. SessionDetail re-fetches on mount.
       navigate(-1)
     } catch (err) {

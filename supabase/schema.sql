@@ -1,5 +1,5 @@
 -- ============================================================================
--- Treningsdagbok — Phase 1 schema
+-- Treningsdagbok - Phase 1 schema
 -- ============================================================================
 -- Run this in the Supabase SQL editor (Dashboard -> SQL Editor -> New query).
 -- It is idempotent-ish: safe to re-run, but it will not drop existing data.

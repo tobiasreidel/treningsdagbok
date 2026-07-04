@@ -1,7 +1,7 @@
 // Client-side photo downscaling. Phone photos are 5–10 MB; a ~1600px JPEG is
 // plenty for a training-diary photo, uploads far faster on mobile data, and
 // stretches the free storage tier. Any failure (odd format, old browser)
-// falls back to the original file — uploading big beats not uploading.
+// falls back to the original file - uploading big beats not uploading.
 export async function compressImage(file, maxDim = 1600, quality = 0.85) {
   try {
     if (!file?.type?.startsWith('image/')) return file
@@ -20,7 +20,7 @@ export async function compressImage(file, maxDim = 1600, quality = 0.85) {
     })
 
     const scale = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight))
-    // Already small enough — skip the re-encode.
+    // Already small enough - skip the re-encode.
     if (scale === 1 && file.size < 500 * 1024) {
       URL.revokeObjectURL(url)
       return file

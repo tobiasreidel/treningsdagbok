@@ -2,7 +2,7 @@ import { Field } from '../ui'
 
 // A free-text notes box bound to form.notes. Shared by the final notes+photo
 // step and the earlier wizard steps, so whatever you type shows up on every
-// page that renders it — the note is one value carried across the whole form.
+// page that renders it - the note is one value carried across the whole form.
 export default function NotesField({ form, update }) {
   return (
     <Field label="Notes" optional>

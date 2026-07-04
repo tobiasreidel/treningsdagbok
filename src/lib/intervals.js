@@ -1,5 +1,5 @@
 // intervals.icu integration. The PWA calls intervals.icu directly from the
-// browser — the API supports CORS and HTTP Basic auth (username "API_KEY",
+// browser - the API supports CORS and HTTP Basic auth (username "API_KEY",
 // password = your personal key), so no server proxy is needed.
 import { supabase } from './supabase'
 import { format, subDays } from 'date-fns'
@@ -134,7 +134,7 @@ function guessSwimmingSubtype(type = '') {
   return /open/i.test(type) ? 'openwater' : 'pool'
 }
 
-// Bouldering vs roped — that's all the type tells us; the user refines later.
+// Bouldering vs roped - that's all the type tells us; the user refines later.
 function guessClimbingSubtype(type = '') {
   return /boulder/i.test(type) ? 'bouldering' : null
 }
@@ -342,7 +342,7 @@ async function runAutoImport({ sinceDays = 60 } = {}) {
   return added
 }
 
-// A short human label for the import list — metrics that fit the sport.
+// A short human label for the import list - metrics that fit the sport.
 export function activitySummary(a) {
   const mins = durationMin(a) ? `${durationMin(a)} min` : null
   const hr = a.average_heartrate ? `${round(a.average_heartrate)} bpm` : null

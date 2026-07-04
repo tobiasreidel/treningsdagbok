@@ -24,7 +24,7 @@ export default function UpdatePrompt() {
         await reg.update()
       } catch (_) {}
       // workbox-window fires needRefresh automatically when it sees a waiting SW,
-      // but on iOS it sometimes misses the transition — check manually as fallback.
+      // but on iOS it sometimes misses the transition - check manually as fallback.
       if (reg.waiting) setNeedRefresh(true)
     }
     document.addEventListener('visibilitychange', onVisible)

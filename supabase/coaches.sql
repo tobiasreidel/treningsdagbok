@@ -1,14 +1,14 @@
 -- ============================================================================
--- Treningsdagbok — Phase 5: coaches (read-only full account access)
+-- Treningsdagbok - Phase 5: coaches (read-only full account access)
 -- ============================================================================
 -- Run in the Supabase SQL editor (after schema.sql + friends.sql).
 -- Safe to re-run.
 --
 -- Model:
---   * coach_links — an athlete grants a coach read access to their whole
+--   * coach_links - an athlete grants a coach read access to their whole
 --     account. The athlete sends the request (athlete = auth.uid()); the coach
 --     accepts. Once accepted the coach can SELECT all of the athlete's
---     sessions / routes / photos — but no write policy ever references them,
+--     sessions / routes / photos - but no write policy ever references them,
 --     so coaching is strictly read-only.
 --   * Unlike the friends feed, coach access ignores the share_activities
 --     privacy toggle: it is a deliberate, per-person grant.
@@ -65,7 +65,7 @@ $$;
 grant execute on function public.can_coach_view(uuid, uuid) to authenticated;
 
 -- ---------------------------------------------------------------------------
--- 4. read-only access for accepted coaches (SELECT only — no write policy)
+-- 4. read-only access for accepted coaches (SELECT only - no write policy)
 -- ---------------------------------------------------------------------------
 drop policy if exists "coaches can view athlete sessions" on public.sessions;
 create policy "coaches can view athlete sessions" on public.sessions

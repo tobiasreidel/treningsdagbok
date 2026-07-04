@@ -5,7 +5,7 @@ import { emptyExercise, emptyHang, normalizeHang } from '../../lib/formState'
 
 // The strength + finger-training module. Both panels (lifts and campus/
 // hangboard) are always available behind a tab toggle, so a combined workout
-// — finger and strength in one gym visit, or blocks inside an indoor climb —
+// - finger and strength in one gym visit, or blocks inside an indoor climb -
 // is logged as one session as you go. Time fields carve the minutes that
 // belong to the *other* sport(s) out of the session's duration:
 //   • indoor climbing  → strength + finger time fields (rest stays climbing)

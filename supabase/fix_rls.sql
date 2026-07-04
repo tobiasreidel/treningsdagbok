@@ -1,5 +1,5 @@
 -- ============================================================================
--- Treningsdagbok — RLS hardening for friendships + coach_links
+-- Treningsdagbok - RLS hardening for friendships + coach_links
 -- ============================================================================
 -- Run in the Supabase SQL editor (after friends.sql + coaches.sql).
 -- Safe to re-run. (Applied to production 2026-07-02.)
