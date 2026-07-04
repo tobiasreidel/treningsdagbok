@@ -602,6 +602,9 @@ textarea {
   min-width: 0;
 }
 .dash-head h1 {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -643,7 +646,7 @@ textarea {
     gap: 6px;
   }
   .dash-head h1 {
-    font-size: 1.15rem;
+    font-size: 1.6rem;
   }
   .dash-head .icon-btn {
     width: 27px;
@@ -942,6 +945,10 @@ textarea {
 .stat-sub {
   font-size: 0.78rem;
   color: var(--text-muted);
+}
+/* A stat line in normal (not muted) text - e.g. "weeks in a row" on Streak. */
+.stat-line {
+  color: var(--text);
 }
 
 /* Small "Customize" link above the summary grid. */
@@ -1909,13 +1916,22 @@ textarea {
 .tab-btn.is-active {
   color: var(--primary);
 }
-/* The centre "Log" action floats above the bar as a round primary button. */
+/* The centre "Log" action is icon-only (no label) and floats above the bar
+   as a round primary button, half in/half out of the bar like a standard
+   floating action button. transform (not margin) does the shifting: with
+   align-items:end and a lone flex child, a negative margin on the child
+   shrinks its own measured height by the same amount it would shift it,
+   cancelling out. transform moves it visually without touching layout, and
+   is applied to the whole button so the tap target follows the circle. */
+.tab-btn-primary {
+  padding: 0;
+  transform: translateY(-22px);
+}
 .tab-plus {
   display: grid;
   place-items: center;
-  width: 46px;
-  height: 46px;
-  margin-top: -20px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   background: var(--primary);
   color: #fff;
@@ -2008,13 +2024,6 @@ textarea {
   display: flex;
   gap: 6px;
   flex: none;
-}
-
-/* Dashboard header subtitle (date + streak) under the title. */
-.dash-sub {
-  margin: 2px 0 0;
-  font-size: 0.82rem;
-  color: var(--text-muted);
 }
 
 /* Tiny drop marking a session that falls on a logged period day. */

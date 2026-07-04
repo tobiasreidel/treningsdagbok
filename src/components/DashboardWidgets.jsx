@@ -1,8 +1,8 @@
 // The catalog of dashboard widgets. Each entry is a small stat card the user
 // can place on the front page from the Customize screen. What shows is entirely
 // the user's choice - nothing here keys off which sports are "enabled".
-import { startOfYear, endOfYear } from 'date-fns'
-import { lastNDaysRange, monthRange, inRange, toHours } from '../lib/format'
+import { startOfYear, endOfYear, format } from 'date-fns'
+import { lastNDaysRange, monthRange, inRange, toHours, asDate } from '../lib/format'
 import { SPORTS } from '../lib/constants'
 import { ALL_SPORTS } from '../lib/prefs'
 import {
@@ -107,12 +107,18 @@ const YearSummary = ({ sessions }) => {
 
 const Streak = ({ sessions }) => {
   const w = currentWeekStreak(sessions)
+  // Most recent session date, shown as the "last trained" line.
+  let last = null
+  for (const s of sessions) {
+    const d = asDate(s.date)
+    if (!last || d > last) last = d
+  }
   return (
     <StatCard
-      title="Weekly streak"
-      big={w}
-      small={plural(w, 'week')}
-      sub={w === 0 ? 'train this week to start' : 'in a row'}
+      title="Streak"
+      big={`🔥 ${w}`}
+      split={<span className="stat-line">{plural(w, 'week')} in a row</span>}
+      sub={last ? format(last, 'EEE d MMM') : 'train this week to start'}
     />
   )
 }

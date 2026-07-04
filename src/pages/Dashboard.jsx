@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { addMonths, format } from 'date-fns'
+import { addMonths } from 'date-fns'
 import { fetchSessions, getPendingSessions } from '../lib/sessions'
-import { currentWeekStreak } from '../lib/stats'
 import { fetchPeriodDays, setPeriodDay, analyzeCycle, predictedPeriodDays } from '../lib/health'
 import { getLogPeriod } from '../lib/prefs'
 import { useOnline } from '../components/ui'
@@ -43,7 +42,6 @@ export default function Dashboard() {
   }, [periodEnabled])
 
   const periodSet = useMemo(() => new Set(periodDays), [periodDays])
-  const streak = useMemo(() => currentWeekStreak(sessions), [sessions])
   const cycle = useMemo(
     () => (periodEnabled ? analyzeCycle(periodDays) : null),
     [periodEnabled, periodDays],
@@ -113,10 +111,6 @@ export default function Dashboard() {
       <header className="dash-head">
         <div>
           <h1>Treningsdagbok</h1>
-          <p className="dash-sub">
-            {format(new Date(), 'EEEE d MMMM')}
-            {streak > 0 && ` · 🔥 ${streak} week${streak === 1 ? '' : 's'} in a row`}
-          </p>
           {!online && <span className="offline-tag">offline</span>}
         </div>
         <div className="head-actions">

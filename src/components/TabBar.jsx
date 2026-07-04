@@ -25,7 +25,7 @@ export default function TabBar() {
           <button
             key={path}
             type="button"
-            className={`tab-btn ${active ? 'is-active' : ''}`}
+            className={`tab-btn ${primary ? 'tab-btn-primary' : ''} ${active ? 'is-active' : ''}`}
             onClick={() => navigate(path)}
             aria-label={label}
             aria-current={active ? 'page' : undefined}
@@ -35,9 +35,11 @@ export default function TabBar() {
                 <Icon />
               </span>
             ) : (
-              <Icon />
+              <>
+                <Icon />
+                <span>{label}</span>
+              </>
             )}
-            <span>{label}</span>
           </button>
         )
       })}

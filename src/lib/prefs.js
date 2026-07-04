@@ -83,7 +83,7 @@ export function setOnboarded(userId) {
 // choice (see src/components/DashboardWidgets.jsx for the catalog). An empty
 // list is valid (the user removed everything); only a missing key falls back
 // to the default set.
-export const DEFAULT_WIDGETS = ['week-summary', 'month-summary']
+export const DEFAULT_WIDGETS = ['week-summary', 'month-summary', 'streak']
 
 const SPORT_WIDGET = {
   cycling: 'cycling-month',
