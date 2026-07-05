@@ -2,7 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { addMonths } from 'date-fns'
 import { fetchSessions, getPendingSessions } from '../lib/sessions'
-import { fetchPeriodDays, setPeriodDay, analyzeCycle, predictedPeriodDays } from '../lib/health'
+import {
+  fetchPeriodDays,
+  setPeriodDay,
+  analyzeCycle,
+  predictedPeriodDays,
+  fetchInjuries,
+  injuryDays,
+} from '../lib/health'
 import { getLogPeriod } from '../lib/prefs'
 import { useOnline } from '../components/ui'
 import Calendar from '../components/Calendar'
@@ -26,18 +33,22 @@ export default function Dashboard() {
   // Period tracking (Settings → Health). Days are ISO strings from the server.
   const periodEnabled = getLogPeriod()
   const [periodDays, setPeriodDays] = useState([])
+  // Injury log (always on - see Settings). Logged injuries badge their days.
+  const [injuries, setInjuries] = useState([])
 
   const load = useCallback(async () => {
-    const [server, pending, period] = await Promise.allSettled([
+    const [server, pending, period, injured] = await Promise.allSettled([
       fetchSessions(),
       getPendingSessions(),
       periodEnabled ? fetchPeriodDays() : Promise.resolve([]),
+      fetchInjuries(),
     ])
     const serverRows = server.status === 'fulfilled' ? server.value : []
     const pendingRows = pending.status === 'fulfilled' ? pending.value : []
     setSoftError(server.status === 'rejected')
     setSessions([...pendingRows, ...serverRows])
     setPeriodDays(period.status === 'fulfilled' ? period.value : [])
+    setInjuries(injured.status === 'fulfilled' ? injured.value : [])
     setLoading(false)
   }, [periodEnabled])
 
@@ -50,6 +61,7 @@ export default function Dashboard() {
     () => (cycle ? predictedPeriodDays(cycle) : new Set()),
     [cycle],
   )
+  const injurySet = useMemo(() => injuryDays(injuries), [injuries])
 
   // Optimistic toggle from the day sheet; reverted (with a hint) on failure -
   // e.g. when supabase/health.sql hasn't been run yet.
@@ -154,6 +166,7 @@ export default function Dashboard() {
             sessions={sessions}
             periodDays={periodEnabled ? periodSet : null}
             predictedDays={periodEnabled ? predictedSet : null}
+            injuryDays={injurySet}
             onPrev={() => setMonthRef((m) => addMonths(m, -1))}
             onNext={() => setMonthRef((m) => addMonths(m, 1))}
             onSelectDay={(date) => setDayView(date)}

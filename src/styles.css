@@ -1964,6 +1964,13 @@ textarea {
 .cal-drop.predicted {
   opacity: 0.35;
 }
+.cal-injury {
+  position: absolute;
+  top: 1px;
+  left: 2px;
+  font-size: 9px;
+  line-height: 1;
+}
 .cycle-card {
   display: flex;
   flex-direction: column;

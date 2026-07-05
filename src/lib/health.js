@@ -171,3 +171,24 @@ export async function deleteInjury(id) {
   const { error } = await supabase.from('injuries').delete().eq('id', id)
   if (error) throw error
 }
+
+// Count how many logged injuries cover each ISO date (started..ended inclusive,
+// or started..today while still active), returned as a Map<isoDate, count>.
+// Used to badge injured days on the calendar - one bandage per active injury -
+// the same way logged period days are marked.
+export function injuryDays(injuries) {
+  const counts = new Map()
+  const today = todayISO()
+  for (const inj of injuries || []) {
+    if (!inj?.started) continue
+    let cur = asDate(inj.started)
+    const last = asDate(inj.ended || today)
+    // Cap the loop so a stray far-past start date can't run away.
+    for (let i = 0; i < 3660 && differenceInCalendarDays(last, cur) >= 0; i += 1) {
+      const key = format(cur, 'yyyy-MM-dd')
+      counts.set(key, (counts.get(key) || 0) + 1)
+      cur = addDays(cur, 1)
+    }
+  }
+  return counts
+}

@@ -24,14 +24,17 @@ const SPORT_LABELS = {
   finger: 'Finger',
 }
 const MAX_DOTS = 6 // guard against a freakishly busy day overflowing the cell
+const MAX_INJURY_MARKS = 3 // one bandage per injury, capped so the corner fits
 
 // Month calendar with one colored dot per session:
 //   climbing = blue · cycling = amber · strength = violet
 //   multiple sessions on a day = multiple dots (one per session)
 // A climb that includes a strength block gets both a climbing and a strength dot.
 // `periodDays` / `predictedDays` (Sets of ISO dates, or null when tracking is
-// off) draw a small blood drop in a day's corner - full for logged days, pale
-// for the predicted next period.
+// off) draw a small blood drop in a day's top-right corner - full for logged
+// days, pale for the predicted next period. `injuryDays` (a Map of ISO date ->
+// injury count, or null) marks injured days with one bandage per active injury
+// in the top-left corner.
 export default function Calendar({
   monthRef,
   sessions,
@@ -41,6 +44,7 @@ export default function Calendar({
   enabledSports,
   periodDays,
   predictedDays,
+  injuryDays,
 }) {
   // Count sessions per sport on each day (splitting climb + strength blocks).
   const byDay = {}
@@ -94,6 +98,7 @@ export default function Calendar({
           const dots = counts
             ? SPORTS.flatMap((sport) => Array(counts[sport] || 0).fill(sport)).slice(0, MAX_DOTS)
             : []
+          const injuryCount = injuryDays?.get(key) || 0
           const dim = !isSameMonth(day, monthRef)
           return (
             <button
@@ -107,6 +112,14 @@ export default function Calendar({
               ) : predictedDays?.has(key) ? (
                 <span className="cal-drop predicted">🩸</span>
               ) : null}
+              {injuryCount > 0 && (
+                <span
+                  className="cal-injury"
+                  aria-label={`Injured${injuryCount > 1 ? ` (${injuryCount})` : ''}`}
+                >
+                  {'🩹'.repeat(Math.min(injuryCount, MAX_INJURY_MARKS))}
+                </span>
+              )}
               <span className="cal-daynum">{format(day, 'd')}</span>
               {dots.length > 0 && (
                 <span className="cal-dots">
@@ -127,6 +140,7 @@ export default function Calendar({
           </span>
         ))}
         {periodDays && <span>🩸 Period (pale = expected)</span>}
+        {injuryDays?.size > 0 && <span>🩹 Injured</span>}
       </div>
     </div>
   )
