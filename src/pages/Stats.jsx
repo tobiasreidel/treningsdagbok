@@ -253,6 +253,43 @@ const FITNESS_SOURCE_NOTE = {
   app: 'Counts training from all your sports, estimated from the sessions logged in this app.',
 }
 
+// Stacked hours chart for a sport's two forms (indoor/outdoor, pool/open
+// water). Sport colour = the indoor form, green = outside. Only on the sport
+// tabs - the Overview keeps its one-colour-per-sport stack.
+function SplitHoursCard({ view, sport, title, color, labels }) {
+  const total = S.sportHoursSplit(view.windowed, sport)
+  if (total.indoor + total.outdoor <= 0) return null
+  const bars = view.buckets.map((b) => {
+    const sp = S.sportHoursSplit(b.sessions, sport)
+    return {
+      label: b.label,
+      segments: [
+        { value: sp.indoor, color },
+        { value: sp.outdoor, color: 'var(--both)' },
+      ],
+    }
+  })
+  return (
+    <div className="card chart-card">
+      <div className="chart-card-head">
+        <span className="chart-card-title">{title}</span>
+        <span className="chart-card-value">{S.round1(total.indoor + total.outdoor)} h</span>
+      </div>
+      <div className="chart-legend">
+        <span className="legend-item">
+          <span className="legend-dot" style={{ background: color }} />
+          {labels[0]} {S.round1(total.indoor)}h
+        </span>
+        <span className="legend-item">
+          <span className="legend-dot" style={{ background: 'var(--both)' }} />
+          {labels[1]} {S.round1(total.outdoor)}h
+        </span>
+      </div>
+      <Bars data={bars} />
+    </div>
+  )
+}
+
 // Whether a sport's tab should carry the fitness card. intervals.icu keeps one
 // combined fitness number (its API has no per-sport ctl/atl), so the card only
 // belongs on tabs whose sport actually feeds it: with intervals.icu connected
@@ -373,6 +410,13 @@ function Cycling({ view }) {
           ]}
         />
       </div>
+      <SplitHoursCard
+        view={view}
+        sport="cycling"
+        title="Cycling hours"
+        color={CYCLING}
+        labels={['Indoor', 'Outdoor']}
+      />
       <Card title="Distance" value={`${Math.round(S.sumDistance(cycling))} km`}>
         <Bars data={dist} color={CYCLING} />
       </Card>
@@ -436,6 +480,13 @@ function Running({ view }) {
           ]}
         />
       </div>
+      <SplitHoursCard
+        view={view}
+        sport="running"
+        title="Running hours"
+        color={RUNNING}
+        labels={['Treadmill', 'Outdoor']}
+      />
       <Card title="Distance" value={`${Math.round(S.sumDistance(running))} km`}>
         <Bars data={dist} color={RUNNING} />
       </Card>
@@ -470,7 +521,6 @@ function Swimming({ view }) {
   if (swimming.length === 0)
     return <div className="card empty-state"><p>No swims in this period.</p></div>
   const dist = buckets.map((b) => ({ label: b.label, value: Math.round(S.sumDistanceM(S.bySport(b.sessions, 'swimming'))) }))
-  const hours = buckets.map((b) => ({ label: b.label, value: S.round1(S.sumHours(S.bySport(b.sessions, 'swimming'))) }))
   const pace = S.bucketAvgPace(buckets, 'swimming')
   const feeling = buckets.map((b) => ({ label: b.label, value: S.round1(S.avgFeeling(S.bySport(b.sessions, 'swimming'))) }))
   const bestPace = S.bestSwimPace(swimming)
@@ -497,6 +547,13 @@ function Swimming({ view }) {
           />
         </div>
       )}
+      <SplitHoursCard
+        view={view}
+        sport="swimming"
+        title="Swimming hours"
+        color={SWIMMING}
+        labels={['Pool', 'Open water']}
+      />
       <Card title="Distance" value={`${Math.round(S.sumDistanceM(swimming))} m`}>
         <Bars data={dist} color={SWIMMING} />
       </Card>
@@ -505,9 +562,6 @@ function Swimming({ view }) {
           <Line data={pace} color={SWIMMING} fromZero={false} fmt={S.fmtPaceMin} />
         </Card>
       )}
-      <Card title="Swimming hours">
-        <Bars data={hours} color={SWIMMING} />
-      </Card>
       <Card title="Feeling trend" value={S.avgFeeling(swimming) != null ? `avg ${S.round1(S.avgFeeling(swimming))}/5` : '–'}>
         <Line data={feeling} color={SWIMMING} fromZero={false} />
       </Card>
@@ -519,7 +573,6 @@ function Swimming({ view }) {
 function Climbing({ view }) {
   const { buckets, climbing } = view
   if (climbing.length === 0) return <div className="card empty-state"><p>No climbing in this period.</p></div>
-  const hours = buckets.map((b) => ({ label: b.label, value: S.round1(S.sportHours(b.sessions, 'climbing')) }))
   const feeling = buckets.map((b) => ({ label: b.label, value: S.round1(S.avgFeeling(S.bySport(b.sessions, 'climbing'))) }))
   const disc = S.disciplineSplit(climbing)
   const loc = S.locationSplit(climbing)
@@ -537,9 +590,13 @@ function Climbing({ view }) {
         ]}
       />
       {sportCarriesLoad(view, 'climbing') && <FitnessBlock view={view} />}
-      <Card title="Climbing hours">
-        <Bars data={hours} color={CLIMBING} />
-      </Card>
+      <SplitHoursCard
+        view={view}
+        sport="climbing"
+        title="Climbing hours"
+        color={CLIMBING}
+        labels={['Indoor', 'Outdoor']}
+      />
       <Card title="By discipline">
         <HBars
           data={[

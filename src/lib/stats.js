@@ -152,6 +152,32 @@ export function sessionSports(s) {
     .map((p) => p.sport)
 }
 
+// Is this session the indoor form of its sport? Trainer rides, gym climbs,
+// treadmill runs and pool swims count as "indoor"; anything else (including
+// unknown) as outdoor.
+export function isIndoorSession(s) {
+  if (s.sport === 'cycling') return Boolean(s.extra?.indoor)
+  if (s.sport === 'climbing') return s.location === 'indoor'
+  if (s.sport === 'running') return s.subtype === 'treadmill'
+  if (s.sport === 'swimming') return s.subtype === 'pool'
+  return false
+}
+
+// Hours for one sport split into its indoor/outdoor forms, honouring the
+// embedded strength/finger split like sportHours does.
+export function sportHoursSplit(arr, sport) {
+  let indoor = 0
+  let outdoor = 0
+  for (const s of arr) {
+    for (const p of sportMinutes(s)) {
+      if (p.sport !== sport) continue
+      if (isIndoorSession(s)) indoor += p.minutes
+      else outdoor += p.minutes
+    }
+  }
+  return { indoor: indoor / 60, outdoor: outdoor / 60 }
+}
+
 // ---- climbing breakdowns ---------------------------------------------------
 export function disciplineSplit(climbing) {
   const m = { bouldering: 0, sport: 0, trad: 0 }
