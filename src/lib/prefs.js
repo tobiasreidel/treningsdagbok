@@ -6,6 +6,22 @@ const KEYS = {
   onboardedUsers: 'pref.onboardedUsers',
   dashboardWidgets: 'pref.dashboardWidgets',
   logPeriod: 'pref.logPeriod',
+  avatarEmoji: 'pref.avatarEmoji',
+}
+
+// Emoji stand-in avatar (Profile). Used when no photo is uploaded; empty
+// string means "use initials".
+export function getAvatarEmoji() {
+  try {
+    return localStorage.getItem(KEYS.avatarEmoji) || ''
+  } catch {
+    return ''
+  }
+}
+
+export function setAvatarEmoji(emoji) {
+  if (emoji) localStorage.setItem(KEYS.avatarEmoji, emoji)
+  else localStorage.removeItem(KEYS.avatarEmoji)
 }
 
 // Period tracking (Settings → Health). Off by default; turning it on adds

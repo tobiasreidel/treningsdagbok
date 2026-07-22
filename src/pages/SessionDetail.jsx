@@ -14,43 +14,9 @@ import { isPeriodDay } from '../lib/health'
 import { getLogPeriod } from '../lib/prefs'
 import { embeddedStrengthMinutes, embeddedFingerMinutes } from '../lib/stats'
 import { normalizeHang } from '../lib/formState'
+import ActivityAnalysis from '../components/ActivityAnalysis'
 
 const num = (v) => (v === '' || v == null ? null : Number(v))
-
-// Which extra fields to show for cycling, in order, with units.
-const CYCLING_METRICS = [
-  { key: 'distance_km', label: 'Distance', unit: 'km' },
-  { key: 'elevation_m', label: 'Elevation', unit: 'm' },
-  { key: 'avg_speed', label: 'Avg speed', unit: 'km/h' },
-  { key: 'max_speed', label: 'Max speed', unit: 'km/h' },
-  { key: 'avg_power', label: 'Avg power', unit: 'W' },
-  { key: 'norm_power', label: 'Norm power', unit: 'W' },
-  { key: 'cadence', label: 'Cadence', unit: 'rpm' },
-  { key: 'avg_hr', label: 'Avg HR', unit: 'bpm' },
-  { key: 'max_hr', label: 'Max HR', unit: 'bpm' },
-  { key: 'training_load', label: 'Load', unit: 'TSS' },
-  { key: 'if_factor', label: 'Intensity', unit: 'IF' },
-  { key: 'work_kj', label: 'Work', unit: 'kJ' },
-  { key: 'calories', label: 'Calories', unit: 'kcal' },
-]
-
-const RUNNING_METRICS = [
-  { key: 'distance_km', label: 'Distance', unit: 'km' },
-  { key: 'elevation_m', label: 'Elevation', unit: 'm' },
-  { key: 'avg_hr', label: 'Avg HR', unit: 'bpm' },
-  { key: 'max_hr', label: 'Max HR', unit: 'bpm' },
-  { key: 'cadence', label: 'Cadence', unit: 'spm' },
-  { key: 'training_load', label: 'Load', unit: 'TSS' },
-  { key: 'calories', label: 'Calories', unit: 'kcal' },
-]
-
-const SWIMMING_METRICS = [
-  { key: 'distance_m', label: 'Distance', unit: 'm' },
-  { key: 'avg_hr', label: 'Avg HR', unit: 'bpm' },
-  { key: 'max_hr', label: 'Max HR', unit: 'bpm' },
-  { key: 'training_load', label: 'Load', unit: 'TSS' },
-  { key: 'calories', label: 'Calories', unit: 'kcal' },
-]
 
 export default function SessionDetail() {
   const { id } = useParams()
@@ -137,48 +103,95 @@ export default function SessionDetail() {
   const isCycling = session.sport === 'cycling'
   const isRunning = session.sport === 'running'
   const isSwimming = session.sport === 'swimming'
+  const isEndurance = isCycling || isRunning || isSwimming
 
   const subtitleParts = [session.subtype]
   if (isCycling && e.indoor) subtitleParts.push('indoor')
   if (session.sport === 'climbing' && session.location) subtitleParts.push(session.location)
   const subtitle = subtitleParts.filter(Boolean).join(' · ')
 
-  const tiles = []
-  if (session.feeling) tiles.push({ label: 'Feeling', value: FEELING_LABELS[session.feeling], sub: `${session.feeling}/5` })
-  if (session.rpe) tiles.push({ label: 'RPE', value: session.rpe, sub: '/10' })
-  const strengthMin = embeddedStrengthMinutes(session)
-  const fingerMin = embeddedFingerMinutes(session)
-  if (session.duration) {
-    // For a session with embedded strength/finger blocks, split the tile out.
-    if (strengthMin > 0 || fingerMin > 0) {
-      tiles.push({
-        label: sport?.label || 'Duration',
-        value: formatDuration(session.duration - strengthMin - fingerMin),
-      })
-      if (strengthMin > 0) tiles.push({ label: 'Strength', value: formatDuration(strengthMin) })
-      if (fingerMin > 0) tiles.push({ label: 'Finger', value: formatDuration(fingerMin) })
-    } else {
-      tiles.push({ label: 'Duration', value: formatDuration(session.duration) })
+  // ---- Strava-style layout for imported endurance sports -------------------
+  // Big hero numbers, an avg/max table, then the analysis charts.
+  const hero = []
+  const avgMax = []
+  const smallTiles = []
+  if (isEndurance) {
+    if (isCycling || isRunning) {
+      if (num(e.distance_km)) hero.push({ value: e.distance_km, unit: 'km', label: 'Distance' })
     }
+    if (isSwimming && num(e.distance_m)) hero.push({ value: e.distance_m, unit: 'm', label: 'Distance' })
+    if (isRunning) {
+      const pace = pacePerKm(e.distance_km, session.duration)
+      if (pace) hero.push({ value: pace, unit: '/km', label: 'Pace' })
+    }
+    if (isSwimming) {
+      const pace = pacePer100m(e.distance_m, session.duration)
+      if (pace) hero.push({ value: pace, unit: '/100m', label: 'Pace' })
+    }
+    if (session.duration) hero.push({ value: formatDuration(session.duration), label: 'Time' })
+    if (isCycling && num(e.elevation_m)) {
+      hero.push({ value: Math.round(e.elevation_m), unit: 'm', label: 'Elevation' })
+    }
+
+    if (num(e.avg_speed) || num(e.max_speed)) {
+      avgMax.push({ label: 'Speed', avg: num(e.avg_speed), max: num(e.max_speed), unit: 'km/h' })
+    }
+    if (num(e.avg_hr) || num(e.max_hr)) {
+      avgMax.push({ label: 'Heart rate', avg: num(e.avg_hr), max: num(e.max_hr), unit: 'bpm' })
+    }
+    if (num(e.avg_power) || num(e.norm_power)) {
+      avgMax.push({
+        label: 'Power',
+        avg: num(e.avg_power),
+        max: num(e.norm_power),
+        maxLabel: 'norm',
+        unit: 'W',
+      })
+    }
+    if (num(e.cadence)) {
+      avgMax.push({ label: 'Cadence', avg: num(e.cadence), max: null, unit: isRunning ? 'spm' : 'rpm' })
+    }
+    if (isRunning && num(e.elevation_m)) {
+      avgMax.push({ label: 'Elevation', avg: Math.round(e.elevation_m), max: null, unit: 'm' })
+    }
+
+    if (session.feeling) smallTiles.push({ label: 'Feeling', value: FEELING_LABELS[session.feeling], sub: `${session.feeling}/5` })
+    if (session.rpe) smallTiles.push({ label: 'RPE', value: session.rpe, sub: '/10' })
+    if (num(e.training_load)) smallTiles.push({ label: 'Load', value: Math.round(e.training_load), sub: 'TSS' })
+    if (num(e.if_factor)) {
+      // intervals.icu reports intensity as a percentage (67.6); a few older
+      // values may be stored as the 0.68 fraction - show both as "68%".
+      const raw = num(e.if_factor)
+      smallTiles.push({ label: 'Intensity', value: Math.round(raw > 5 ? raw : raw * 100), sub: '%' })
+    }
+    if (num(e.work_kj)) smallTiles.push({ label: 'Work', value: Math.round(e.work_kj), sub: 'kJ' })
+    if (num(e.calories)) smallTiles.push({ label: 'Calories', value: Math.round(e.calories), sub: 'kcal' })
   }
-  if (isRunning) {
-    const pace = pacePerKm(e.distance_km, session.duration)
-    if (pace) tiles.push({ label: 'Pace', value: pace, sub: '/km' })
-  }
-  if (isSwimming) {
-    const pace = pacePer100m(e.distance_m, session.duration)
-    if (pace) tiles.push({ label: 'Pace', value: pace, sub: '/100m' })
-  }
-  const metrics = isCycling
-    ? CYCLING_METRICS
-    : isRunning
-      ? RUNNING_METRICS
-      : isSwimming
-        ? SWIMMING_METRICS
-        : []
-  for (const m of metrics) {
-    const v = num(e[m.key])
-    if (v != null && v !== 0) tiles.push({ label: m.label, value: v, sub: m.unit })
+
+  // ---- classic tile list for the other sports ------------------------------
+  const tiles = []
+  if (!isEndurance) {
+    if (session.feeling) tiles.push({ label: 'Feeling', value: FEELING_LABELS[session.feeling], sub: `${session.feeling}/5` })
+    if (session.rpe) tiles.push({ label: 'RPE', value: session.rpe, sub: '/10' })
+    const strengthMin = embeddedStrengthMinutes(session)
+    const fingerMin = embeddedFingerMinutes(session)
+    if (session.duration) {
+      // For a session with embedded strength/finger blocks, split the tile out.
+      if (strengthMin > 0 || fingerMin > 0) {
+        tiles.push({
+          label: sport?.label || 'Duration',
+          value: formatDuration(session.duration - strengthMin - fingerMin),
+        })
+        if (strengthMin > 0) tiles.push({ label: 'Strength', value: formatDuration(strengthMin) })
+        if (fingerMin > 0) tiles.push({ label: 'Finger', value: formatDuration(fingerMin) })
+      } else {
+        tiles.push({ label: 'Duration', value: formatDuration(session.duration) })
+      }
+    }
+    // Imported watch data on a climb (HR, calories) still deserves a tile.
+    if (num(e.avg_hr)) tiles.push({ label: 'Avg HR', value: Math.round(e.avg_hr), sub: 'bpm' })
+    if (num(e.max_hr)) tiles.push({ label: 'Max HR', value: Math.round(e.max_hr), sub: 'bpm' })
+    if (num(e.calories)) tiles.push({ label: 'Calories', value: Math.round(e.calories), sub: 'kcal' })
   }
 
   const grades = e.grades || []
@@ -218,6 +231,7 @@ export default function SessionDetail() {
       }
     >
       <div className="detail-hero">
+        {e.intervals_name && <h2 className="detail-name">{e.intervals_name}</h2>}
         <span className="detail-sport">
           {sport?.emoji} {subtitle || sport?.label}
         </span>
@@ -227,6 +241,67 @@ export default function SessionDetail() {
           {isOwner && periodMark && <span className="period-drop"> 🩸</span>}
         </span>
       </div>
+
+      {hero.length > 0 && (
+        <div className="hero-stats">
+          {hero.map((h) => (
+            <div className="hero-stat" key={h.label}>
+              <span className="hero-value">
+                {h.value}
+                {h.unit && <small> {h.unit}</small>}
+              </span>
+              <span className="hero-label">{h.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {avgMax.length > 0 && (
+        <div className="card avgmax">
+          <div className="avgmax-row avgmax-head">
+            <span />
+            <span>Avg</span>
+            <span>Max</span>
+          </div>
+          {avgMax.map((r) => (
+            <div className="avgmax-row" key={r.label}>
+              <span className="avgmax-label">{r.label}</span>
+              <span className="avgmax-val">
+                {r.avg != null ? (
+                  <>
+                    {r.avg} <small>{r.unit}</small>
+                  </>
+                ) : (
+                  '–'
+                )}
+              </span>
+              <span className="avgmax-val">
+                {r.max != null ? (
+                  <>
+                    {r.max} <small>{r.maxLabel || r.unit}</small>
+                  </>
+                ) : (
+                  ''
+                )}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {smallTiles.length > 0 && (
+        <div className="tile-grid tile-grid-compact">
+          {smallTiles.map((t) => (
+            <div className="tile" key={t.label}>
+              <span className="tile-label">{t.label}</span>
+              <span className="tile-value">
+                {t.value}
+                {t.sub && <small> {t.sub}</small>}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {tiles.length > 0 && (
         <div className="tile-grid">
@@ -241,6 +316,8 @@ export default function SessionDetail() {
           ))}
         </div>
       )}
+
+      {isEndurance && <ActivityAnalysis session={session} />}
 
       {hasWarmupRehab && (
         <div className="detail-block">

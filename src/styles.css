@@ -598,8 +598,9 @@ textarea {
 .dash-head {
   justify-content: space-between;
 }
-.dash-head > div:first-child {
+.dash-title {
   min-width: 0;
+  flex: 1;
 }
 .dash-head h1 {
   font-size: 2rem;
@@ -629,6 +630,10 @@ textarea {
     font-size: 1.2rem;
     border-radius: 10px;
   }
+  .dash-head .avatar-btn {
+    width: 36px;
+    height: 36px;
+  }
 }
 @media (max-width: 404px) {
   .dash-head {
@@ -639,6 +644,10 @@ textarea {
     height: 31px;
     font-size: 1.1rem;
     border-radius: 9px;
+  }
+  .dash-head .avatar-btn {
+    width: 31px;
+    height: 31px;
   }
 }
 @media (max-width: 359px) {
@@ -653,6 +662,10 @@ textarea {
     height: 27px;
     font-size: 1rem;
     border-radius: 8px;
+  }
+  .dash-head .avatar-btn {
+    width: 27px;
+    height: 27px;
   }
 }
 .wizard-head {
@@ -1485,6 +1498,21 @@ textarea {
   fill: var(--text-muted);
   font-size: 10px;
 }
+.chart-ylabel {
+  fill: var(--text-muted);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+.chart-zlabel {
+  font-size: 8.5px;
+  font-weight: 700;
+}
+.chart-grid {
+  stroke: var(--border);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+  opacity: 0.7;
+}
 .chart-vlabel {
   fill: var(--text);
   font-size: 9px;
@@ -1495,6 +1523,77 @@ textarea {
   font-size: 0.85rem;
   padding: 18px 0;
   text-align: center;
+}
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+.chart-note {
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Fitness & form card (per-sport, Stats) */
+.fitness-chart {
+  touch-action: pan-y; /* horizontal drags scrub, vertical still scrolls */
+  cursor: crosshair;
+}
+/* Fixed-height day line so the readout doesn't jump while scrubbing. */
+.fitness-daterow {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  min-height: 1.2em;
+  margin-top: -4px;
+}
+.form-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.fitness-now {
+  display: flex;
+  gap: 8px;
+}
+.fitness-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+}
+.fitness-num {
+  font-size: 1.25rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.fitness-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  font-weight: 700;
 }
 
 /* ----- horizontal bars ----- */
@@ -2036,4 +2135,484 @@ textarea {
 /* Tiny drop marking a session that falls on a logged period day. */
 .period-drop {
   font-size: 0.72em;
+}
+
+/* ===========================================================================
+   Activity detail - Strava-style hero, avg/max table + analysis charts
+   =========================================================================== */
+.detail-name {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+/* Big top-line numbers (distance / pace / time / elevation). */
+.hero-stats {
+  display: flex;
+  gap: 8px;
+  padding: 4px 0 2px;
+  border-bottom: 1px solid var(--border);
+}
+.hero-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1px;
+  padding-bottom: 10px;
+}
+.hero-value {
+  font-size: 1.55rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.hero-value small {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.hero-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+/* Label · avg · max table. */
+.avgmax {
+  padding: 6px 14px;
+}
+.avgmax-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  align-items: baseline;
+  gap: 8px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+}
+.avgmax-row:last-child {
+  border-bottom: none;
+}
+.avgmax-head {
+  padding: 7px 0 2px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+.avgmax-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.avgmax-val {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.avgmax-val small {
+  font-weight: 600;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+/* Compact secondary tiles (load / IF / kJ / kcal). */
+.tile-grid-compact {
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+}
+.tile-grid-compact .tile {
+  padding: 9px 11px;
+}
+.tile-grid-compact .tile-value {
+  font-size: 1.05rem;
+}
+
+/* ----- analysis: route map (Leaflet + OSM) ----- */
+.route-map {
+  height: 250px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  /* New stacking context so Leaflet's internal z-indexes (up to ~1000) can't
+     float above the sticky footer or toasts while scrolling past. */
+  position: relative;
+  z-index: 0;
+  background: var(--surface-2);
+}
+.route-map .leaflet-control-attribution {
+  font-size: 0.6rem;
+  background: color-mix(in srgb, var(--surface) 75%, transparent);
+  color: var(--text-muted);
+}
+/* Dim the light OSM tiles on dark themes so the map doesn't glare. */
+[data-theme='dark'] .route-map .leaflet-tile,
+[data-theme='midnight'] .route-map .leaflet-tile,
+[data-theme='forest'] .route-map .leaflet-tile {
+  filter: brightness(0.75) saturate(0.85) contrast(1.05);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .route-map .leaflet-tile,
+  [data-theme='system'] .route-map .leaflet-tile {
+    filter: brightness(0.75) saturate(0.85) contrast(1.05);
+  }
+}
+
+.analysis-loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+}
+.analysis-loading .spinner {
+  width: 20px;
+  height: 20px;
+  border-width: 2.5px;
+}
+
+/* ----- analysis: stacked metric strips ----- */
+.strips-card {
+  padding: 10px 14px 8px;
+}
+.strips-readout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  padding-bottom: 6px;
+  min-height: 1.6em;
+}
+.strips-reset {
+  flex: none;
+  font-size: 0.78rem;
+}
+.strip-selection {
+  fill: var(--primary);
+  opacity: 0.14;
+  stroke: var(--primary);
+  stroke-opacity: 0.5;
+  stroke-width: 1;
+}
+.strips {
+  touch-action: pan-y; /* horizontal drags scrub, vertical still scrolls */
+  cursor: crosshair;
+}
+.strip {
+  padding: 4px 0 2px;
+  border-top: 1px solid var(--border);
+}
+.strip-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.strip-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+.strip-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.strip-chart {
+  margin-top: 2px;
+}
+.strip-cursor {
+  stroke: var(--text);
+  stroke-width: 1;
+  opacity: 0.55;
+}
+/* Value label riding along with the scrub cursor. The surface-coloured halo
+   keeps it readable over the line it sits on. */
+.strip-tip {
+  font-size: 10px;
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+/* ----- analysis: splits ----- */
+.splits-card {
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.splits-head,
+.split-row {
+  display: grid;
+  grid-template-columns: 30px 1fr 52px 34px;
+  align-items: center;
+  gap: 10px;
+}
+.splits-head {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+.split-row {
+  font-size: 0.85rem;
+}
+.split-km {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.split-track {
+  height: 12px;
+  background: var(--surface-2);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.split-fill {
+  display: block;
+  height: 100%;
+  border-radius: 6px;
+  background: var(--primary);
+}
+.split-val {
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.split-hr {
+  text-align: right;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ----- analysis: zones ----- */
+.zone-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 12px 14px;
+}
+.zone-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.zone-row .hbar-label {
+  text-transform: none;
+}
+.zone-range {
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 0.85em;
+}
+.zone-val {
+  min-width: 74px;
+  white-space: nowrap;
+}
+.zone-val small {
+  opacity: 0.75;
+}
+.zone-row {
+  grid-template-columns: 84px 1fr 76px;
+}
+
+/* ----- analysis: laps / intervals ----- */
+.laps-card {
+  padding: 6px 14px;
+  display: flex;
+  flex-direction: column;
+}
+.lap-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 0 8px 10px;
+  border-bottom: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  margin: 2px 0;
+  border-radius: 2px;
+}
+.lap-row.is-work {
+  border-left-color: var(--primary);
+}
+.lap-row:last-of-type {
+  border-bottom: none;
+}
+.lap-name {
+  font-weight: 600;
+  font-size: 0.88rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lap-meta {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex: none;
+}
+
+/* ===========================================================================
+   Profile + avatar
+   =========================================================================== */
+.avatar {
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: #fff;
+  font-weight: 800;
+  line-height: 1;
+  user-select: none;
+  flex: none;
+}
+.avatar-emoji {
+  background: var(--primary-tint);
+  border-color: var(--border);
+}
+
+/* Round header button wrapping the avatar (Dashboard, top-left). */
+.avatar-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  flex: none;
+  display: grid;
+  place-items: center;
+  transition: transform 0.05s ease;
+}
+.avatar-btn:active {
+  transform: scale(0.95);
+}
+/* The avatar fills whatever size the responsive bands give the button. */
+.avatar-btn .avatar {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Centered athlete-card hero at the top of the Profile page. */
+.profile-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 0 4px;
+  text-align: center;
+}
+.profile-avatar-wrap {
+  position: relative;
+  margin-bottom: 8px;
+}
+/* Small pencil badge overlaid on the picture - tap to change it. */
+.avatar-edit {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid var(--bg);
+  background: var(--primary);
+  color: var(--primary-ink);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  cursor: pointer;
+}
+.avatar-edit svg {
+  display: block;
+}
+.profile-name-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.profile-name {
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+/* Tiny inline pencil next to the name. */
+.name-edit {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  cursor: pointer;
+  flex: none;
+}
+.name-edit svg {
+  display: block;
+}
+.profile-name-input {
+  max-width: 250px;
+  text-align: center;
+  font-weight: 700;
+}
+.profile-joined {
+  margin-top: 1px;
+}
+.profile-stats {
+  display: flex;
+  justify-content: center;
+  gap: 34px;
+  margin-top: 14px;
+}
+.profile-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+.profile-stat-num {
+  font-size: 1.35rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.profile-stat-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+.avatar-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.chip-emoji {
+  font-size: 1.15rem;
+  padding: 8px 11px;
 }

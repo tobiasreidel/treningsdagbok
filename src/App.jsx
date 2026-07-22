@@ -13,6 +13,7 @@ import RegisterSession from './pages/RegisterSession'
 import SessionDetail from './pages/SessionDetail'
 import EditSession from './pages/EditSession'
 import Settings from './pages/Settings'
+import Profile from './pages/Profile'
 import ImportRides from './pages/ImportRides'
 import Stats from './pages/Stats'
 import Logbook from './pages/Logbook'
@@ -84,6 +85,7 @@ export default function App() {
         <Route path="/session/:id/edit" element={<EditSession />} />
         <Route path="/import" element={<ImportRides />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/profile" element={<Profile />} />
         <Route path="/stats" element={<Stats />} />
         <Route path="/logbook" element={<Logbook />} />
         <Route path="/widgets" element={<CustomizeDashboard />} />

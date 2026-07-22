@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { format } from 'date-fns'
+import { asDate } from '../lib/format'
 import { fetchSessions } from '../lib/sessions'
 import { getAthleteProfile } from '../lib/coaches'
 import { PillRow } from '../components/ui'
-import { Bars, Line, HBars } from '../components/charts'
+import { Bars, Line, HBars, FitnessChart } from '../components/charts'
 import { exerciseLabel } from '../lib/constants'
 import { getEnabledSports, ALL_SPORTS } from '../lib/prefs'
 import * as S from '../lib/stats'
@@ -72,6 +74,8 @@ export default function Stats() {
       // Computed over the full (enabled) history, not the window, so the streak
       // isn't capped by the selected range - matches the dashboard widget.
       weekStreak: S.currentWeekStreak(base),
+      // Full history: per-sport fitness/form needs a seed before the window.
+      base,
       buckets: S.buckets(windowed, start, grain),
       cycling: S.bySport(windowed, 'cycling'),
       running: S.bySport(windowed, 'running'),
@@ -185,6 +189,15 @@ function Overview({ view }) {
       color: SPORT_META[sport].color,
     })),
   }))
+  // Load stacked by sport, same reading as the hours chart. (Fitness & form
+  // lives on each sport's own tab, where it's about one thing at a time.)
+  const loadBars = buckets.map((b) => ({
+    label: b.label,
+    segments: enabled.map((sport) => ({
+      value: Math.round(S.sumLoadEst(S.bySport(b.sessions, sport))),
+      color: SPORT_META[sport].color,
+    })),
+  }))
   const feelingLine = buckets.map((b) => ({ label: b.label, value: S.round1(S.avgFeeling(b.sessions)) }))
   const hoursValue = enabled
     .map((sport) => `${SPORT_META[sport].emoji} ${S.round1(S.sportHours(windowed, sport))}h`)
@@ -203,10 +216,81 @@ function Overview({ view }) {
       <Card title="Training hours" value={hoursValue}>
         <Bars data={hoursBars} />
       </Card>
+      <Card title="Training load" value={`${Math.round(S.sumLoadEst(windowed))} TSS`}>
+        <Bars data={loadBars} />
+      </Card>
       <Card title="Feeling trend" value={S.avgFeeling(windowed) != null ? `avg ${S.round1(S.avgFeeling(windowed))}/5` : '–'}>
-        <Line data={feelingLine} color="var(--both)" />
+        <Line data={feelingLine} color="var(--both)" fromZero={false} />
       </Card>
     </>
+  )
+}
+
+// Per-sport fitness & form, intervals.icu-style: fitness/fatigue lines on top,
+// form in its coloured zones below. Sliding across the chart shows any day's
+// numbers in the fixed readout above it. Only shows once the sport has real
+// load history (imported TSS, or duration+RPE to estimate from).
+function FitnessBlock({ view, sport }) {
+  const [hoverIdx, setHoverIdx] = useState(null)
+  const all = S.bySport(view.base, sport)
+  const fitness = S.fitnessSeries(all, view.start)
+  if (fitness.length < 2 || !fitness.some((p) => p.ctl >= 1)) return null
+  const shown = fitness[hoverIdx ?? fitness.length - 1]
+  const isToday = hoverIdx == null || hoverIdx === fitness.length - 1
+  const status = S.formStatus(shown.form)
+
+  return (
+    <div className="card chart-card">
+      <div className="chart-card-head">
+        <span className="chart-card-title">Fitness &amp; form</span>
+        <span className="form-badge" style={{ color: status.color }}>
+          <span className="legend-dot" style={{ background: status.color }} />
+          {status.label}
+        </span>
+      </div>
+      {/* Fixed readout: the numbers below always describe this day. */}
+      <div className="fitness-daterow">
+        {isToday ? 'Today' : format(asDate(shown.date), 'EEEE d MMMM')}
+      </div>
+      <div className="fitness-now">
+        <div className="fitness-stat">
+          <span className="fitness-num" style={{ color: 'var(--climbing)' }}>{Math.round(shown.ctl)}</span>
+          <span className="fitness-label">Fitness</span>
+        </div>
+        <div className="fitness-stat">
+          <span className="fitness-num" style={{ color: 'var(--strength)' }}>{Math.round(shown.atl)}</span>
+          <span className="fitness-label">Fatigue</span>
+        </div>
+        <div className="fitness-stat">
+          <span className="fitness-num" style={{ color: status.color }}>
+            {shown.form > 0 ? '+' : ''}
+            {Math.round(shown.form)}
+          </span>
+          <span className="fitness-label">Form</span>
+        </div>
+      </div>
+      <FitnessChart data={fitness} onScrub={setHoverIdx} />
+      <div className="chart-legend">
+        <span className="legend-item">
+          <span className="legend-dot" style={{ background: 'var(--climbing)' }} />
+          Fitness
+        </span>
+        <span className="legend-item">
+          <span className="legend-dot" style={{ background: 'var(--strength)' }} />
+          Fatigue
+        </span>
+        <span className="legend-item">
+          <span className="legend-dot" style={{ background: 'var(--text)' }} />
+          Form (lower panel)
+        </span>
+      </div>
+      <p className="muted small chart-note">
+        Fitness is your 42-day average load, fatigue the 7-day. Form = fitness −
+        fatigue, shown in its zones below: green = optimal training, blue =
+        fresh and race-ready, red = overreached. Slide across the chart to see
+        any day.
+      </p>
+    </div>
   )
 }
 
@@ -214,39 +298,62 @@ function Overview({ view }) {
 function Cycling({ view }) {
   const { buckets, cycling } = view
   if (cycling.length === 0) return <div className="card empty-state"><p>No rides in this period.</p></div>
-  const dist = buckets.map((b) => ({ label: b.label, value: Math.round(S.sumDistance(b.sessions)) }))
-  const elev = buckets.map((b) => ({ label: b.label, value: Math.round(S.sumElevation(b.sessions)) }))
-  const load = buckets.map((b) => ({ label: b.label, value: Math.round(S.sumLoad(b.sessions)) }))
-  const speed = buckets.map((b) => {
-    const rides = S.bySport(b.sessions, 'cycling').filter((s) => Number(s.extra?.avg_speed))
-    const avg = rides.length
-      ? rides.reduce((a, s) => a + Number(s.extra.avg_speed), 0) / rides.length
-      : 0
-    return { label: b.label, value: S.round1(avg) }
-  })
+  const dist = buckets.map((b) => ({ label: b.label, value: Math.round(S.sumDistance(S.bySport(b.sessions, 'cycling'))) }))
+  const elev = buckets.map((b) => ({ label: b.label, value: Math.round(S.sumElevation(S.bySport(b.sessions, 'cycling'))) }))
+  const load = buckets.map((b) => ({ label: b.label, value: Math.round(S.sumLoadEst(S.bySport(b.sessions, 'cycling'))) }))
+  const speed = S.bucketAvgExtra(buckets, 'cycling', 'avg_speed')
+  const power = S.bucketAvgExtra(buckets, 'cycling', 'avg_power')
+  const hr = S.bucketAvgExtra(buckets, 'cycling', 'avg_hr')
+  const bestPower = S.maxExtra(cycling, 'avg_power')
+  const maxSpeed = S.maxExtra(cycling, 'max_speed')
+  const biggestClimb = S.maxExtra(cycling, 'elevation_m')
 
   return (
     <>
       <Tiles
         items={[
           { label: 'Distance', value: Math.round(S.sumDistance(cycling)), sub: 'km' },
+          { label: 'Time', value: S.round1(S.sumHours(cycling)), sub: 'h' },
           { label: 'Elevation', value: Math.round(S.sumElevation(cycling)), sub: 'm' },
-          { label: 'Longest ride', value: Math.round(S.longestDistanceKm(cycling)), sub: 'km' },
-          { label: 'Load', value: Math.round(S.sumLoad(cycling)), sub: 'TSS' },
+          { label: 'Load', value: Math.round(S.sumLoadEst(cycling)), sub: 'TSS' },
         ]}
       />
+      <FitnessBlock view={view} sport="cycling" />
+      <div className="detail-block">
+        <h2 className="section-title">Records this period</h2>
+        <Tiles
+          items={[
+            { label: 'Longest ride', value: S.round1(S.longestDistanceKm(cycling)), sub: 'km' },
+            { label: 'Biggest climb', value: Math.round(biggestClimb), sub: 'm' },
+            ...(maxSpeed > 0 ? [{ label: 'Top speed', value: S.round1(maxSpeed), sub: 'km/h' }] : []),
+            ...(bestPower > 0 ? [{ label: 'Best avg power', value: Math.round(bestPower), sub: 'W' }] : []),
+            { label: 'Eddington', value: S.eddington(cycling), sub: 'km' },
+            { label: 'Rides', value: cycling.length },
+          ]}
+        />
+      </div>
       <Card title="Distance" value={`${Math.round(S.sumDistance(cycling))} km`}>
         <Bars data={dist} color={CYCLING} />
       </Card>
       <Card title="Elevation" value={`${Math.round(S.sumElevation(cycling))} m`}>
         <Bars data={elev} color={CYCLING} />
       </Card>
-      <Card title="Training load" value={`${Math.round(S.sumLoad(cycling))} TSS`}>
+      <Card title="Training load" value={`${Math.round(S.sumLoadEst(cycling))} TSS`}>
         <Bars data={load} color="var(--primary)" />
       </Card>
       <Card title="Avg speed trend" value="km/h">
-        <Line data={speed} color={CYCLING} />
+        <Line data={speed} color={CYCLING} fromZero={false} />
       </Card>
+      {power.some((p) => p.value != null) && (
+        <Card title="Avg power trend" value="W">
+          <Line data={power} color="var(--primary)" fromZero={false} />
+        </Card>
+      )}
+      {hr.some((p) => p.value != null) && (
+        <Card title="Avg heart rate trend" value="bpm">
+          <Line data={hr} color={RUNNING} fromZero={false} />
+        </Card>
+      )}
     </>
   )
 }
@@ -258,8 +365,11 @@ function Running({ view }) {
     return <div className="card empty-state"><p>No runs in this period.</p></div>
   const dist = buckets.map((b) => ({ label: b.label, value: Math.round(S.sumDistance(S.bySport(b.sessions, 'running'))) }))
   const elev = buckets.map((b) => ({ label: b.label, value: Math.round(S.sumElevation(S.bySport(b.sessions, 'running'))) }))
-  const hours = buckets.map((b) => ({ label: b.label, value: S.round1(S.sumHours(S.bySport(b.sessions, 'running'))) }))
+  const load = buckets.map((b) => ({ label: b.label, value: Math.round(S.sumLoadEst(S.bySport(b.sessions, 'running'))) }))
+  const pace = S.bucketAvgPace(buckets, 'running')
+  const hr = S.bucketAvgExtra(buckets, 'running', 'avg_hr')
   const feeling = buckets.map((b) => ({ label: b.label, value: S.round1(S.avgFeeling(S.bySport(b.sessions, 'running'))) }))
+  const bestPace = S.bestRunPace(running)
 
   return (
     <>
@@ -268,20 +378,46 @@ function Running({ view }) {
           { label: 'Distance', value: Math.round(S.sumDistance(running)), sub: 'km' },
           { label: 'Elevation', value: Math.round(S.sumElevation(running)), sub: 'm' },
           { label: 'Hours', value: S.round1(S.sumHours(running)), sub: 'h' },
-          { label: 'Longest run', value: S.round1(S.longestDistanceKm(running)), sub: 'km' },
+          { label: 'Load', value: Math.round(S.sumLoadEst(running)), sub: 'TSS' },
         ]}
       />
+      <FitnessBlock view={view} sport="running" />
+      <div className="detail-block">
+        <h2 className="section-title">Records this period</h2>
+        <Tiles
+          items={[
+            { label: 'Longest run', value: S.round1(S.longestDistanceKm(running)), sub: 'km' },
+            ...(bestPace != null
+              ? [{ label: 'Best avg pace', value: S.fmtPaceMin(bestPace), sub: '/km' }]
+              : []),
+            { label: 'Biggest climb', value: Math.round(S.maxExtra(running, 'elevation_m')), sub: 'm' },
+            { label: 'Runs', value: running.length },
+          ]}
+        />
+      </div>
       <Card title="Distance" value={`${Math.round(S.sumDistance(running))} km`}>
         <Bars data={dist} color={RUNNING} />
       </Card>
+      {pace.some((p) => p.value != null) && (
+        <Card title="Avg pace trend" value="min/km">
+          <Line data={pace} color={RUNNING} fromZero={false} fmt={S.fmtPaceMin} />
+        </Card>
+      )}
       <Card title="Elevation" value={`${Math.round(S.sumElevation(running))} m`}>
         <Bars data={elev} color={RUNNING} />
       </Card>
-      <Card title="Running hours">
-        <Bars data={hours} color={RUNNING} />
-      </Card>
+      {load.some((b) => b.value > 0) && (
+        <Card title="Training load" value={`${Math.round(S.sumLoadEst(running))} TSS`}>
+          <Bars data={load} color="var(--primary)" />
+        </Card>
+      )}
+      {hr.some((p) => p.value != null) && (
+        <Card title="Avg heart rate trend" value="bpm">
+          <Line data={hr} color={RUNNING} fromZero={false} />
+        </Card>
+      )}
       <Card title="Feeling trend" value={S.avgFeeling(running) != null ? `avg ${S.round1(S.avgFeeling(running))}/5` : '–'}>
-        <Line data={feeling} color={RUNNING} />
+        <Line data={feeling} color={RUNNING} fromZero={false} />
       </Card>
     </>
   )
@@ -294,7 +430,9 @@ function Swimming({ view }) {
     return <div className="card empty-state"><p>No swims in this period.</p></div>
   const dist = buckets.map((b) => ({ label: b.label, value: Math.round(S.sumDistanceM(S.bySport(b.sessions, 'swimming'))) }))
   const hours = buckets.map((b) => ({ label: b.label, value: S.round1(S.sumHours(S.bySport(b.sessions, 'swimming'))) }))
+  const pace = S.bucketAvgPace(buckets, 'swimming')
   const feeling = buckets.map((b) => ({ label: b.label, value: S.round1(S.avgFeeling(S.bySport(b.sessions, 'swimming'))) }))
+  const bestPace = S.bestSwimPace(swimming)
 
   return (
     <>
@@ -306,14 +444,31 @@ function Swimming({ view }) {
           { label: 'Longest swim', value: Math.round(S.longestSwim(swimming)), sub: 'm' },
         ]}
       />
+      <FitnessBlock view={view} sport="swimming" />
+      {bestPace != null && (
+        <div className="detail-block">
+          <h2 className="section-title">Records this period</h2>
+          <Tiles
+            items={[
+              { label: 'Best avg pace', value: S.fmtPaceMin(bestPace), sub: '/100m' },
+              { label: 'Longest swim', value: Math.round(S.longestSwim(swimming)), sub: 'm' },
+            ]}
+          />
+        </div>
+      )}
       <Card title="Distance" value={`${Math.round(S.sumDistanceM(swimming))} m`}>
         <Bars data={dist} color={SWIMMING} />
       </Card>
+      {pace.some((p) => p.value != null) && (
+        <Card title="Avg pace trend" value="min/100m">
+          <Line data={pace} color={SWIMMING} fromZero={false} fmt={S.fmtPaceMin} />
+        </Card>
+      )}
       <Card title="Swimming hours">
         <Bars data={hours} color={SWIMMING} />
       </Card>
       <Card title="Feeling trend" value={S.avgFeeling(swimming) != null ? `avg ${S.round1(S.avgFeeling(swimming))}/5` : '–'}>
-        <Line data={feeling} color={SWIMMING} />
+        <Line data={feeling} color={SWIMMING} fromZero={false} />
       </Card>
     </>
   )
@@ -340,6 +495,7 @@ function Climbing({ view }) {
           { label: 'Indoor', value: loc.indoor },
         ]}
       />
+      <FitnessBlock view={view} sport="climbing" />
       <Card title="Climbing hours">
         <Bars data={hours} color={CLIMBING} />
       </Card>

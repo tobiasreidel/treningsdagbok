@@ -5,6 +5,7 @@ import {
   addWeeks,
   startOfMonth,
   addMonths,
+  addDays,
   subDays,
   format,
   differenceInCalendarDays,
@@ -239,6 +240,157 @@ export function longestSwim(swimming) {
   return swimming.reduce((m, s) => Math.max(m, num(s.extra?.distance_m)), 0)
 }
 
+// Biggest single value of one extra.* field (records tiles).
+export function maxExtra(arr, key) {
+  return arr.reduce((m, s) => Math.max(m, num(s.extra?.[key])), 0)
+}
+
+// ---- training load + fitness/form (intervals.icu-style) --------------------
+// Load for one session: the stored intervals.icu training load when present,
+// otherwise a session-RPE estimate mapped onto the same scale (1 h at RPE 10
+// ≈ 100, i.e. IF ≈ rpe/10). Sessions with neither contribute nothing.
+export function sessionLoad(s) {
+  const stored = num(s.extra?.training_load)
+  if (stored > 0) return stored
+  const mins = num(s.duration)
+  const rpe = num(s.rpe)
+  if (mins > 0 && rpe > 0) return (mins / 60) * (rpe / 10) ** 2 * 100
+  return 0
+}
+
+export const sumLoadEst = (arr) => arr.reduce((a, s) => a + sessionLoad(s), 0)
+
+// Total load per ISO day.
+export function dailyLoads(sessions) {
+  const m = new Map()
+  for (const s of sessions) {
+    const l = sessionLoad(s)
+    if (l > 0) m.set(s.date, (m.get(s.date) || 0) + l)
+  }
+  return m
+}
+
+// Fitness (CTL, 42-day EW avg), Fatigue (ATL, 7-day) and Form (CTL − ATL),
+// one point per day from `start` through today. The rolling averages are
+// seeded from up to 90 days of history before the window so the lines don't
+// ramp up from zero at the left edge.
+export function fitnessSeries(sessions, start) {
+  const loads = dailyLoads(sessions)
+  if (!loads.size) return []
+  const today = new Date()
+  let d = subDays(start, 90)
+  let ctl = 0
+  let atl = 0
+  const out = []
+  // Hard cap the loop (seed + a few years of window) as a safety net.
+  for (let i = 0; i < 1600 && d <= today; i += 1) {
+    const load = loads.get(format(d, 'yyyy-MM-dd')) || 0
+    ctl += (load - ctl) / 42
+    atl += (load - atl) / 7
+    if (d >= start) {
+      out.push({
+        date: format(d, 'yyyy-MM-dd'),
+        label: format(d, 'd/M'),
+        ctl: round1(ctl),
+        atl: round1(atl),
+        form: round1(ctl - atl),
+      })
+    }
+    d = addDays(d, 1)
+  }
+  return out
+}
+
+// Reading of a day's form (TSB), using intervals.icu's zones and vocabulary.
+export const FORM_ZONES = [
+  { min: 20, label: 'Transition', color: 'var(--cycling)' }, // detraining risk
+  { min: 5, label: 'Fresh', color: 'var(--swimming)' },
+  { min: -10, label: 'Grey zone', color: 'var(--text-muted)' },
+  { min: -30, label: 'Optimal training', color: 'var(--both)' },
+  { min: -Infinity, label: 'High risk', color: 'var(--danger)' },
+]
+
+export function formStatus(form) {
+  return FORM_ZONES.find((z) => form >= z.min)
+}
+
+// Eddington number: the largest E where you've done E rides of at least E km.
+export function eddington(cycling) {
+  const dists = cycling
+    .map((s) => num(s.extra?.distance_km))
+    .filter((d) => d > 0)
+    .sort((a, b) => b - a)
+  let e = 0
+  for (let i = 0; i < dists.length; i += 1) {
+    if (dists[i] >= i + 1) e = i + 1
+    else break
+  }
+  return e
+}
+
+// Fastest average pace (decimal min/km) across runs of at least `minKm`.
+export function bestRunPace(running, minKm = 2) {
+  let best = null
+  for (const s of running) {
+    const d = num(s.extra?.distance_km)
+    const mins = num(s.duration)
+    if (d >= minKm && mins > 0) {
+      const p = mins / d
+      if (best == null || p < best) best = p
+    }
+  }
+  return best
+}
+
+// Fastest average pace (decimal min/100m) across swims of at least `minM`.
+export function bestSwimPace(swimming, minM = 200) {
+  let best = null
+  for (const s of swimming) {
+    const d = num(s.extra?.distance_m)
+    const mins = num(s.duration)
+    if (d >= minM && mins > 0) {
+      const p = mins / (d / 100)
+      if (best == null || p < best) best = p
+    }
+  }
+  return best
+}
+
+// Decimal minutes -> "m:ss" (pace labels).
+export function fmtPaceMin(p) {
+  if (p == null || !Number.isFinite(p) || p <= 0) return '–'
+  const m = Math.floor(p)
+  const s = Math.round((p - m) * 60)
+  return s === 60 ? `${m + 1}:00` : `${m}:${String(s).padStart(2, '0')}`
+}
+
+// Per-bucket average of an extra.* field over one sport's sessions (null when
+// a bucket has no data - the Line chart leaves a gap).
+export function bucketAvgExtra(buckets, sport, key) {
+  return buckets.map((b) => {
+    const rows = bySport(b.sessions, sport).filter((s) => num(s.extra?.[key]) > 0)
+    const avg = rows.length ? rows.reduce((a, s) => a + num(s.extra[key]), 0) / rows.length : null
+    return { label: b.label, value: avg != null ? round1(avg) : null }
+  })
+}
+
+// Per-bucket average pace: running -> min/km, swimming -> min/100m. Uses each
+// bucket's total distance and time so short jogs don't skew it.
+export function bucketAvgPace(buckets, sport) {
+  return buckets.map((b) => {
+    const rows = bySport(b.sessions, sport).filter(
+      (s) => num(s.duration) > 0 && num(sport === 'swimming' ? s.extra?.distance_m : s.extra?.distance_km) > 0,
+    )
+    if (!rows.length) return { label: b.label, value: null }
+    const mins = rows.reduce((a, s) => a + num(s.duration), 0)
+    const dist =
+      sport === 'swimming'
+        ? rows.reduce((a, s) => a + num(s.extra.distance_m), 0) / 100
+        : rows.reduce((a, s) => a + num(s.extra.distance_km), 0)
+    return { label: b.label, value: dist > 0 ? round1(mins / dist) : null }
+  })
+}
+
 // ---- strength + finger -------------------------------------------------------
 // Strength/finger data lives in extra and can ride on a standalone strength or
 // finger session, an indoor climb, or (for legacy sessions) a combined strength
@@ -334,4 +486,5 @@ export function hangboardSeries(sessions) {
   })
 }
 
-export const round1 = (n) => Math.round(n * 10) / 10
+// Null-passing so "no data" stays a chart gap instead of becoming a 0.
+export const round1 = (n) => (n == null ? null : Math.round(n * 10) / 10)

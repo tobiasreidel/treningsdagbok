@@ -10,13 +10,16 @@ import {
   fetchInjuries,
   injuryDays,
 } from '../lib/health'
-import { getLogPeriod } from '../lib/prefs'
+import { getLogPeriod, getAvatarEmoji } from '../lib/prefs'
+import { getMyProfile } from '../lib/friends'
+import { getAvatarUrl } from '../lib/profile'
 import { useOnline } from '../components/ui'
 import Calendar from '../components/Calendar'
 import SummaryCards from '../components/SummaryCards'
 import WeekTable from '../components/WeekTable'
 import DaySheet from '../components/DaySheet'
 import CycleCard from '../components/CycleCard'
+import Avatar from '../components/Avatar'
 import { SettingsIcon } from '../components/icons'
 
 export default function Dashboard() {
@@ -33,8 +36,27 @@ export default function Dashboard() {
   // Period tracking (Settings → Health). Days are ISO strings from the server.
   const periodEnabled = getLogPeriod()
   const [periodDays, setPeriodDays] = useState([])
-  // Injury log (always on - see Settings). Logged injuries badge their days.
+  // Injury log (always on - see Profile). Logged injuries badge their days.
   const [injuries, setInjuries] = useState([])
+  // Top-left profile button: photo → emoji → initials.
+  const [me, setMe] = useState({ url: null, name: '', emoji: getAvatarEmoji() })
+
+  useEffect(() => {
+    let alive = true
+    Promise.all([getAvatarUrl().catch(() => null), getMyProfile().catch(() => ({}))]).then(
+      ([url, profile]) => {
+        if (!alive) return
+        setMe((m) => ({
+          ...m,
+          url,
+          name: profile?.display_name || profile?.email || '',
+        }))
+      },
+    )
+    return () => {
+      alive = false
+    }
+  }, [])
 
   const load = useCallback(async () => {
     const [server, pending, period, injured] = await Promise.allSettled([
@@ -121,7 +143,15 @@ export default function Dashboard() {
   return (
     <div className="page dashboard">
       <header className="dash-head">
-        <div>
+        <button
+          className="avatar-btn"
+          onClick={() => navigate('/profile')}
+          title="Profile"
+          aria-label="Profile"
+        >
+          <Avatar url={me.url} emoji={me.emoji} name={me.name} size={40} />
+        </button>
+        <div className="dash-title">
           <h1>Treningsdagbok</h1>
           {!online && <span className="offline-tag">offline</span>}
         </div>

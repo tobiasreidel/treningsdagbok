@@ -42,8 +42,9 @@ export function hasCredentials(settings) {
 }
 
 // ---- intervals.icu API -----------------------------------------------------
-function authHeader(apiKey) {
-  // Basic auth: username is the literal "API_KEY", password is the key.
+// Basic auth: username is the literal "API_KEY", password is the key.
+// (Also used by streams.js for the per-activity analysis fetches.)
+export function authHeader(apiKey) {
   return 'Basic ' + btoa(`API_KEY:${apiKey}`)
 }
 
@@ -152,6 +153,20 @@ const durationMin = (a) => {
   return secs ? Math.round(secs / 60) : ''
 }
 
+// Garmin's post-ride self-evaluation syncs to intervals.icu as `feel` (1-5,
+// but 1 = strong there) and `icu_rpe` (1-10). Map them onto our scales so
+// imported sessions arrive with feeling/RPE already filled in.
+function importedFeeling(a) {
+  const f = Number(a.feel)
+  return f >= 1 && f <= 5 ? 6 - f : null // flip: ours is 5 = strong
+}
+
+function importedRpe(a) {
+  const r = Number(a.icu_rpe ?? a.perceived_exertion)
+  if (!Number.isFinite(r) || r <= 0) return null
+  return Math.max(1, Math.min(10, Math.round(r)))
+}
+
 // Turn an intervals.icu ride into our session-form shape, with the objective
 // fields pre-filled. The user adds feeling/RPE/notes.
 function cyclingActivityToForm(a) {
@@ -161,8 +176,8 @@ function cyclingActivityToForm(a) {
     sport: 'cycling',
     subtype: guessCyclingSubtype(a.type),
     location: null,
-    feeling: null,
-    rpe: null,
+    feeling: importedFeeling(a),
+    rpe: importedRpe(a),
     duration: a.moving_time ? Math.round(a.moving_time / 60) : '',
     notes: '',
     extra: {
@@ -200,8 +215,8 @@ function climbingActivityToForm(a) {
     sport: 'climbing',
     subtype: guessClimbingSubtype(a.type),
     location: guessClimbingLocation(a),
-    feeling: null,
-    rpe: null,
+    feeling: importedFeeling(a),
+    rpe: importedRpe(a),
     duration: durationMin(a),
     notes: '',
     extra: {
@@ -229,8 +244,8 @@ function runningActivityToForm(a) {
     sport: 'running',
     subtype: guessRunningSubtype(a),
     location: null,
-    feeling: null,
-    rpe: null,
+    feeling: importedFeeling(a),
+    rpe: importedRpe(a),
     duration: durationMin(a),
     notes: '',
     extra: {
@@ -262,8 +277,8 @@ function swimmingActivityToForm(a) {
     sport: 'swimming',
     subtype: guessSwimmingSubtype(a.type),
     location: null,
-    feeling: null,
-    rpe: null,
+    feeling: importedFeeling(a),
+    rpe: importedRpe(a),
     duration: durationMin(a),
     notes: '',
     extra: {

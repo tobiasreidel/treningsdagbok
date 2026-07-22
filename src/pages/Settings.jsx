@@ -3,11 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { Field, Segmented } from '../components/ui'
 import { SPORTS } from '../lib/constants'
 import { getSettings, saveSettings, fetchActivities, activitySport } from '../lib/intervals'
-import { getMyProfile, setDisplayName, getShareSetting, setShareSetting } from '../lib/friends'
+import { getShareSetting, setShareSetting } from '../lib/friends'
 import { sendFeedback } from '../lib/feedback'
 import { deleteAccount } from '../lib/account'
-import { fetchInjuries, addInjury, endInjury, deleteInjury } from '../lib/health'
-import { formatDayShort, todayISO } from '../lib/format'
 import { THEMES, getTheme, setTheme } from '../lib/theme'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -29,21 +27,19 @@ export default function Settings() {
   const [apiKey, setApiKey] = useState('') // only holds a newly-typed key
   const [savedKey, setSavedKey] = useState('') // existing key, never bound to a field
   const [replacing, setReplacing] = useState(false) // user chose to enter a new key
-  const [displayName, setDisplayNameState] = useState('')
-  const [share, setShare] = useState(true)
   const [hideKm, setHideKm] = useState(() => {
     const v = getHideRidesUnderKm()
     return v > 0 ? String(v) : ''
   })
   const [enabledSports, setEnabledSportsState] = useState(getEnabledSports)
   const [logPeriod, setLogPeriodState] = useState(getLogPeriod)
+  const [share, setShare] = useState(true)
   const [theme, setThemeState] = useState(getTheme)
   const [loading, setLoading] = useState(true)
   const [test, setTest] = useState(null)
   const [error, setError] = useState(null)
   const [flash, setFlash] = useState(null) // transient "Saved" confirmation
   // Last-persisted values, so a blur with no change doesn't re-hit the server.
-  const savedName = useRef('')
   const savedHideKm = useRef('')
   const savedAthleteId = useRef('')
   const flashTimer = useRef()
@@ -63,14 +59,12 @@ export default function Settings() {
   const keyToUse = replacing || !savedKey ? apiKey.trim() : savedKey
 
   useEffect(() => {
-    Promise.all([getSettings(), getMyProfile().catch(() => ({})), getShareSetting().catch(() => true)])
-      .then(([s, profile, shareVal]) => {
+    Promise.all([getSettings(), getShareSetting().catch(() => true)])
+      .then(([s, shareVal]) => {
         setAthleteId(s.athleteId)
         setSavedKey(s.apiKey)
-        setDisplayNameState(profile?.display_name || '')
         setShare(shareVal)
         savedAthleteId.current = s.athleteId
-        savedName.current = profile?.display_name || ''
         savedHideKm.current = hideKm
       })
       .catch(() => {})
@@ -106,6 +100,12 @@ export default function Settings() {
       setLogPeriod(!prev)
       return !prev
     })
+    showFlash()
+  }
+
+  const commitShare = (v) => {
+    setShare(v)
+    setShareSetting(v).catch(() => {})
     showFlash()
   }
 
@@ -165,22 +165,7 @@ export default function Settings() {
 
   // ---- auto-save -----------------------------------------------------------
   // Each field persists on its own: text inputs on blur (so we don't write a
-  // character at a time), the privacy toggle on change. Profile/privacy are
-  // best-effort - they depend on friends.sql having been run - so a failure
-  // there is swallowed rather than shown as an error.
-  const commitName = () => {
-    if (displayName === savedName.current) return
-    savedName.current = displayName
-    setDisplayName(displayName).catch(() => {})
-    showFlash()
-  }
-
-  const commitShare = (v) => {
-    setShare(v)
-    setShareSetting(v).catch(() => {})
-    showFlash()
-  }
-
+  // character at a time).
   const commitHideKm = () => {
     if (hideKm === savedHideKm.current) return
     savedHideKm.current = hideKm
@@ -229,29 +214,14 @@ export default function Settings() {
       </header>
 
       <main className="wizard-body stack">
-        <section className="card settings-card stack">
-          <h2 className="step-q">Profile</h2>
-          <Field label="Display name" hint="Shown to friends">
-            <input
-              type="text"
-              value={displayName}
-              onChange={(e) => setDisplayNameState(e.target.value)}
-              onBlur={commitName}
-              placeholder="Your name"
-            />
-          </Field>
-          <Field label="Activity privacy">
-            <Segmented
-              options={[
-                { key: 'on', label: 'Friends can see' },
-                { key: 'off', label: 'Private' },
-              ]}
-              value={share ? 'on' : 'off'}
-              onChange={(v) => commitShare(v === 'on')}
-              columns={2}
-            />
-          </Field>
-        </section>
+        <button
+          type="button"
+          className="btn btn-secondary btn-block settings-link-row"
+          onClick={() => navigate('/profile')}
+        >
+          <span>👤 Profile &amp; health</span>
+          <span className="settings-link-arrow">›</span>
+        </button>
 
         <section className="card settings-card stack">
           <h2 className="step-q">Appearance</h2>
@@ -309,12 +279,25 @@ export default function Settings() {
             </label>
           </div>
           <p className="muted small">
-            Log period days by tapping a day in the dashboard calendar. After a
-            couple of cycles the app predicts your next period and shows where
-            you are in your cycle. Only you can ever see this, never friends
-            or coaches.
+            Log period days by tapping a day in the dashboard calendar. Cycle
+            stats show on your profile. Only you can ever see this, never
+            friends or coaches.
           </p>
-          <InjuriesCard />
+        </section>
+
+        <section className="card settings-card stack">
+          <h2 className="step-q">Privacy</h2>
+          <Field label="Activity privacy">
+            <Segmented
+              options={[
+                { key: 'on', label: 'Friends can see' },
+                { key: 'off', label: 'Private' },
+              ]}
+              value={share ? 'on' : 'off'}
+              onChange={(v) => commitShare(v === 'on')}
+              columns={2}
+            />
+          </Field>
         </section>
 
         <section className="card settings-card stack">
@@ -516,155 +499,6 @@ export default function Settings() {
       </main>
 
       {flash && <div className="toast">{flash}</div>}
-    </div>
-  )
-}
-
-// Injury log: note + start date; "Healed" stamps the end date, ✕ deletes.
-// Lives in Settings → Health. Data is owner-only (see supabase/health.sql).
-function InjuriesCard() {
-  const [injuries, setInjuries] = useState(null) // null = loading
-  const [loadErr, setLoadErr] = useState(false)
-  const [note, setNote] = useState('')
-  const [started, setStarted] = useState(todayISO())
-  const [busy, setBusy] = useState(false)
-
-  const load = () =>
-    fetchInjuries()
-      .then((rows) => {
-        setInjuries(rows)
-        setLoadErr(false)
-      })
-      .catch(() => {
-        setInjuries([])
-        setLoadErr(true)
-      })
-
-  useEffect(() => {
-    load()
-  }, [])
-
-  const act = async (fn) => {
-    setBusy(true)
-    try {
-      await fn()
-      await load()
-    } catch {
-      setLoadErr(true)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const add = () =>
-    act(async () => {
-      await addInjury(note, started)
-      setNote('')
-      setStarted(todayISO())
-    })
-
-  const active = (injuries || []).filter((i) => !i.ended)
-  const healed = (injuries || []).filter((i) => i.ended)
-
-  return (
-    <div className="stack">
-      <span className="field-label">Injuries</span>
-      {loadErr && (
-        <p className="auth-error">
-          Couldn’t load injuries. Has supabase/health.sql been run?
-        </p>
-      )}
-
-      {injuries !== null && injuries.length === 0 && !loadErr && (
-        <p className="muted small">No injuries logged. 🤞</p>
-      )}
-
-      {active.length > 0 && (
-        <div className="toggle-list">
-          {active.map((i) => (
-            <div className="injury-row" key={i.id}>
-              <span className="injury-main">
-                <span className="injury-note">{i.note}</span>
-                <span className="muted small">since {formatDayShort(i.started)} · active</span>
-              </span>
-              <span className="injury-actions">
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  disabled={busy}
-                  onClick={() => act(() => endInjury(i.id))}
-                >
-                  Healed
-                </button>
-                <button
-                  type="button"
-                  className="icon-btn danger"
-                  aria-label="Delete injury"
-                  disabled={busy}
-                  onClick={() => act(() => deleteInjury(i.id))}
-                >
-                  ✕
-                </button>
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {healed.length > 0 && (
-        <div className="toggle-list">
-          {healed.map((i) => (
-            <div className="injury-row" key={i.id}>
-              <span className="injury-main">
-                <span className="injury-note muted">{i.note}</span>
-                <span className="muted small">
-                  {formatDayShort(i.started)} – {formatDayShort(i.ended)} · healed
-                </span>
-              </span>
-              <span className="injury-actions">
-                <button
-                  type="button"
-                  className="icon-btn"
-                  aria-label="Delete injury"
-                  disabled={busy}
-                  onClick={() => act(() => deleteInjury(i.id))}
-                >
-                  ✕
-                </button>
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <Field label="Log an injury" optional>
-        <div className="stack" style={{ gap: 8 }}>
-          <input
-            type="text"
-            value={note}
-            maxLength={500}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="e.g. A2 pulley, right ring finger"
-          />
-          <div className="wr-row">
-            <input
-              type="date"
-              value={started}
-              onChange={(e) => setStarted(e.target.value)}
-              style={{ flex: '0 0 160px' }}
-            />
-            <button
-              type="button"
-              className="btn btn-secondary"
-              style={{ flex: 1 }}
-              disabled={!note.trim() || !started || busy}
-              onClick={add}
-            >
-              + Add
-            </button>
-          </div>
-        </div>
-      </Field>
     </div>
   )
 }
