@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { format } from 'date-fns'
 import { asDate } from '../lib/format'
 import { fetchSessions } from '../lib/sessions'
+import { fetchIcuFitnessData } from '../lib/fitness'
 import { getAthleteProfile } from '../lib/coaches'
 import { PillRow } from '../components/ui'
 import { Bars, Line, HBars, FitnessChart } from '../components/charts'
@@ -34,6 +35,9 @@ export default function Stats() {
   const [range, setRange] = useState('3m')
   const [tab, setTab] = useState('overview')
   const [athleteName, setAthleteName] = useState('')
+  // intervals.icu wellness + per-activity loads, so the fitness numbers match
+  // intervals.icu exactly. Null = not connected / not loaded (local fallback).
+  const [icu, setIcu] = useState(null)
 
   // A coach sees all of the athlete's sports; your own stats follow your prefs.
   const enabled = athleteId ? ALL_SPORTS : getEnabledSports()
@@ -56,6 +60,12 @@ export default function Stats() {
       getAthleteProfile(athleteId)
         .then((p) => setAthleteName(p.display_name || p.email || 'Athlete'))
         .catch(() => {})
+    } else {
+      // Own stats only - a coach viewing an athlete must not mix in their own
+      // intervals.icu account.
+      fetchIcuFitnessData()
+        .then(setIcu)
+        .catch(() => setIcu(null))
     }
   }, [athleteId])
 
@@ -76,6 +86,7 @@ export default function Stats() {
       weekStreak: S.currentWeekStreak(base),
       // Full history: per-sport fitness/form needs a seed before the window.
       base,
+      icu,
       buckets: S.buckets(windowed, start, grain),
       cycling: S.bySport(windowed, 'cycling'),
       running: S.bySport(windowed, 'running'),
@@ -85,7 +96,7 @@ export default function Stats() {
       finger: S.bySport(windowed, 'finger'),
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessions, range, enabledKey])
+  }, [sessions, range, enabledKey, icu])
 
   return (
     <div className="page">
@@ -226,17 +237,47 @@ function Overview({ view }) {
   )
 }
 
-// Per-sport fitness & form, intervals.icu-style: fitness/fatigue lines on top,
+// The fitness/fatigue/form series. Fitness is a whole-body number - your legs
+// don't care which sport the load came from - so there is exactly one series:
+// intervals.icu's own daily wellness rows when connected (matches their site
+// 1:1), otherwise an estimate from the sessions logged in this app.
+function athleteFitness(view) {
+  if (view.icu?.wellness?.length) {
+    return { series: S.wellnessSeries(view.icu.wellness, view.start), source: 'icu' }
+  }
+  return { series: S.fitnessSeries(view.base, view.start), source: 'app' }
+}
+
+const FITNESS_SOURCE_NOTE = {
+  icu: 'Counts training from all your sports - the numbers come straight from intervals.icu, so they match what you see there.',
+  app: 'Counts training from all your sports, estimated from the sessions logged in this app.',
+}
+
+// Whether a sport's tab should carry the fitness card. intervals.icu keeps one
+// combined fitness number (its API has no per-sport ctl/atl), so the card only
+// belongs on tabs whose sport actually feeds it: with intervals.icu connected
+// that means sessions with real imported training load; offline, any session
+// the local estimate can use.
+function sportCarriesLoad(view, sport) {
+  const rows = S.bySport(view.base, sport)
+  if (view.icu?.wellness?.length) {
+    return rows.some((s) => Number(s.extra?.training_load) > 0)
+  }
+  return rows.some((s) => S.sessionLoad(s) > 0)
+}
+
+// Fitness & form card, intervals.icu-style: fitness/fatigue lines on top,
 // form in its coloured zones below. Sliding across the chart shows any day's
-// numbers in the fixed readout above it. Only shows once the sport has real
-// load history (imported TSS, or duration+RPE to estimate from).
-function FitnessBlock({ view, sport }) {
+// numbers in the fixed readout above it. Only shows once there's real load
+// history (imported TSS, or duration+RPE to estimate from).
+function FitnessBlock({ view }) {
   const [hoverIdx, setHoverIdx] = useState(null)
-  const all = S.bySport(view.base, sport)
-  const fitness = S.fitnessSeries(all, view.start)
+  const { series: fitness, source } = athleteFitness(view)
   if (fitness.length < 2 || !fitness.some((p) => p.ctl >= 1)) return null
-  const shown = fitness[hoverIdx ?? fitness.length - 1]
-  const isToday = hoverIdx == null || hoverIdx === fitness.length - 1
+  // Clamp: the series can shrink when the intervals.icu data arrives mid-hover.
+  const shownIdx = Math.min(hoverIdx ?? fitness.length - 1, fitness.length - 1)
+  const shown = fitness[shownIdx]
+  const isToday = hoverIdx == null || shownIdx === fitness.length - 1
   const status = S.formStatus(shown.form)
 
   return (
@@ -288,7 +329,7 @@ function FitnessBlock({ view, sport }) {
         Fitness is your 42-day average load, fatigue the 7-day. Form = fitness −
         fatigue, shown in its zones below: green = optimal training, blue =
         fresh and race-ready, red = overreached. Slide across the chart to see
-        any day.
+        any day. {FITNESS_SOURCE_NOTE[source]}
       </p>
     </div>
   )
@@ -318,7 +359,7 @@ function Cycling({ view }) {
           { label: 'Load', value: Math.round(S.sumLoadEst(cycling)), sub: 'TSS' },
         ]}
       />
-      <FitnessBlock view={view} sport="cycling" />
+      {sportCarriesLoad(view, 'cycling') && <FitnessBlock view={view} />}
       <div className="detail-block">
         <h2 className="section-title">Records this period</h2>
         <Tiles
@@ -381,7 +422,7 @@ function Running({ view }) {
           { label: 'Load', value: Math.round(S.sumLoadEst(running)), sub: 'TSS' },
         ]}
       />
-      <FitnessBlock view={view} sport="running" />
+      {sportCarriesLoad(view, 'running') && <FitnessBlock view={view} />}
       <div className="detail-block">
         <h2 className="section-title">Records this period</h2>
         <Tiles
@@ -444,7 +485,7 @@ function Swimming({ view }) {
           { label: 'Longest swim', value: Math.round(S.longestSwim(swimming)), sub: 'm' },
         ]}
       />
-      <FitnessBlock view={view} sport="swimming" />
+      {sportCarriesLoad(view, 'swimming') && <FitnessBlock view={view} />}
       {bestPace != null && (
         <div className="detail-block">
           <h2 className="section-title">Records this period</h2>
@@ -495,7 +536,7 @@ function Climbing({ view }) {
           { label: 'Indoor', value: loc.indoor },
         ]}
       />
-      <FitnessBlock view={view} sport="climbing" />
+      {sportCarriesLoad(view, 'climbing') && <FitnessBlock view={view} />}
       <Card title="Climbing hours">
         <Bars data={hours} color={CLIMBING} />
       </Card>

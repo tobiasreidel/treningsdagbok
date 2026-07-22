@@ -271,20 +271,28 @@ export function dailyLoads(sessions) {
 }
 
 // Fitness (CTL, 42-day EW avg), Fatigue (ATL, 7-day) and Form (CTL − ATL),
-// one point per day from `start` through today. The rolling averages are
-// seeded from up to 90 days of history before the window so the lines don't
-// ramp up from zero at the left edge.
-export function fitnessSeries(sessions, start) {
-  const loads = dailyLoads(sessions)
-  if (!loads.size) return []
-  const today = new Date()
+// one point per day from `start` through today, computed from a per-day load
+// map. The rolling averages are seeded from all available history before the
+// window (capped) so the lines don't ramp up from zero at the left edge.
+export function fitnessFromLoads(loads, start) {
+  const get = (iso) => (loads instanceof Map ? loads.get(iso) : loads[iso]) || 0
+  const keys = loads instanceof Map ? [...loads.keys()] : Object.keys(loads)
+  if (!keys.length) return []
+  // Seed from the earliest recorded load (or 90 days out, whichever is
+  // older), capped so a stray ancient date can't run the loop away.
+  const earliest = keys.reduce((m, k) => (k < m ? k : m), keys[0])
   let d = subDays(start, 90)
+  const earliestDate = asDate(earliest)
+  if (earliestDate < d) d = earliestDate
+  const cap = asDate(format(subDays(start, 500), 'yyyy-MM-dd'))
+  if (d < cap) d = cap
+  const today = new Date()
   let ctl = 0
   let atl = 0
   const out = []
   // Hard cap the loop (seed + a few years of window) as a safety net.
-  for (let i = 0; i < 1600 && d <= today; i += 1) {
-    const load = loads.get(format(d, 'yyyy-MM-dd')) || 0
+  for (let i = 0; i < 2000 && d <= today; i += 1) {
+    const load = get(format(d, 'yyyy-MM-dd'))
     ctl += (load - ctl) / 42
     atl += (load - atl) / 7
     if (d >= start) {
@@ -299,6 +307,25 @@ export function fitnessSeries(sessions, start) {
     d = addDays(d, 1)
   }
   return out
+}
+
+export function fitnessSeries(sessions, start) {
+  return fitnessFromLoads(dailyLoads(sessions), start)
+}
+
+// intervals.icu's own daily fitness/fatigue rows mapped into the same series
+// shape - used as-is so the numbers match intervals.icu exactly.
+export function wellnessSeries(rows, start) {
+  const first = format(start, 'yyyy-MM-dd')
+  return (rows || [])
+    .filter((r) => r.date >= first)
+    .map((r) => ({
+      date: r.date,
+      label: format(asDate(r.date), 'd/M'),
+      ctl: round1(r.ctl),
+      atl: round1(r.atl),
+      form: round1(r.ctl - r.atl),
+    }))
 }
 
 // Reading of a day's form (TSB), using intervals.icu's zones and vocabulary.
