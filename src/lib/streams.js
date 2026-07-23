@@ -4,14 +4,18 @@
 // never changes, so one fetch per activity is enough forever.
 import { get as idbGet, set as idbSet } from 'idb-keyval'
 import { getSettings, hasCredentials, authHeader } from './intervals'
+import { supabase } from './supabase'
 
 const API_BASE = 'https://intervals.icu/api/v1'
-// v4: adds exact per-stream stats (downsampled maxima were too low).
-const CACHE_PREFIX = 'icu-analysis:v4:'
+// v5: values rounded to rendered precision (v4 stored raw 15-digit floats,
+// ~4x the bytes for pixel-identical charts).
+const CACHE_PREFIX = 'icu-analysis:v5:'
 const MAX_POINTS = 420 // chart resolution after downsampling
 
 // In-memory layer so re-opening the same session in one visit is instant.
 const memory = new Map()
+// Sessions whose shared copy was already written this app session.
+const sharedThisSession = new Set()
 
 // Note: no 'latlng' here - the streams endpoint doesn't serve GPS data. The
 // track comes from GET /activity/{id}/map (MapData.latlngs) instead.
@@ -58,6 +62,11 @@ function bucketAvg(arr, from, to) {
 
 const hasValues = (arr) => Array.isArray(arr) && arr.some((v) => v != null)
 
+// Round to the precision the charts actually draw at. Bucket averages carry
+// 15 significant digits otherwise, which nothing renders and every byte of
+// which gets cached (and, for shared rides, stored and sent).
+const round = (v, d) => (v == null ? null : Number(v.toFixed(d)))
+
 // Reduce the raw 1 Hz streams to MAX_POINTS chart points. Numeric series are
 // bucket-averaged; time/distance take the bucket's last sample so the x-axis
 // keeps its true total.
@@ -72,13 +81,13 @@ function downsample(raw) {
   for (let from = 0; from < n; from += stride) {
     const to = Math.min(n, from + stride)
     out.t.push(time[to - 1] ?? 0)
-    out.km.push(dist ? (dist[to - 1] ?? 0) / 1000 : null)
-    out.alt.push(bucketAvg(raw.altitude || [], from, to))
+    out.km.push(dist ? round((dist[to - 1] ?? 0) / 1000, 2) : null)
+    out.alt.push(round(bucketAvg(raw.altitude || [], from, to), 0))
     const v = bucketAvg(raw.velocity_smooth || [], from, to)
-    out.speed.push(v != null ? v * 3.6 : null)
-    out.hr.push(bucketAvg(raw.heartrate || [], from, to))
-    out.watts.push(bucketAvg(raw.watts || [], from, to))
-    out.cad.push(bucketAvg(raw.cadence || [], from, to))
+    out.speed.push(v != null ? round(v * 3.6, 1) : null)
+    out.hr.push(round(bucketAvg(raw.heartrate || [], from, to), 0))
+    out.watts.push(round(bucketAvg(raw.watts || [], from, to), 0))
+    out.cad.push(round(bucketAvg(raw.cadence || [], from, to), 0))
   }
   // Drop series with no data at all so the UI can simply map over what's left.
   for (const key of ['alt', 'speed', 'hr', 'watts', 'cad']) {
@@ -125,8 +134,10 @@ function thinLatlng(latlng) {
   if (pts.length < 2) return null
   const stride = Math.max(1, Math.ceil(pts.length / 600))
   const out = []
-  for (let i = 0; i < pts.length; i += stride) out.push(pts[i])
-  if (out[out.length - 1] !== pts[pts.length - 1]) out.push(pts[pts.length - 1])
+  // 5 decimals is ~1 m - far finer than a route sketch can show.
+  const at = (p) => [round(p[0], 5), round(p[1], 5)]
+  for (let i = 0; i < pts.length; i += stride) out.push(at(pts[i]))
+  if (pts.length % stride !== 1) out.push(at(pts[pts.length - 1]))
   return out
 }
 
@@ -175,6 +186,59 @@ function laps(activity) {
   }))
 }
 
+// ---- sharing ---------------------------------------------------------------
+// Friends can't fetch each other's charts from intervals.icu: the activity
+// belongs to its owner's account and only their API key can read it. So when
+// you open one of your own rides, a compact copy of the chart data is stored
+// on the session (session_streams, shared by the same rule as the session
+// itself - see supabase/session_streams.sql). Friends then read that copy.
+//
+// The GPS track is deliberately NOT shared: a route sketch reveals where you
+// live and ride, which is a bigger step than sharing pace and heart rate, and
+// it is more than half the payload. Charts, zones and laps only.
+//
+// Zones are stored as they were computed for the owner, so a friend sees the
+// owner's zone setup rather than their own preferences applied to a stranger's
+// heart rate.
+function sharePayload(analysis) {
+  return {
+    points: analysis.points,
+    stats: analysis.stats,
+    hrZones: analysis.hrZones,
+    powerZones: analysis.powerZones,
+    laps: analysis.laps,
+  }
+}
+
+// Best-effort: a failed share must never break viewing your own activity.
+async function storeSharedAnalysis(sessionId, analysis) {
+  if (!sessionId || !analysis?.points) return
+  try {
+    await supabase
+      .from('session_streams')
+      .upsert({ session_id: sessionId, data: sharePayload(analysis) }, { onConflict: 'session_id' })
+  } catch {
+    // table missing (migration not run) or offline - charts still work for you
+  }
+}
+
+// The shared copy of someone else's activity, or null when they haven't
+// opened it since sharing existed (nothing to show, no error either).
+export async function fetchSharedAnalysis(sessionId) {
+  if (!sessionId) return null
+  try {
+    const { data, error } = await supabase
+      .from('session_streams')
+      .select('data')
+      .eq('session_id', sessionId)
+      .maybeSingle()
+    if (error || !data?.data) return null
+    return { ...data.data, latlng: null, shared: true }
+  } catch {
+    return null
+  }
+}
+
 // Fetch (or serve cached) analysis for one imported activity. Returns
 //   { points, latlng, hrZones, powerZones, laps, hasStreams }
 // Streams and the GPS track never change once an activity is done, so those
@@ -182,11 +246,18 @@ function laps(activity) {
 // intervals.icu settings (switching 7→5 zones, a new max HR, edited laps),
 // so that small record is re-fetched on every open and merged over the
 // cache - falling back to the cached copy when offline.
+// Pass the session's id to also keep the shared copy friends read up to date
+// (once per app session - the payload only changes when zones do).
 // Throws with .code = 'no-creds' when intervals.icu isn't connected and
 // nothing is cached.
-export async function fetchActivityAnalysis(intervalsId) {
+export async function fetchActivityAnalysis(intervalsId, { sessionId } = {}) {
   const id = String(intervalsId)
   const cacheKey = CACHE_PREFIX + id
+  const share = (analysis) => {
+    if (!sessionId || sharedThisSession.has(sessionId)) return
+    sharedThisSession.add(sessionId)
+    storeSharedAnalysis(sessionId, analysis) // fire and forget
+  }
 
   let cached = memory.get(id)
   if (!cached) {
@@ -221,6 +292,7 @@ export async function fetchActivityAnalysis(intervalsId) {
       } catch {
         // best-effort cache
       }
+      share(fresh)
       return fresh
     } catch {
       return cached // offline or API hiccup: stale zones beat no analysis
@@ -269,5 +341,6 @@ export async function fetchActivityAnalysis(intervalsId) {
   } catch {
     // best-effort cache
   }
+  share(result)
   return result
 }

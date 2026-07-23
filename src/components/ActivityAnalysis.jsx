@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { fetchActivityAnalysis } from '../lib/streams'
+import { fetchActivityAnalysis, fetchSharedAnalysis } from '../lib/streams'
 import { getHrZoneConfig } from '../lib/prefs'
 import { ZONE_COLORS } from '../lib/constants'
 
@@ -42,18 +42,36 @@ const maxOf = (arr) => {
 }
 
 // ---- component -------------------------------------------------------------
-export default function ActivityAnalysis({ session }) {
+// Your own activity fetches from intervals.icu (and stores a copy friends can
+// read). Someone else's can only come from that stored copy - their activity
+// lives in their intervals.icu account, which your API key cannot touch - so
+// a friend's ride shows charts once they've opened it themselves, and simply
+// nothing before that.
+export default function ActivityAnalysis({ session, isOwner }) {
   const intervalsId = session.extra?.intervals_id
+  const sessionId = session.id
   const [state, setState] = useState({ status: 'loading' })
   // Where along the activity (0..1) the charts are being inspected - the map
   // shows a matching position dot.
   const [scrubFrac, setScrubFrac] = useState(null)
 
   useEffect(() => {
-    if (!intervalsId) return undefined
     let alive = true
     setState({ status: 'loading' })
-    fetchActivityAnalysis(intervalsId)
+
+    if (!isOwner) {
+      fetchSharedAnalysis(sessionId)
+        .then((analysis) =>
+          alive && setState(analysis ? { status: 'ready', analysis } : { status: 'none' }),
+        )
+        .catch(() => alive && setState({ status: 'none' }))
+      return () => {
+        alive = false
+      }
+    }
+
+    if (!intervalsId) return undefined
+    fetchActivityAnalysis(intervalsId, { sessionId })
       .then((analysis) => alive && setState({ status: 'ready', analysis }))
       .catch((err) =>
         alive && setState({ status: err?.code === 'no-creds' ? 'no-creds' : 'error' }),
@@ -61,9 +79,10 @@ export default function ActivityAnalysis({ session }) {
     return () => {
       alive = false
     }
-  }, [intervalsId])
+  }, [intervalsId, sessionId, isOwner])
 
-  if (!intervalsId || state.status === 'no-creds') return null
+  if (isOwner && !intervalsId) return null
+  if (state.status === 'no-creds' || state.status === 'none') return null
 
   if (state.status === 'loading') {
     return (
@@ -88,11 +107,15 @@ export default function ActivityAnalysis({ session }) {
   // bucketing). Otherwise the user's own zones re-bucket the recorded stream,
   // falling back to intervals.icu's buckets collapsed to the chosen count
   // when no max HR / custom zones are set yet.
+  // On someone else's activity the stored zones stand as they are: they're the
+  // owner's setup, and reinterpreting their heart rate through your max HR
+  // would be worse than useless.
   const zoneCfg = getHrZoneConfig()
-  const shownHrZones = zoneCfg.useIcu
-    ? hrZones
-    : ((zoneCfg.ceilings ? zonesFromStream(points, zoneCfg.ceilings) : null) ??
-      (hrZones ? collapseZones(hrZones, zoneCfg.count) : null))
+  const shownHrZones =
+    !isOwner || zoneCfg.useIcu
+      ? hrZones
+      : ((zoneCfg.ceilings ? zonesFromStream(points, zoneCfg.ceilings) : null) ??
+        (hrZones ? collapseZones(hrZones, zoneCfg.count) : null))
 
   return (
     <>

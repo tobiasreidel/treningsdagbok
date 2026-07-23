@@ -317,10 +317,12 @@ export default function SessionDetail() {
         </div>
       )}
 
-      {/* Charts come from the viewer's own intervals.icu account, so they only
-          exist for your own sessions - a friend's activity id belongs to their
-          account and their key, which we never have. */}
-      {isEndurance && isOwner && <ActivityAnalysis session={session} />}
+      {/* Your own charts come from intervals.icu; a friend's come from the
+          copy stored when they opened the activity themselves (never their
+          route - see supabase/session_streams.sql). */}
+      {isEndurance && myId && (
+        <ActivityAnalysis session={session} isOwner={Boolean(isOwner)} />
+      )}
 
       {hasWarmupRehab && (
         <div className="detail-block">
