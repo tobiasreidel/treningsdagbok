@@ -7,6 +7,95 @@ const KEYS = {
   dashboardWidgets: 'pref.dashboardWidgets',
   logPeriod: 'pref.logPeriod',
   avatarEmoji: 'pref.avatarEmoji',
+  hrZoneCount: 'pref.hrZoneCount',
+  hrMaxBpm: 'pref.hrMaxBpm',
+  hrZones5: 'pref.hrZones5',
+  hrZones7: 'pref.hrZones7',
+}
+
+// ---- heart rate zones (Profile → Heart rate zones) -------------------------
+// The user picks 5 or 7 zones and either takes the standard boundaries
+// computed from their max HR or edits each boundary by hand. Ceilings are the
+// bpm tops of Z1..Z(n-1); the last zone is everything above. All display-only:
+// session analysis re-buckets the recorded HR stream with these, and falls
+// back to intervals.icu's own zones when nothing is configured here.
+
+// Standard zone ceilings as fractions of max HR (classic 5-zone model; the
+// 7-zone splits follow Friel's running zones expressed against max).
+const HR_ZONE_PCTS = {
+  5: [0.6, 0.7, 0.8, 0.9],
+  7: [0.65, 0.75, 0.82, 0.89, 0.94, 0.97],
+}
+
+// How many heart-rate zones "Time in zones" shows. 7 (default) matches what
+// intervals.icu sends; 5 merges its top zones when falling back.
+export function getHrZoneCount() {
+  try {
+    return localStorage.getItem(KEYS.hrZoneCount) === '5' ? 5 : 7
+  } catch {
+    return 7
+  }
+}
+
+export function setHrZoneCount(n) {
+  if (Number(n) === 5) localStorage.setItem(KEYS.hrZoneCount, '5')
+  else localStorage.removeItem(KEYS.hrZoneCount)
+}
+
+export function getMaxHr() {
+  try {
+    const v = Number(localStorage.getItem(KEYS.hrMaxBpm))
+    return Number.isFinite(v) && v > 0 ? v : null
+  } catch {
+    return null
+  }
+}
+
+export function setMaxHr(bpm) {
+  const v = Number(bpm)
+  if (Number.isFinite(v) && v > 0) localStorage.setItem(KEYS.hrMaxBpm, String(Math.round(v)))
+  else localStorage.removeItem(KEYS.hrMaxBpm)
+}
+
+// Standard ceilings for a zone count, from max HR. Null without a max HR.
+export function standardHrCeilings(count, maxHr = getMaxHr()) {
+  const pcts = HR_ZONE_PCTS[count]
+  if (!pcts || !maxHr) return null
+  return pcts.map((p) => Math.round(maxHr * p))
+}
+
+// Hand-edited ceilings, kept per zone count so switching 5↔7 loses nothing.
+export function getCustomHrCeilings(count) {
+  try {
+    const raw = localStorage.getItem(count === 5 ? KEYS.hrZones5 : KEYS.hrZones7)
+    const arr = raw ? JSON.parse(raw) : null
+    const want = count - 1
+    if (!Array.isArray(arr) || arr.length !== want) return null
+    return arr.every((v, i) => Number.isFinite(v) && v > 0 && (i === 0 || v > arr[i - 1]))
+      ? arr
+      : null
+  } catch {
+    return null
+  }
+}
+
+export function setCustomHrCeilings(count, ceilings) {
+  const key = count === 5 ? KEYS.hrZones5 : KEYS.hrZones7
+  if (Array.isArray(ceilings)) localStorage.setItem(key, JSON.stringify(ceilings))
+  else localStorage.removeItem(key)
+}
+
+// What the analysis should use: hand-edited ceilings win over the standard
+// ones; ceilings stays null until either exists.
+export function getHrZoneConfig() {
+  const count = getHrZoneCount()
+  const custom = getCustomHrCeilings(count)
+  return {
+    count,
+    maxHr: getMaxHr(),
+    ceilings: custom ?? standardHrCeilings(count),
+    isCustom: custom != null,
+  }
 }
 
 // Emoji stand-in avatar (Profile). Used when no photo is uploaded; empty

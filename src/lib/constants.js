@@ -10,6 +10,10 @@ export const SPORTS = {
   finger: { key: 'finger', label: 'Finger', emoji: '🤏', color: 'var(--finger)' },
 }
 
+// Zone colours, cool → hot. Shared by the analysis bars and the Profile zone
+// editor so Z3 is always the same green everywhere.
+export const ZONE_COLORS = ['#94a3b8', '#38bdf8', '#22c55e', '#f59e0b', '#ef4444', '#a855f7', '#ec4899']
+
 // Strength exercises offered in the picker (each logs sets · reps · weight).
 export const STRENGTH_EXERCISES = [
   { key: 'pullups', label: 'Pull-ups' },

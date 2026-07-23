@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
-import { Field } from '../components/ui'
+import { Field, Segmented } from '../components/ui'
 import Avatar from '../components/Avatar'
 import { SettingsIcon, PencilIcon } from '../components/icons'
 import { useAuth } from '../context/AuthContext'
@@ -20,7 +20,19 @@ import {
   injuryDays,
 } from '../lib/health'
 import { formatDayShort, todayISO } from '../lib/format'
-import { getLogPeriod, getAvatarEmoji, setAvatarEmoji } from '../lib/prefs'
+import {
+  getLogPeriod,
+  getAvatarEmoji,
+  setAvatarEmoji,
+  getHrZoneCount,
+  setHrZoneCount,
+  getMaxHr,
+  setMaxHr,
+  getCustomHrCeilings,
+  setCustomHrCeilings,
+  standardHrCeilings,
+} from '../lib/prefs'
+import { ZONE_COLORS } from '../lib/constants'
 
 // Stand-in avatars for anyone who'd rather not upload a photo.
 const AVATAR_EMOJI = ['🚴', '🏃', '🏊', '🧗', '💪', '🔥', '⚡', '🏔️', '🐐', '🦄']
@@ -322,6 +334,8 @@ export default function Profile() {
           <InjuriesCard />
         </section>
 
+        <HrZonesCard onSaved={showFlash} />
+
         <section className="card settings-card stack">
           <button
             type="button"
@@ -339,6 +353,152 @@ export default function Profile() {
 
       {flash && <div className="toast">{flash}</div>}
     </div>
+  )
+}
+
+// Heart rate zone editor: set a max HR to get the standard zones, then adjust
+// any boundary by hand; 5 or 7 zones. Local display prefs (see lib/prefs) -
+// session analysis re-buckets the recorded HR stream with these zones, and
+// falls back to intervals.icu's zones when nothing is set here.
+function HrZonesCard({ onSaved }) {
+  const [count, setCountState] = useState(getHrZoneCount)
+  const [maxHr, setMaxHrInput] = useState(() => (getMaxHr() ? String(getMaxHr()) : ''))
+  const [rev, setRev] = useState(0) // bumped after each commit to re-read prefs
+
+  const custom = getCustomHrCeilings(count)
+  const resolved = custom ?? standardHrCeilings(count, getMaxHr())
+  // Drafts of the editable ceilings (strings while typing); re-synced from the
+  // committed prefs whenever those change.
+  const [draft, setDraft] = useState(() => (resolved ? resolved.map(String) : null))
+  useEffect(() => {
+    setDraft(resolved ? resolved.map(String) : null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [count, rev])
+
+  const commitMaxHr = () => {
+    const v = Number(maxHr)
+    const next = Number.isFinite(v) && v > 0 ? Math.round(v) : null
+    if (next === getMaxHr()) return
+    setMaxHr(next)
+    setMaxHrInput(next ? String(next) : '')
+    setRev((r) => r + 1)
+    onSaved()
+  }
+
+  const chooseCount = (v) => {
+    const n = Number(v)
+    setHrZoneCount(n)
+    setCountState(n)
+    setRev((r) => r + 1)
+    onSaved()
+  }
+
+  const editCeiling = (i, val) =>
+    setDraft((d) => d.map((s, j) => (j === i ? val : s)))
+
+  // All ceilings save together on blur; anything non-numeric or out of order
+  // simply reverts to the last saved state.
+  const commitCeilings = () => {
+    const arr = draft.map((s) => Math.round(Number(s)))
+    if (resolved && arr.every((v, i) => v === resolved[i])) return
+    const ok = arr.every((v, i) => Number.isFinite(v) && v > 0 && (i === 0 || v > arr[i - 1]))
+    if (!ok) {
+      setDraft(resolved ? resolved.map(String) : null)
+      return
+    }
+    setCustomHrCeilings(count, arr)
+    setRev((r) => r + 1)
+    onSaved()
+  }
+
+  const resetToStandard = () => {
+    setCustomHrCeilings(count, null)
+    setRev((r) => r + 1)
+    onSaved('Standard zones')
+  }
+
+  // Lower bound shown for a zone row: one above the previous zone's ceiling.
+  const floorOf = (i) => {
+    const v = Number(draft[i - 1])
+    return Number.isFinite(v) && v > 0 ? `${v + 1}–` : '–'
+  }
+
+  const pcts =
+    count === 5 ? '60 · 70 · 80 · 90% of max' : '65 · 75 · 82 · 89 · 94 · 97% of max'
+
+  return (
+    <section className="card settings-card stack">
+      <h2 className="step-q">Heart rate zones</h2>
+      <Field label="Max heart rate" hint="The standard zone boundaries are computed from this.">
+        <div className="input-suffix">
+          <input
+            type="number"
+            inputMode="numeric"
+            min="0"
+            step="1"
+            value={maxHr}
+            onChange={(e) => setMaxHrInput(e.target.value)}
+            onBlur={commitMaxHr}
+            placeholder="e.g. 190"
+          />
+          <span className="suffix">bpm</span>
+        </div>
+      </Field>
+      <Field label="Zones">
+        <Segmented
+          options={[
+            { key: '5', label: '5 zones' },
+            { key: '7', label: '7 zones' },
+          ]}
+          value={String(count)}
+          onChange={chooseCount}
+          columns={2}
+        />
+      </Field>
+
+      {draft ? (
+        <div className="stack" style={{ gap: 6 }}>
+          {draft.map((val, i) => (
+            <div className="hrz-row" key={i}>
+              <span className="hrz-dot" style={{ background: ZONE_COLORS[i] }} />
+              <span className="hrz-label">Z{i + 1}</span>
+              <span className="hrz-from muted small">{i === 0 ? 'up to' : floorOf(i)}</span>
+              <input
+                className="hrz-input"
+                type="number"
+                inputMode="numeric"
+                value={val}
+                onChange={(e) => editCeiling(i, e.target.value)}
+                onBlur={commitCeilings}
+              />
+              <span className="muted small">bpm</span>
+            </div>
+          ))}
+          <div className="hrz-row">
+            <span className="hrz-dot" style={{ background: ZONE_COLORS[count - 1] }} />
+            <span className="hrz-label">Z{count}</span>
+            <span className="hrz-from muted small">
+              above {Number(draft[draft.length - 1]) || '…'} bpm
+            </span>
+          </div>
+          {custom && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={resetToStandard}>
+              Reset to standard ({pcts})
+            </button>
+          )}
+        </div>
+      ) : (
+        <p className="muted small">
+          Set your max heart rate to get the standard zones ({pcts}) — then
+          adjust any boundary.
+        </p>
+      )}
+
+      <p className="muted small">
+        Used for “Time in zones” on a session’s analysis. Without zones set
+        here, the zones from intervals.icu are shown.
+      </p>
+    </section>
   )
 }
 

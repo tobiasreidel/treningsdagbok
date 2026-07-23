@@ -6,6 +6,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { fetchActivityAnalysis } from '../lib/streams'
+import { getHrZoneConfig } from '../lib/prefs'
+import { ZONE_COLORS } from '../lib/constants'
 
 const VW = 320 // chart viewBox width, matches components/charts.jsx
 
@@ -82,6 +84,13 @@ export default function ActivityAnalysis({ session }) {
   const { points, stats, latlng, hrZones, powerZones, laps } = state.analysis
   const isRun = session.sport === 'running'
 
+  // User-defined zones re-bucket the recorded stream; otherwise show the
+  // intervals.icu zones (collapsed to 5 when that's the preference).
+  const zoneCfg = getHrZoneConfig()
+  const shownHrZones =
+    (zoneCfg.ceilings ? zonesFromStream(points, zoneCfg.ceilings) : null) ??
+    (hrZones ? collapseZones(hrZones, zoneCfg.count) : null)
+
   return (
     <>
       {latlng && (
@@ -102,11 +111,11 @@ export default function ActivityAnalysis({ session }) {
         <Splits points={points} isRun={isRun} />
       )}
 
-      {(hrZones || powerZones) && (
+      {(shownHrZones || powerZones) && (
         <div className="detail-block">
           <h2 className="section-title">Time in zones</h2>
           <div className="stack" style={{ gap: 12 }}>
-            {hrZones && <ZoneBars title="Heart rate" zones={hrZones} />}
+            {shownHrZones && <ZoneBars title="Heart rate" zones={shownHrZones} />}
             {powerZones && <ZoneBars title="Power" zones={powerZones} />}
           </div>
         </div>
@@ -265,9 +274,17 @@ function StreamStrips({ points, stats, isRun, onScrub }) {
       gesture.current = { mode: 'select', startIdx: i, lastIdx: i }
       setSel({ a: i, b: i })
     } else {
-      // Touch inspects right away; holding still for a beat switches to
-      // mark-and-zoom from wherever the finger rests.
-      const g = { mode: 'inspect', startIdx: i, lastIdx: i, moved: false }
+      // Touch scrubs right away; resting the finger ~0.4s arms mark-and-zoom
+      // from wherever it rests. Rest = under 12px of drift - fingers aren't
+      // styluses, an index-based threshold (~4px) could never arm.
+      const g = {
+        mode: 'inspect',
+        startIdx: i,
+        lastIdx: i,
+        x: e.clientX,
+        y: e.clientY,
+        moved: false,
+      }
       g.timer = setTimeout(() => {
         if (!g.moved && gesture.current === g) {
           g.mode = 'select'
@@ -289,7 +306,7 @@ function StreamStrips({ points, stats, isRun, onScrub }) {
       return
     }
     g.lastIdx = i
-    if (Math.abs(i - g.startIdx) > Math.max(2, n * 0.01)) g.moved = true
+    if (g.x != null && Math.hypot(e.clientX - g.x, e.clientY - g.y) > 12) g.moved = true
     if (g.mode === 'select') setSel({ a: g.startIdx, b: i })
     report(i)
   }
@@ -331,11 +348,26 @@ function StreamStrips({ points, stats, isRun, onScrub }) {
       : view.km
         ? `${round1(view.km[0])}–${round1(view.km[n - 1])} km`
         : `${fmtDur(view.t[0])}–${fmtDur(view.t[n - 1])}`
+  // A marking wide enough to zoom shows its span live, so letting go is a
+  // conscious "zoom to this" on both mouse and touch.
+  const selSpan =
+    sel && Math.abs(sel.b - sel.a) >= 8
+      ? [Math.min(sel.a, sel.b), Math.max(sel.a, sel.b)]
+      : null
+  const coarse =
+    typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)')?.matches
 
   return (
     <div className="card strips-card">
       <div className="strips-readout">
-        {idx != null ? (
+        {selSpan ? (
+          <span>
+            Release to zoom ·{' '}
+            {view.km
+              ? `${round1(view.km[selSpan[0]])}–${round1(view.km[selSpan[1]])} km`
+              : `${fmtDur(view.t[selSpan[0]])}–${fmtDur(view.t[selSpan[1]])}`}
+          </span>
+        ) : idx != null ? (
           <span>
             <strong>{atKm != null ? `${round1(atKm)} km` : ''}</strong>
             {atKm != null ? ' · ' : ''}
@@ -344,7 +376,11 @@ function StreamStrips({ points, stats, isRun, onScrub }) {
         ) : range ? (
           <span className="muted">Zoomed · {zoomLabel}</span>
         ) : (
-          <span className="muted">Hover to inspect · drag to zoom in</span>
+          <span className="muted">
+            {coarse
+              ? 'Touch to inspect · hold, then drag to zoom'
+              : 'Hover to inspect · drag to zoom in'}
+          </span>
         )}
         {range && (
           <button type="button" className="link-btn strips-reset" onClick={resetZoom}>
@@ -601,7 +637,51 @@ function Splits({ points, isRun }) {
 }
 
 // ---- time in zones ---------------------------------------------------------
-const ZONE_COLORS = ['#94a3b8', '#38bdf8', '#22c55e', '#f59e0b', '#ef4444', '#a855f7', '#ec4899']
+
+// Bucket the recorded HR stream into the user's own zones (Profile → Heart
+// rate zones). The chart points are ~420 bucket-averages of the 1 Hz stream,
+// so summing their time gaps gives time-in-zone accurate to a few seconds -
+// plenty for these bars, and it means custom zones work on cached analyses.
+function zonesFromStream(points, ceilings) {
+  if (!points?.hr || !points?.t) return null
+  const secs = new Array(ceilings.length + 1).fill(0)
+  // Cap each gap at 3× the average spacing so auto-pause jumps don't count
+  // as time spent in a zone.
+  const maxDt = (3 * points.t[points.n - 1]) / points.n
+  for (let i = 1; i < points.n; i += 1) {
+    const hr = points.hr[i]
+    if (hr == null) continue
+    const dt = Math.min(points.t[i] - points.t[i - 1], maxDt)
+    if (!(dt > 0)) continue
+    const zi = ceilings.findIndex((c) => hr <= c)
+    secs[zi === -1 ? ceilings.length : zi] += dt
+  }
+  if (!secs.some((s) => s > 0)) return null
+  return secs.map((s, i) => ({
+    label: `Z${i + 1}`,
+    secs: Math.round(s),
+    range: i < ceilings.length ? `≤${ceilings[i]}` : `>${ceilings[ceilings.length - 1]}`,
+  }))
+}
+
+// Collapse a zone breakdown to `count` zones by merging the top ones into the
+// last zone (7 → 5 keeps Z1–Z4 and folds Z5–Z7 into Z5). Used when falling
+// back to intervals.icu's zones - cached analyses keep all zones.
+function collapseZones(zones, count) {
+  if (zones.length <= count) return zones
+  const kept = zones.slice(0, count - 1)
+  const merged = zones.slice(count - 1)
+  const prevRange = kept[kept.length - 1]?.range || ''
+  return [
+    ...kept,
+    {
+      label: `Z${count}`,
+      secs: merged.reduce((a, z) => a + z.secs, 0),
+      // The merged zone spans everything above the previous ceiling.
+      range: prevRange.startsWith('≤') ? prevRange.replace('≤', '>') : '',
+    },
+  ]
+}
 
 function ZoneBars({ title, zones }) {
   const total = zones.reduce((a, z) => a + z.secs, 0)
