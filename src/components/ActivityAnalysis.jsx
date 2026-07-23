@@ -82,7 +82,17 @@ export default function ActivityAnalysis({ session, isOwner }) {
   }, [intervalsId, sessionId, isOwner])
 
   if (isOwner && !intervalsId) return null
-  if (state.status === 'no-creds' || state.status === 'none') return null
+  if (state.status === 'no-creds') return null
+  // Silence here just looks broken - say why there's nothing to show.
+  if (state.status === 'none') {
+    return (
+      <p className="muted small">
+        No charts shared for this activity. They show up once its owner has
+        opened it in the app (Settings → “Share charts for older activities”
+        does the whole back catalogue at once).
+      </p>
+    )
+  }
 
   if (state.status === 'loading') {
     return (

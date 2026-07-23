@@ -4,6 +4,8 @@ import { Field, Segmented } from '../components/ui'
 import { SPORTS } from '../lib/constants'
 import { getSettings, saveSettings, fetchActivities, activitySport } from '../lib/intervals'
 import { getShareSetting, setShareSetting } from '../lib/friends'
+import { fetchSessions } from '../lib/sessions'
+import { backfillSharedAnalyses } from '../lib/streams'
 import { sendFeedback } from '../lib/feedback'
 import { deleteAccount } from '../lib/account'
 import { THEMES, getTheme, setTheme } from '../lib/theme'
@@ -58,6 +60,10 @@ export default function Settings() {
   const [fbType, setFbType] = useState('bug')
   const [fbMessage, setFbMessage] = useState('')
   const [fb, setFb] = useState(null) // { pending } | { ok, msg } | { error, msg }
+  // Backfill of shared chart data, so friends can see charts on activities
+  // logged before sharing existed. { running, done, total, msg }
+  const [backfill, setBackfill] = useState(null)
+  const stopBackfill = useRef(false)
   // Delete-account danger zone: hidden behind a reveal + typed confirmation
   // so it can't be triggered by a stray tap.
   const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -121,6 +127,32 @@ export default function Settings() {
       return next
     })
     showFlash()
+  }
+
+  const runBackfill = async () => {
+    stopBackfill.current = false
+    setBackfill({ running: true, done: 0, total: null, msg: 'Looking for activities…' })
+    try {
+      const sessions = await fetchSessions()
+      const res = await backfillSharedAnalyses(sessions, {
+        onProgress: (p) => setBackfill({ running: true, ...p }),
+        shouldStop: () => stopBackfill.current,
+      })
+      setBackfill({
+        running: false,
+        msg: res.total === 0
+          ? 'Everything is already shared.'
+          : `Shared ${res.shared} activit${res.shared === 1 ? 'y' : 'ies'}` +
+            (res.failed ? ` · ${res.failed} couldn’t be read` : '') + '.',
+      })
+    } catch (err) {
+      setBackfill({
+        running: false,
+        msg: err?.code === 'no-table'
+          ? 'Sharing isn’t set up yet — run supabase/session_streams.sql.'
+          : err.message || 'Could not share activities.',
+      })
+    }
   }
 
   const commitShare = (v) => {
@@ -348,6 +380,29 @@ export default function Settings() {
               columns={2}
             />
           </Field>
+
+          {share && (
+            <>
+              <button
+                type="button"
+                className="btn btn-secondary btn-block"
+                onClick={backfill?.running ? () => { stopBackfill.current = true } : runBackfill}
+              >
+                {backfill?.running
+                  ? `Stop (${backfill.done}${backfill.total ? ` / ${backfill.total}` : ''})`
+                  : '📈 Share charts for older activities'}
+              </button>
+              {backfill?.msg && !backfill.running && (
+                <p className="muted small">{backfill.msg}</p>
+              )}
+              <p className="muted small">
+                Friends can’t read your activities from intervals.icu, so charts
+                are shared as a copy — made whenever you open one of your own
+                activities. This shares every older one in a single go. Your
+                route is never shared, only the charts, zones and laps.
+              </p>
+            </>
+          )}
         </section>
 
         <section className="card settings-card stack">

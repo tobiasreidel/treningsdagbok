@@ -222,6 +222,51 @@ async function storeSharedAnalysis(sessionId, analysis) {
   }
 }
 
+// Session ids that already have a shared copy stored (yours, unless you ask
+// for someone else's). Used to skip work when backfilling.
+export async function fetchSharedSessionIds(userId) {
+  try {
+    let q = supabase.from('session_streams').select('session_id')
+    if (userId) q = q.eq('user_id', userId)
+    const { data, error } = await q
+    if (error) return null // table missing / offline: caller decides
+    return new Set((data || []).map((r) => r.session_id))
+  } catch {
+    return null
+  }
+}
+
+// Share charts for rides opened before this existed (or never opened at all).
+// Sequential and paced on purpose: each ride is up to 3 intervals.icu calls,
+// and hammering their API to backfill a back catalogue is rude. Reports
+// progress as it goes and stops when `shouldStop()` turns true.
+export async function backfillSharedAnalyses(sessions, { onProgress, shouldStop } = {}) {
+  const done = await fetchSharedSessionIds()
+  if (done === null) {
+    const err = new Error('Sharing table missing')
+    err.code = 'no-table'
+    throw err
+  }
+  const todo = sessions.filter((s) => s.extra?.intervals_id && !done.has(s.id))
+  let shared = 0
+  let failed = 0
+  for (let i = 0; i < todo.length; i += 1) {
+    if (shouldStop?.()) break
+    const s = todo[i]
+    try {
+      await fetchActivityAnalysis(s.extra.intervals_id, { sessionId: s.id })
+      shared += 1
+    } catch {
+      failed += 1 // one bad activity shouldn't stop the run
+    }
+    onProgress?.({ done: i + 1, total: todo.length, shared, failed })
+    // Breathe between activities - this runs in the background of a settings
+    // screen, not a race.
+    if (i < todo.length - 1) await new Promise((r) => setTimeout(r, 250))
+  }
+  return { shared, failed, total: todo.length }
+}
+
 // The shared copy of someone else's activity, or null when they haven't
 // opened it since sharing existed (nothing to show, no error either).
 export async function fetchSharedAnalysis(sessionId) {
