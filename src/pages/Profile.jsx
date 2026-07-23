@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
 import { Field, Segmented } from '../components/ui'
+import { SPORTS } from '../lib/constants'
 import Avatar from '../components/Avatar'
 import { SettingsIcon, PencilIcon } from '../components/icons'
 import { useAuth } from '../context/AuthContext'
@@ -33,8 +34,17 @@ import {
   standardHrCeilings,
   getUseIcuZones,
   setUseIcuZones,
+  getGearSports,
 } from '../lib/prefs'
 import { ZONE_COLORS } from '../lib/constants'
+import {
+  fetchGearEvents,
+  addGearEvent,
+  deleteGearEvent,
+  gearStatus,
+  formatWear,
+  GEAR_SUGGESTIONS,
+} from '../lib/gear'
 
 // Stand-in avatars for anyone who'd rather not upload a photo.
 const AVATAR_EMOJI = ['🚴', '🏃', '🏊', '🧗', '💪', '🔥', '⚡', '🏔️', '🐐', '🦄']
@@ -50,6 +60,7 @@ export default function Profile() {
   const [avatarBusy, setAvatarBusy] = useState(false)
   const [avatarErr, setAvatarErr] = useState(null)
   const [lifetime, setLifetime] = useState(null) // {count, hours, streak}
+  const [sessions, setSessions] = useState([]) // full rows, for the gear card
   const [cycle, setCycle] = useState(null)
   const [loading, setLoading] = useState(true)
   const [flash, setFlash] = useState(null)
@@ -68,13 +79,14 @@ export default function Profile() {
       .finally(() => setLoading(false))
     // Lifetime numbers make it feel like an athlete page, not a form.
     fetchSessions()
-      .then((rows) =>
+      .then((rows) => {
+        setSessions(rows)
         setLifetime({
           count: rows.length,
           hours: round1(sumHours(rows)),
           streak: currentWeekStreak(rows),
-        }),
-      )
+        })
+      })
       .catch(() => {})
     return () => clearTimeout(flashTimer.current)
   }, [])
@@ -336,6 +348,8 @@ export default function Profile() {
           <InjuriesCard />
         </section>
 
+        <GearCard sessions={sessions} onSaved={showFlash} />
+
         <HrZonesCard onSaved={showFlash} />
 
         <section className="card settings-card stack">
@@ -354,6 +368,159 @@ export default function Profile() {
       </main>
 
       {flash && <div className="toast">{flash}</div>}
+    </div>
+  )
+}
+
+// Gear wear & maintenance, unlocked per sport in Settings. One block per
+// enabled sport: the wear table - how far/how many sessions since each
+// latest event - plus quick chips and a small form to log new work. The ✕ on
+// a row deletes that latest event, un-doing a mislog and revealing the state
+// before it.
+function GearCard({ sessions, onSaved }) {
+  const gearSports = getGearSports()
+  const [events, setEvents] = useState(null) // null = loading
+  const [loadErr, setLoadErr] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  const load = () =>
+    fetchGearEvents()
+      .then((rows) => {
+        setEvents(rows)
+        setLoadErr(false)
+      })
+      .catch(() => {
+        setEvents([])
+        setLoadErr(true)
+      })
+
+  useEffect(() => {
+    if (getGearSports().length) load()
+  }, [])
+
+  if (!gearSports.length) return null
+
+  const act = async (fn) => {
+    setBusy(true)
+    try {
+      await fn()
+      await load()
+      onSaved()
+    } catch {
+      setLoadErr(true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="card settings-card stack">
+      <h2 className="step-q">Gear</h2>
+      {loadErr && (
+        <p className="auth-error">
+          Couldn’t load gear. Has supabase/gear.sql been run?
+        </p>
+      )}
+      {gearSports.map((sport) => (
+        <GearSportBlock
+          key={sport}
+          sport={sport}
+          events={events}
+          sessions={sessions}
+          busy={busy}
+          act={act}
+        />
+      ))}
+    </section>
+  )
+}
+
+function GearSportBlock({ sport, events, sessions, busy, act }) {
+  const [label, setLabel] = useState('')
+  const [date, setDate] = useState(todayISO())
+  const meta = SPORTS[sport]
+  const rows = events ? gearStatus(events, sessions, sport) : []
+
+  const add = () =>
+    act(async () => {
+      await addGearEvent(sport, label, date)
+      setLabel('')
+      setDate(todayISO())
+    })
+
+  return (
+    <div className="stack" style={{ gap: 8 }}>
+      <span className="field-label">
+        {meta.emoji} {meta.label}
+      </span>
+
+      {rows.length > 0 && (
+        <div className="toggle-list">
+          {rows.map((r) => (
+            <div className="gear-row" key={r.id}>
+              <span className="gear-main">
+                <span className="gear-label">{r.label}</span>
+                <span className="muted small">since {formatDayShort(r.date)}</span>
+              </span>
+              <span className="gear-wear">{formatWear(r.value, sport)}</span>
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label={`Delete ${r.label}`}
+                disabled={busy}
+                onClick={() => act(() => deleteGearEvent(r.id))}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      {events !== null && rows.length === 0 && (
+        <p className="muted small">
+          Nothing logged yet — log when you last serviced or replaced something,
+          and the wear since shows here.
+        </p>
+      )}
+
+      <div className="chips">
+        {GEAR_SUGGESTIONS[sport].map((s) => (
+          <button
+            key={s}
+            type="button"
+            className={`chip ${label === s ? 'is-active' : ''}`}
+            onClick={() => setLabel(label === s ? '' : s)}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+      <div className="wr-row">
+        <input
+          type="text"
+          value={label}
+          maxLength={100}
+          onChange={(e) => setLabel(e.target.value)}
+          placeholder={sport === 'cycling' ? 'e.g. New front tire' : 'e.g. New shoes'}
+        />
+      </div>
+      <div className="wr-row">
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          style={{ flex: '0 0 160px' }}
+        />
+        <button
+          type="button"
+          className="btn btn-secondary"
+          style={{ flex: 1 }}
+          disabled={!label.trim() || !date || busy}
+          onClick={add}
+        >
+          + Log
+        </button>
+      </div>
     </div>
   )
 }

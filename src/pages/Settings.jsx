@@ -15,8 +15,18 @@ import {
   setEnabledSports,
   getLogPeriod,
   setLogPeriod,
+  getGearSports,
+  setGearSports,
+  GEAR_SPORTS,
   ALL_SPORTS,
 } from '../lib/prefs'
+
+// What the per-sport gear toggle promises, in that sport's own vocabulary.
+const GEAR_TOGGLE_LABELS = {
+  cycling: 'Log bike maintenance',
+  running: 'Log running shoes',
+  climbing: 'Log climbing wear',
+}
 
 const DELETE_CONFIRM_WORD = 'DELETE'
 
@@ -33,6 +43,7 @@ export default function Settings() {
   })
   const [enabledSports, setEnabledSportsState] = useState(getEnabledSports)
   const [logPeriod, setLogPeriodState] = useState(getLogPeriod)
+  const [gearSports, setGearSportsState] = useState(getGearSports)
   const [share, setShare] = useState(true)
   const [theme, setThemeState] = useState(getTheme)
   const [loading, setLoading] = useState(true)
@@ -99,6 +110,15 @@ export default function Settings() {
     setLogPeriodState((prev) => {
       setLogPeriod(!prev)
       return !prev
+    })
+    showFlash()
+  }
+
+  const toggleGearSport = (key) => {
+    setGearSportsState((prev) => {
+      const next = prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+      setGearSports(next)
+      return next
     })
     showFlash()
   }
@@ -283,6 +303,36 @@ export default function Settings() {
             stats show on your profile. Only you can ever see this, never
             friends or coaches.
           </p>
+        </section>
+
+        <section className="card settings-card stack">
+          <h2 className="step-q">Gear</h2>
+          <p className="muted small">
+            Track wear and maintenance — new tires, chain oiling, shoe resoles.
+            Turn it on per sport; logging lives on your profile.
+          </p>
+          <div className="toggle-list">
+            {GEAR_SPORTS.filter((k) => enabledSports.includes(k)).map((key) => {
+              const sport = SPORTS[key]
+              return (
+                <label className="toggle-row" key={key}>
+                  <span className="toggle-label">
+                    <span className="toggle-emoji">{sport.emoji}</span>
+                    {GEAR_TOGGLE_LABELS[key]}
+                  </span>
+                  <span className="switch">
+                    <input
+                      type="checkbox"
+                      checked={gearSports.includes(key)}
+                      onChange={() => toggleGearSport(key)}
+                    />
+                    <span className="switch-track" />
+                    <span className="switch-thumb" />
+                  </span>
+                </label>
+              )
+            })}
+          </div>
         </section>
 
         <section className="card settings-card stack">

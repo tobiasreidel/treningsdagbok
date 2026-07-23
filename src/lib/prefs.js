@@ -12,6 +12,28 @@ const KEYS = {
   hrZones5: 'pref.hrZones5',
   hrZones7: 'pref.hrZones7',
   hrUseIcu: 'pref.hrUseIcuZones',
+  gearSports: 'pref.gearSports',
+}
+
+// ---- gear logging (Settings → Gear, logging on Profile) --------------------
+// Per-sport and independent: tracking climbing shoe wear says nothing about
+// wanting bike maintenance logs. All off by default.
+export const GEAR_SPORTS = ['cycling', 'running', 'climbing']
+
+export function getGearSports() {
+  try {
+    const raw = localStorage.getItem(KEYS.gearSports)
+    const saved = raw ? JSON.parse(raw) : []
+    return GEAR_SPORTS.filter((k) => Array.isArray(saved) && saved.includes(k))
+  } catch {
+    return []
+  }
+}
+
+export function setGearSports(keys) {
+  const kept = GEAR_SPORTS.filter((k) => keys.includes(k))
+  if (kept.length) localStorage.setItem(KEYS.gearSports, JSON.stringify(kept))
+  else localStorage.removeItem(KEYS.gearSports)
 }
 
 // ---- heart rate zones (Profile → Heart rate zones) -------------------------
