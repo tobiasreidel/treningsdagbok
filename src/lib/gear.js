@@ -14,6 +14,8 @@ import { todayISO } from './format'
 export const GEAR_NOUN = { cycling: 'bike', running: 'shoes', climbing: 'shoes' }
 
 // Suggested event labels per sport - shown as quick chips, free text also OK.
+// These are work done ON an item (parts, services). "New shoes" is not here:
+// a new pair is a new gear item, not maintenance on the old one.
 export const GEAR_SUGGESTIONS = {
   cycling: [
     'Oiled chain',
@@ -24,8 +26,8 @@ export const GEAR_SUGGESTIONS = {
     'New rear tire',
     'New brake pads',
   ],
-  running: ['New shoes'],
-  climbing: ['New shoes', 'Resoled'],
+  running: ['New insoles'],
+  climbing: ['Resoled'],
 }
 
 // ---- items -----------------------------------------------------------------

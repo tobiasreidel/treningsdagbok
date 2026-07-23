@@ -630,7 +630,13 @@ function GearSportBlock({ sport, items, events, sessions, ready, busy, act }) {
               value={label}
               maxLength={100}
               onChange={(e) => setLabel(e.target.value)}
-              placeholder={sport === 'cycling' ? 'e.g. New front tire' : 'e.g. New shoes'}
+              placeholder={
+                sport === 'cycling'
+                  ? 'e.g. New front tire'
+                  : sport === 'climbing'
+                    ? 'e.g. Resoled'
+                    : 'e.g. New insoles'
+              }
             />
           </div>
           <div className="wr-row">
