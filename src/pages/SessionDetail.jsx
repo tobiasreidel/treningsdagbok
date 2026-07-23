@@ -317,7 +317,10 @@ export default function SessionDetail() {
         </div>
       )}
 
-      {isEndurance && <ActivityAnalysis session={session} />}
+      {/* Charts come from the viewer's own intervals.icu account, so they only
+          exist for your own sessions - a friend's activity id belongs to their
+          account and their key, which we never have. */}
+      {isEndurance && isOwner && <ActivityAnalysis session={session} />}
 
       {hasWarmupRehab && (
         <div className="detail-block">
