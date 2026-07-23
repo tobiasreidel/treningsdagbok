@@ -177,27 +177,54 @@ function laps(activity) {
 
 // Fetch (or serve cached) analysis for one imported activity. Returns
 //   { points, latlng, hrZones, powerZones, laps, hasStreams }
-// Throws with .code = 'no-creds' when intervals.icu isn't connected.
+// Streams and the GPS track never change once an activity is done, so those
+// stay cached forever. Zones and laps follow the athlete's *current*
+// intervals.icu settings (switching 7→5 zones, a new max HR, edited laps),
+// so that small record is re-fetched on every open and merged over the
+// cache - falling back to the cached copy when offline.
+// Throws with .code = 'no-creds' when intervals.icu isn't connected and
+// nothing is cached.
 export async function fetchActivityAnalysis(intervalsId) {
   const id = String(intervalsId)
-  if (memory.has(id)) return memory.get(id)
-
   const cacheKey = CACHE_PREFIX + id
-  try {
-    const cached = await idbGet(cacheKey)
-    if (cached) {
-      memory.set(id, cached)
-      return cached
+
+  let cached = memory.get(id)
+  if (!cached) {
+    try {
+      cached = await idbGet(cacheKey)
+    } catch {
+      // idb unavailable (private mode) - just fetch
     }
-  } catch {
-    // idb unavailable (private mode) - just fetch
+    if (cached) memory.set(id, cached)
   }
 
   const settings = await getSettings()
   if (!hasCredentials(settings)) {
+    if (cached) return cached
     const err = new Error('intervals.icu is not connected')
     err.code = 'no-creds'
     throw err
+  }
+
+  if (cached) {
+    try {
+      const activity = await apiGet(`/activity/${id}?intervals=true`, settings.apiKey)
+      const fresh = {
+        ...cached,
+        hrZones: hrZones(activity),
+        powerZones: powerZones(activity),
+        laps: laps(activity),
+      }
+      memory.set(id, fresh)
+      try {
+        await idbSet(cacheKey, fresh)
+      } catch {
+        // best-effort cache
+      }
+      return fresh
+    } catch {
+      return cached // offline or API hiccup: stale zones beat no analysis
+    }
   }
 
   const typesQ = `types=${STREAM_TYPES.join(',')}`
