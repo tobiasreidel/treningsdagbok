@@ -4,6 +4,7 @@ import { isConfigured } from './lib/supabase'
 import { useAuth } from './context/AuthContext'
 import { flushOutbox, notifySessionsChanged } from './lib/sessions'
 import { autoImportNewActivities } from './lib/intervals'
+import { autoShareAnalyses } from './lib/streams'
 import { isOnboarded } from './lib/prefs'
 import SetupNeeded from './components/SetupNeeded'
 import Onboarding from './components/Onboarding'
@@ -47,6 +48,11 @@ export default function App() {
           new CustomEvent('activities:imported', { detail: { count: imported } }),
         )
       }
+      // Friends can't read your activities from intervals.icu, so a copy of
+      // each one's charts is stored for them. Runs here (not just on the
+      // settings screen) so "Friends can see" needs no follow-up visit
+      // anywhere. Cheap once everything is shared: a single query.
+      autoShareAnalyses()
     }
     sync()
     window.addEventListener('online', sync)

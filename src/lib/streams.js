@@ -236,11 +236,10 @@ export async function fetchSharedSessionIds(userId) {
   }
 }
 
-// Share charts for rides opened before this existed (or never opened at all).
-// Sequential and paced on purpose: each ride is up to 3 intervals.icu calls,
-// and hammering their API to backfill a back catalogue is rude. Reports
-// progress as it goes and stops when `shouldStop()` turns true.
-export async function backfillSharedAnalyses(sessions, { onProgress, shouldStop } = {}) {
+// Share charts for activities not shared yet. Sequential and paced on
+// purpose: each is up to 3 intervals.icu calls, and hammering their API to
+// push a back catalogue is rude.
+async function runBackfill(sessions, shouldStop) {
   const done = await fetchSharedSessionIds()
   if (done === null) {
     const err = new Error('Sharing table missing')
@@ -259,12 +258,56 @@ export async function backfillSharedAnalyses(sessions, { onProgress, shouldStop 
     } catch {
       failed += 1 // one bad activity shouldn't stop the run
     }
-    onProgress?.({ done: i + 1, total: todo.length, shared, failed })
-    // Breathe between activities - this runs in the background of a settings
-    // screen, not a race.
+    emitProgress({ done: i + 1, total: todo.length, shared, failed })
+    // Breathe between activities - this is background work, not a race.
     if (i < todo.length - 1) await new Promise((r) => setTimeout(r, 250))
   }
   return { shared, failed, total: todo.length }
+}
+
+// App open and the settings screen can both ask for this; only one run ever
+// happens, and every caller watching gets its progress. `shouldStop` belongs
+// to whoever starts the run.
+let backfillInFlight = null
+const progressListeners = new Set()
+
+function emitProgress(p) {
+  for (const fn of progressListeners) {
+    try {
+      fn(p)
+    } catch {
+      // a listener blowing up must not stop the run
+    }
+  }
+}
+
+export function backfillSharedAnalyses(sessions, { onProgress, shouldStop } = {}) {
+  if (onProgress) progressListeners.add(onProgress)
+  if (!backfillInFlight) {
+    backfillInFlight = runBackfill(sessions, shouldStop).finally(() => {
+      backfillInFlight = null
+    })
+  }
+  const run = backfillInFlight
+  if (!onProgress) return run
+  return run.finally(() => progressListeners.delete(onProgress))
+}
+
+// Called on app open: share whatever isn't shared yet, but only while the
+// user actually wants friends to see their activities. Silent and
+// best-effort - it must never get in the way of using the app.
+export async function autoShareAnalyses() {
+  try {
+    const [{ getShareSetting }, { fetchSessions }] = await Promise.all([
+      import('./friends'),
+      import('./sessions'),
+    ])
+    if (!(await getShareSetting())) return null
+    const sessions = await fetchSessions()
+    return await backfillSharedAnalyses(sessions)
+  } catch {
+    return null // no creds, table missing, offline - all fine, try again later
+  }
 }
 
 // The shared copy of someone else's activity, or null when they haven't
