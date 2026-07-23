@@ -84,12 +84,15 @@ export default function ActivityAnalysis({ session }) {
   const { points, stats, latlng, hrZones, powerZones, laps } = state.analysis
   const isRun = session.sport === 'running'
 
-  // User-defined zones re-bucket the recorded stream; otherwise show the
-  // intervals.icu zones (collapsed to 5 when that's the preference).
+  // "Use intervals.icu zones" shows them exactly as sent (their count, their
+  // bucketing). Otherwise the user's own zones re-bucket the recorded stream,
+  // falling back to intervals.icu's buckets collapsed to the chosen count
+  // when no max HR / custom zones are set yet.
   const zoneCfg = getHrZoneConfig()
-  const shownHrZones =
-    (zoneCfg.ceilings ? zonesFromStream(points, zoneCfg.ceilings) : null) ??
-    (hrZones ? collapseZones(hrZones, zoneCfg.count) : null)
+  const shownHrZones = zoneCfg.useIcu
+    ? hrZones
+    : ((zoneCfg.ceilings ? zonesFromStream(points, zoneCfg.ceilings) : null) ??
+      (hrZones ? collapseZones(hrZones, zoneCfg.count) : null))
 
   return (
     <>
@@ -220,16 +223,18 @@ function sliceView(points, range) {
   }
 }
 
-// Interaction model (Strava-style):
+// Interaction model:
 //   mouse:  hover = inspect · press-drag = mark a region, release zooms into it
-//   touch:  drag = inspect · hold still briefly, then drag = mark & zoom
+//   touch:  one finger slides the inspector · two fingers frame a region,
+//           lifting zooms into it
 // Double-click / the reset button restore the full activity.
 function StreamStrips({ points, stats, isRun, onScrub }) {
   const [idx, setIdx] = useState(null) // index within the current (zoomed) view
   const [range, setRange] = useState(null) // [from, to] into the full arrays
   const [sel, setSel] = useState(null) // {a, b} view indices while marking
   const wrapRef = useRef(null)
-  const gesture = useRef(null) // live pointer gesture, kept out of state
+  const gesture = useRef(null) // live mouse gesture, kept out of state
+  const touches = useRef(new Map()) // pointerId -> view index, for live fingers
 
   const view = useMemo(() => sliceView(points, range), [points, range])
   const n = view.n
@@ -262,6 +267,18 @@ function StreamStrips({ points, stats, isRun, onScrub }) {
     return Math.max(0, Math.min(n - 1, Math.round(frac * (n - 1))))
   }
 
+  // Zoom into [a, b] view indices - keep ≥8 points so the zoomed charts
+  // still have a shape.
+  const zoomTo = (a, b) => {
+    setSel(null)
+    if (Math.abs(b - a) >= 8) {
+      setRange([offset + Math.min(a, b), offset + Math.max(a, b)])
+      report(null)
+      return true
+    }
+    return false
+  }
+
   const onPointerDown = (e) => {
     try {
       wrapRef.current?.setPointerCapture?.(e.pointerId)
@@ -271,67 +288,67 @@ function StreamStrips({ points, stats, isRun, onScrub }) {
     }
     const i = idxFromEvent(e)
     if (e.pointerType === 'mouse') {
-      gesture.current = { mode: 'select', startIdx: i, lastIdx: i }
+      gesture.current = { startIdx: i, lastIdx: i }
       setSel({ a: i, b: i })
-    } else {
-      // Touch scrubs right away; resting the finger ~0.4s arms mark-and-zoom
-      // from wherever it rests. Rest = under 12px of drift - fingers aren't
-      // styluses, an index-based threshold (~4px) could never arm.
-      const g = {
-        mode: 'inspect',
-        startIdx: i,
-        lastIdx: i,
-        x: e.clientX,
-        y: e.clientY,
-        moved: false,
-      }
-      g.timer = setTimeout(() => {
-        if (!g.moved && gesture.current === g) {
-          g.mode = 'select'
-          g.startIdx = g.lastIdx
-          setSel({ a: g.lastIdx, b: g.lastIdx })
-        }
-      }, 400)
-      gesture.current = g
+      report(i)
+      return
     }
-    report(i)
+    if (touches.current.size >= 2) return // ignore a 3rd finger
+    touches.current.set(e.pointerId, i)
+    if (touches.current.size === 2) {
+      const [a, b] = [...touches.current.values()]
+      setSel({ a, b })
+      report(null)
+    } else {
+      report(i)
+    }
   }
 
   const onPointerMove = (e) => {
     const i = idxFromEvent(e)
-    const g = gesture.current
-    if (!g) {
-      // Nothing pressed: plain mouse hover inspects.
-      if (e.pointerType === 'mouse') report(i)
+    if (e.pointerType === 'mouse') {
+      const g = gesture.current
+      if (!g) {
+        report(i) // plain hover inspects
+        return
+      }
+      g.lastIdx = i
+      setSel({ a: g.startIdx, b: i })
+      report(i)
       return
     }
-    g.lastIdx = i
-    if (g.x != null && Math.hypot(e.clientX - g.x, e.clientY - g.y) > 12) g.moved = true
-    if (g.mode === 'select') setSel({ a: g.startIdx, b: i })
-    report(i)
+    if (!touches.current.has(e.pointerId)) return
+    touches.current.set(e.pointerId, i)
+    if (touches.current.size === 2) {
+      const [a, b] = [...touches.current.values()]
+      setSel({ a, b })
+    } else {
+      report(i)
+    }
   }
 
   const onPointerUp = (e) => {
-    const g = gesture.current
-    gesture.current = null
-    if (g?.timer) clearTimeout(g.timer)
-    if (g?.mode === 'select') {
-      const a = Math.min(g.startIdx, g.lastIdx)
-      const b = Math.max(g.startIdx, g.lastIdx)
+    const cancelled = e.type === 'pointercancel'
+    if (e.pointerType === 'mouse') {
+      const g = gesture.current
+      gesture.current = null
+      if (g && !cancelled && zoomTo(g.startIdx, g.lastIdx)) return
       setSel(null)
-      // A deliberate marking (not just a click) zooms in - keep ≥8 points so
-      // the zoomed charts still have a shape.
-      if (b - a >= 8) {
-        setRange([offset + a, offset + b])
-        report(null)
-        return
-      }
+      return
     }
-    if (e.pointerType !== 'mouse') report(null)
+    if (!touches.current.has(e.pointerId)) return
+    const two = touches.current.size === 2
+    const [a, b] = [...touches.current.values()]
+    // Lifting either finger of a pair commits the framed region; the leftover
+    // finger is forgotten so it doesn't scrub the freshly zoomed view.
+    touches.current.clear()
+    if (two && !cancelled && zoomTo(a, b)) return
+    setSel(null)
+    report(null)
   }
 
   const onPointerLeave = () => {
-    if (!gesture.current) report(null)
+    if (!gesture.current && touches.current.size === 0) report(null)
   }
 
   const resetZoom = () => {
@@ -378,7 +395,7 @@ function StreamStrips({ points, stats, isRun, onScrub }) {
         ) : (
           <span className="muted">
             {coarse
-              ? 'Touch to inspect · hold, then drag to zoom'
+              ? 'Slide to inspect · two fingers to zoom'
               : 'Hover to inspect · drag to zoom in'}
           </span>
         )}

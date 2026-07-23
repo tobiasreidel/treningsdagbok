@@ -11,6 +11,7 @@ const KEYS = {
   hrMaxBpm: 'pref.hrMaxBpm',
   hrZones5: 'pref.hrZones5',
   hrZones7: 'pref.hrZones7',
+  hrUseIcu: 'pref.hrUseIcuZones',
 }
 
 // ---- heart rate zones (Profile → Heart rate zones) -------------------------
@@ -27,18 +28,33 @@ const HR_ZONE_PCTS = {
   7: [0.65, 0.75, 0.82, 0.89, 0.94, 0.97],
 }
 
-// How many heart-rate zones "Time in zones" shows. 7 (default) matches what
-// intervals.icu sends; 5 merges its top zones when falling back.
+// Take the zones straight from intervals.icu (their count and boundaries,
+// bucketed by intervals) instead of the app's own. On by default - it matches
+// what the app always did before zones became editable.
+export function getUseIcuZones() {
+  try {
+    return localStorage.getItem(KEYS.hrUseIcu) !== '0'
+  } catch {
+    return true
+  }
+}
+
+export function setUseIcuZones(on) {
+  if (on) localStorage.removeItem(KEYS.hrUseIcu)
+  else localStorage.setItem(KEYS.hrUseIcu, '0')
+}
+
+// How many zones the app's own model uses. 5 is the standard.
 export function getHrZoneCount() {
   try {
-    return localStorage.getItem(KEYS.hrZoneCount) === '5' ? 5 : 7
+    return localStorage.getItem(KEYS.hrZoneCount) === '7' ? 7 : 5
   } catch {
-    return 7
+    return 5
   }
 }
 
 export function setHrZoneCount(n) {
-  if (Number(n) === 5) localStorage.setItem(KEYS.hrZoneCount, '5')
+  if (Number(n) === 7) localStorage.setItem(KEYS.hrZoneCount, '7')
   else localStorage.removeItem(KEYS.hrZoneCount)
 }
 
@@ -85,12 +101,14 @@ export function setCustomHrCeilings(count, ceilings) {
   else localStorage.removeItem(key)
 }
 
-// What the analysis should use: hand-edited ceilings win over the standard
-// ones; ceilings stays null until either exists.
+// What the analysis should use. With useIcu the rest is moot (intervals.icu's
+// zones show as sent); otherwise hand-edited ceilings win over the standard
+// ones, and ceilings stays null until either exists.
 export function getHrZoneConfig() {
   const count = getHrZoneCount()
   const custom = getCustomHrCeilings(count)
   return {
+    useIcu: getUseIcuZones(),
     count,
     maxHr: getMaxHr(),
     ceilings: custom ?? standardHrCeilings(count),

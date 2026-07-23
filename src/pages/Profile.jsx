@@ -31,6 +31,8 @@ import {
   getCustomHrCeilings,
   setCustomHrCeilings,
   standardHrCeilings,
+  getUseIcuZones,
+  setUseIcuZones,
 } from '../lib/prefs'
 import { ZONE_COLORS } from '../lib/constants'
 
@@ -361,6 +363,7 @@ export default function Profile() {
 // session analysis re-buckets the recorded HR stream with these zones, and
 // falls back to intervals.icu's zones when nothing is set here.
 function HrZonesCard({ onSaved }) {
+  const [useIcu, setUseIcuState] = useState(getUseIcuZones)
   const [count, setCountState] = useState(getHrZoneCount)
   const [maxHr, setMaxHrInput] = useState(() => (getMaxHr() ? String(getMaxHr()) : ''))
   const [rev, setRev] = useState(0) // bumped after each commit to re-read prefs
@@ -374,6 +377,15 @@ function HrZonesCard({ onSaved }) {
     setDraft(resolved ? resolved.map(String) : null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [count, rev])
+
+  const toggleUseIcu = () => {
+    setUseIcuState((prev) => {
+      setUseIcuZones(!prev)
+      return !prev
+    })
+    setRev((r) => r + 1)
+    onSaved()
+  }
 
   const commitMaxHr = () => {
     const v = Number(maxHr)
@@ -429,6 +441,25 @@ function HrZonesCard({ onSaved }) {
   return (
     <section className="card settings-card stack">
       <h2 className="step-q">Heart rate zones</h2>
+      <div className="toggle-list">
+        <label className="toggle-row">
+          <span className="toggle-label">Use intervals.icu zones</span>
+          <span className="switch">
+            <input type="checkbox" checked={useIcu} onChange={toggleUseIcu} />
+            <span className="switch-track" />
+            <span className="switch-thumb" />
+          </span>
+        </label>
+      </div>
+
+      {useIcu ? (
+        <p className="muted small">
+          “Time in zones” shows the zones exactly as set up on intervals.icu —
+          5 or 7, whatever you use there. Turn this off to define your own
+          zones instead.
+        </p>
+      ) : (
+        <>
       <Field label="Max heart rate" hint="The standard zone boundaries are computed from this.">
         <div className="input-suffix">
           <input
@@ -495,9 +526,10 @@ function HrZonesCard({ onSaved }) {
       )}
 
       <p className="muted small">
-        Used for “Time in zones” on a session’s analysis. Without zones set
-        here, the zones from intervals.icu are shown.
+        Used for “Time in zones” on a session’s analysis.
       </p>
+        </>
+      )}
     </section>
   )
 }

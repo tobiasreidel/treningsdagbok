@@ -1551,7 +1551,9 @@ textarea {
 
 /* Fitness & form card (per-sport, Stats) */
 .fitness-chart {
-  touch-action: pan-y; /* horizontal drags scrub, vertical still scrolls */
+  /* Same as .strips: pan-y let iOS claim sloppy drags as scrolls, so fingers
+     couldn't scrub. Scroll the page from outside the chart. */
+  touch-action: none;
   cursor: crosshair;
   user-select: none;
   -webkit-user-select: none;
