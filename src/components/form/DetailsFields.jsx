@@ -1,6 +1,9 @@
+import { useEffect, useState } from 'react'
 import { Field, Scale, NumberField, Chips, Segmented } from '../ui'
 import { FEELING_LABELS, gradesFor, formatGrade } from '../../lib/constants'
 import { avgSpeedFrom, pacePerKm, pacePer100m } from '../../lib/format'
+import { getGearSports } from '../../lib/prefs'
+import { fetchGearItems, GEAR_NOUN } from '../../lib/gear'
 
 // Step 3 fields: subjective ratings, duration, and sport-specific numbers.
 export default function DetailsFields({ form, update, updateExtra }) {
@@ -103,11 +106,52 @@ export default function DetailsFields({ form, update, updateExtra }) {
         </div>
       </Field>
 
+      <GearPicker sport={form.sport} extra={extra} updateExtra={updateExtra} />
+
       {isCycling && <CyclingFields form={form} updateExtra={updateExtra} />}
       {isClimbing && <ClimbingFields form={form} updateExtra={updateExtra} />}
       {isRunning && <RunningFields form={form} updateExtra={updateExtra} />}
       {isSwimming && <SwimmingFields form={form} updateExtra={updateExtra} />}
     </div>
+  )
+}
+
+// Which bike / pair of shoes the session was on (extra.gear_id). Only shows
+// when gear logging is on for the sport AND there's a real choice - with one
+// item (or none) the main one is assumed and nothing needs asking. Sessions
+// that never stored a choice fall to the main item in the wear math, so the
+// default selection here is just made visible, not stored.
+function GearPicker({ sport, extra, updateExtra }) {
+  const [items, setItems] = useState(null)
+
+  useEffect(() => {
+    let alive = true
+    if (!getGearSports().includes(sport)) {
+      setItems(null)
+      return undefined
+    }
+    fetchGearItems()
+      .then((all) => alive && setItems(all.filter((i) => i.sport === sport)))
+      .catch(() => alive && setItems(null))
+    return () => {
+      alive = false
+    }
+  }, [sport])
+
+  if (!items || items.length < 2) return null
+
+  const main = items.find((i) => i.is_main)
+  const selected = extra.gear_id ?? main?.id ?? null
+
+  return (
+    <Field label={sport === 'cycling' ? 'Bike' : 'Shoes'}>
+      <Segmented
+        options={items.map((i) => ({ key: i.id, label: i.name }))}
+        value={selected}
+        onChange={(v) => updateExtra({ gear_id: v })}
+        columns={2}
+      />
+    </Field>
   )
 }
 

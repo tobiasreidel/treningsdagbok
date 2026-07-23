@@ -38,11 +38,17 @@ import {
 } from '../lib/prefs'
 import { ZONE_COLORS } from '../lib/constants'
 import {
+  fetchGearItems,
+  addGearItem,
+  setMainGearItem,
+  deleteGearItem,
+  itemTotalWear,
   fetchGearEvents,
   addGearEvent,
   deleteGearEvent,
   gearStatus,
   formatWear,
+  GEAR_NOUN,
   GEAR_SUGGESTIONS,
 } from '../lib/gear'
 
@@ -372,24 +378,27 @@ export default function Profile() {
   )
 }
 
-// Gear wear & maintenance, unlocked per sport in Settings. One block per
-// enabled sport: the wear table - how far/how many sessions since each
-// latest event - plus quick chips and a small form to log new work. The ✕ on
-// a row deletes that latest event, un-doing a mislog and revealing the state
-// before it.
+// Gear, unlocked per sport in Settings. Each sport lists its equipment
+// (bikes, shoe pairs) - one is "main" and absorbs every session that doesn't
+// name an item. Tapping an item opens its maintenance table: wear since each
+// latest event, a "↻ Today" to log the same work done today, chips + free
+// text + date to log anything else (or back-log with an earlier date).
 function GearCard({ sessions, onSaved }) {
   const gearSports = getGearSports()
-  const [events, setEvents] = useState(null) // null = loading
+  const [items, setItems] = useState(null) // null = loading
+  const [events, setEvents] = useState(null)
   const [loadErr, setLoadErr] = useState(false)
   const [busy, setBusy] = useState(false)
 
   const load = () =>
-    fetchGearEvents()
-      .then((rows) => {
-        setEvents(rows)
+    Promise.all([fetchGearItems(), fetchGearEvents()])
+      .then(([its, evs]) => {
+        setItems(its)
+        setEvents(evs)
         setLoadErr(false)
       })
       .catch(() => {
+        setItems([])
         setEvents([])
         setLoadErr(true)
       })
@@ -425,8 +434,10 @@ function GearCard({ sessions, onSaved }) {
         <GearSportBlock
           key={sport}
           sport={sport}
-          events={events}
+          items={(items || []).filter((i) => i.sport === sport)}
+          events={events || []}
           sessions={sessions}
+          ready={items !== null}
           busy={busy}
           act={act}
         />
@@ -435,15 +446,36 @@ function GearCard({ sessions, onSaved }) {
   )
 }
 
-function GearSportBlock({ sport, events, sessions, busy, act }) {
+function GearSportBlock({ sport, items, events, sessions, ready, busy, act }) {
+  const [selectedId, setSelectedId] = useState(null)
+  const [adding, setAdding] = useState(false)
+  const [name, setName] = useState('')
   const [label, setLabel] = useState('')
   const [date, setDate] = useState(todayISO())
   const meta = SPORTS[sport]
-  const rows = events ? gearStatus(events, sessions, sport) : []
+  const noun = GEAR_NOUN[sport]
 
-  const add = () =>
+  // Tap selects; main (or the only item) is open by default.
+  const main = items.find((i) => i.is_main)
+  const selected = items.find((i) => i.id === selectedId) || main || items[0] || null
+  const rows = selected ? gearStatus(events, sessions, selected, items) : []
+
+  const addItem = () =>
     act(async () => {
-      await addGearEvent(sport, label, date)
+      // The first bike / pair automatically becomes the main one.
+      await addGearItem(sport, name, items.length === 0)
+      setName('')
+      setAdding(false)
+    })
+
+  const removeItem = (item) => {
+    if (!window.confirm(`Delete ${item.name} and its maintenance log?`)) return
+    act(() => deleteGearItem(item.id))
+  }
+
+  const logEvent = () =>
+    act(async () => {
+      await addGearEvent(sport, label, date, selected.id)
       setLabel('')
       setDate(todayISO())
     })
@@ -454,21 +486,50 @@ function GearSportBlock({ sport, events, sessions, busy, act }) {
         {meta.emoji} {meta.label}
       </span>
 
-      {rows.length > 0 && (
-        <div className="toggle-list">
-          {rows.map((r) => (
-            <div className="gear-row" key={r.id}>
-              <span className="gear-main">
-                <span className="gear-label">{r.label}</span>
-                <span className="muted small">since {formatDayShort(r.date)}</span>
-              </span>
-              <span className="gear-wear">{formatWear(r.value, sport)}</span>
+      {ready && items.length === 0 && (
+        <p className="muted small">
+          Add your {noun} first — then log maintenance on it and see the wear
+          since. Sessions count toward your main {noun} unless a session says
+          otherwise.
+        </p>
+      )}
+
+      {items.length > 0 && (
+        <div className="gear-items">
+          {items.map((item) => (
+            <div
+              key={item.id}
+              className={`gear-item ${selected?.id === item.id ? 'is-selected' : ''}`}
+            >
+              <button
+                type="button"
+                className="gear-item-tap"
+                onClick={() => setSelectedId(item.id)}
+              >
+                <span className="gear-item-name">
+                  {item.name}
+                  {item.is_main && <span className="gear-main-badge">main</span>}
+                </span>
+                <span className="muted small">
+                  {formatWear(itemTotalWear(sessions, item, items), sport)} total
+                </span>
+              </button>
+              {!item.is_main && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  disabled={busy}
+                  onClick={() => act(() => setMainGearItem(sport, item.id))}
+                >
+                  Make main
+                </button>
+              )}
               <button
                 type="button"
                 className="icon-btn"
-                aria-label={`Delete ${r.label}`}
+                aria-label={`Delete ${item.name}`}
                 disabled={busy}
-                onClick={() => act(() => deleteGearEvent(r.id))}
+                onClick={() => removeItem(item)}
               >
                 ✕
               </button>
@@ -476,51 +537,121 @@ function GearSportBlock({ sport, events, sessions, busy, act }) {
           ))}
         </div>
       )}
-      {events !== null && rows.length === 0 && (
-        <p className="muted small">
-          Nothing logged yet — log when you last serviced or replaced something,
-          and the wear since shows here.
-        </p>
-      )}
 
-      <div className="chips">
-        {GEAR_SUGGESTIONS[sport].map((s) => (
+      {adding ? (
+        <div className="wr-row">
+          <input
+            type="text"
+            value={name}
+            maxLength={60}
+            autoFocus
+            onChange={(e) => setName(e.target.value)}
+            placeholder={sport === 'cycling' ? 'e.g. Canyon Ultimate' : 'e.g. Scarpa Instinct'}
+          />
           <button
-            key={s}
             type="button"
-            className={`chip ${label === s ? 'is-active' : ''}`}
-            onClick={() => setLabel(label === s ? '' : s)}
+            className="btn btn-secondary"
+            style={{ flex: '0 0 auto' }}
+            disabled={!name.trim() || busy}
+            onClick={addItem}
           >
-            {s}
+            Add
           </button>
-        ))}
-      </div>
-      <div className="wr-row">
-        <input
-          type="text"
-          value={label}
-          maxLength={100}
-          onChange={(e) => setLabel(e.target.value)}
-          placeholder={sport === 'cycling' ? 'e.g. New front tire' : 'e.g. New shoes'}
-        />
-      </div>
-      <div className="wr-row">
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          style={{ flex: '0 0 160px' }}
-        />
+        </div>
+      ) : (
         <button
           type="button"
-          className="btn btn-secondary"
-          style={{ flex: 1 }}
-          disabled={!label.trim() || !date || busy}
-          onClick={add}
+          className="btn btn-ghost btn-sm"
+          onClick={() => setAdding(true)}
         >
-          + Log
+          + Add {noun}
         </button>
-      </div>
+      )}
+
+      {selected && (
+        <div className="stack" style={{ gap: 8 }}>
+          <span className="muted small gear-table-title">
+            Maintenance · {selected.name}
+          </span>
+
+          {rows.length > 0 && (
+            <div className="gear-table">
+              {rows.map((r) => (
+                <div className="gear-row" key={r.id}>
+                  <span className="gear-cell">
+                    <span className="gear-label">{r.label}</span>
+                    <span className="muted small">since {formatDayShort(r.date)}</span>
+                  </span>
+                  <span className="gear-wear">{formatWear(r.value, sport)}</span>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    title="Done again today - resets the counter"
+                    disabled={busy}
+                    onClick={() => act(() => addGearEvent(sport, r.label, todayISO(), selected.id))}
+                  >
+                    ↻ Today
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    aria-label={`Delete latest ${r.label}`}
+                    disabled={busy}
+                    onClick={() => act(() => deleteGearEvent(r.id))}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {ready && rows.length === 0 && (
+            <p className="muted small">
+              Nothing logged for {selected.name} yet — log when something was
+              last replaced or serviced, and the wear since shows here.
+            </p>
+          )}
+
+          <div className="chips">
+            {GEAR_SUGGESTIONS[sport].map((s) => (
+              <button
+                key={s}
+                type="button"
+                className={`chip ${label === s ? 'is-active' : ''}`}
+                onClick={() => setLabel(label === s ? '' : s)}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+          <div className="wr-row">
+            <input
+              type="text"
+              value={label}
+              maxLength={100}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder={sport === 'cycling' ? 'e.g. New front tire' : 'e.g. New shoes'}
+            />
+          </div>
+          <div className="wr-row">
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              style={{ flex: '0 0 160px' }}
+            />
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ flex: 1 }}
+              disabled={!label.trim() || !date || busy}
+              onClick={logEvent}
+            >
+              + Log
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
