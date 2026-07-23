@@ -191,6 +191,15 @@ h2 {
     transform: rotate(360deg);
   }
 }
+/* Sits on a line of text (background work in progress). */
+.spinner-inline {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border-width: 2px;
+  vertical-align: -1px;
+  margin-right: 5px;
+}
 
 /* ----- cards ----- */
 .card {

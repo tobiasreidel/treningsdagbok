@@ -60,10 +60,13 @@ export default function Settings() {
   const [fbType, setFbType] = useState('bug')
   const [fbMessage, setFbMessage] = useState('')
   const [fb, setFb] = useState(null) // { pending } | { ok, msg } | { error, msg }
-  // Backfill of shared chart data, so friends can see charts on activities
-  // logged before sharing existed. { running, done, total, msg }
+  // Sharing chart data for older activities. Runs by itself whenever
+  // "Friends can see" is on - the whole point of that setting is that friends
+  // can see, and a button they'd have to know to press doesn't deliver it.
+  // { running, done, total, msg }
   const [backfill, setBackfill] = useState(null)
   const stopBackfill = useRef(false)
+  const backfillStarted = useRef(false)
   // Delete-account danger zone: hidden behind a reveal + typed confirmation
   // so it can't be triggered by a stray tap.
   const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -131,20 +134,22 @@ export default function Settings() {
 
   const runBackfill = async () => {
     stopBackfill.current = false
-    setBackfill({ running: true, done: 0, total: null, msg: 'Looking for activities…' })
+    setBackfill({ running: true, done: 0, total: null })
     try {
       const sessions = await fetchSessions()
       const res = await backfillSharedAnalyses(sessions, {
         onProgress: (p) => setBackfill({ running: true, ...p }),
         shouldStop: () => stopBackfill.current,
       })
-      setBackfill({
-        running: false,
-        msg: res.total === 0
-          ? 'Everything is already shared.'
-          : `Shared ${res.shared} activit${res.shared === 1 ? 'y' : 'ies'}` +
-            (res.failed ? ` · ${res.failed} couldn’t be read` : '') + '.',
-      })
+      // Nothing to do is the normal steady state - stay quiet about it.
+      setBackfill(
+        res.shared > 0
+          ? {
+              running: false,
+              msg: `Charts shared for ${res.shared} activit${res.shared === 1 ? 'y' : 'ies'}.`,
+            }
+          : null,
+      )
     } catch (err) {
       setBackfill({
         running: false,
@@ -155,9 +160,32 @@ export default function Settings() {
     }
   }
 
+  // Share charts for anything not shared yet, whenever "Friends can see" is
+  // on. Cheap when there's nothing to do: one query, then it stops.
+  useEffect(() => {
+    if (loading || !share || backfillStarted.current) return undefined
+    backfillStarted.current = true
+    runBackfill()
+    return undefined
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, share])
+
+  // Leaving the page stops an in-flight run; it picks up where it left off
+  // next time, since shared activities are skipped.
+  useEffect(() => () => {
+    stopBackfill.current = true
+  }, [])
+
   const commitShare = (v) => {
     setShare(v)
     setShareSetting(v).catch(() => {})
+    if (!v) {
+      // Going private: stop sharing work immediately, and arm it to run again
+      // if they turn it back on.
+      stopBackfill.current = true
+      backfillStarted.current = false
+      setBackfill(null)
+    }
     showFlash()
   }
 
@@ -383,23 +411,21 @@ export default function Settings() {
 
           {share && (
             <>
-              <button
-                type="button"
-                className="btn btn-secondary btn-block"
-                onClick={backfill?.running ? () => { stopBackfill.current = true } : runBackfill}
-              >
-                {backfill?.running
-                  ? `Stop (${backfill.done}${backfill.total ? ` / ${backfill.total}` : ''})`
-                  : '📈 Share charts for older activities'}
-              </button>
+              {backfill?.running && (
+                <p className="muted small">
+                  <span className="spinner spinner-inline" /> Sharing charts with
+                  friends
+                  {backfill.total ? ` · ${backfill.done} / ${backfill.total}` : '…'}
+                </p>
+              )}
               {backfill?.msg && !backfill.running && (
                 <p className="muted small">{backfill.msg}</p>
               )}
               <p className="muted small">
-                Friends can’t read your activities from intervals.icu, so charts
-                are shared as a copy — made whenever you open one of your own
-                activities. This shares every older one in a single go. Your
-                route is never shared, only the charts, zones and laps.
+                Friends can’t read your activities from intervals.icu, so a copy
+                of each activity’s charts is shared for them — automatically,
+                while this is on. Your route is never shared, only the charts,
+                zones and laps.
               </p>
             </>
           )}

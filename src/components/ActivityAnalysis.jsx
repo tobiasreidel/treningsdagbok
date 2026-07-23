@@ -87,9 +87,8 @@ export default function ActivityAnalysis({ session, isOwner }) {
   if (state.status === 'none') {
     return (
       <p className="muted small">
-        No charts shared for this activity. They show up once its owner has
-        opened it in the app (Settings → “Share charts for older activities”
-        does the whole back catalogue at once).
+        No charts shared for this activity yet. They appear once its owner has
+        opened the app with activity sharing on.
       </p>
     )
   }
