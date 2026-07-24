@@ -11,7 +11,8 @@ import {
   injuryDays,
 } from '../lib/health'
 import { getLogPeriod, getAvatarEmoji } from '../lib/prefs'
-import { getMyProfile } from '../lib/friends'
+import { getMyProfile, countIncomingRequests } from '../lib/friends'
+import { countPendingCoachRequests } from '../lib/coaches'
 import { getAvatarUrl } from '../lib/profile'
 import { useOnline } from '../components/ui'
 import Calendar from '../components/Calendar'
@@ -38,21 +39,27 @@ export default function Dashboard() {
   const [periodDays, setPeriodDays] = useState([])
   // Injury log (always on - see Profile). Logged injuries badge their days.
   const [injuries, setInjuries] = useState([])
-  // Top-left profile button: photo → emoji → initials.
+  // Top-left profile button: photo → emoji → initials. A dot on it flags
+  // friend and coaching requests waiting on the profile page.
   const [me, setMe] = useState({ url: null, name: '', emoji: getAvatarEmoji() })
+  const [reqCount, setReqCount] = useState(0)
 
   useEffect(() => {
     let alive = true
-    Promise.all([getAvatarUrl().catch(() => null), getMyProfile().catch(() => ({}))]).then(
-      ([url, profile]) => {
-        if (!alive) return
-        setMe((m) => ({
-          ...m,
-          url,
-          name: profile?.display_name || profile?.email || '',
-        }))
-      },
-    )
+    Promise.all([
+      getAvatarUrl().catch(() => null),
+      getMyProfile().catch(() => ({})),
+      countIncomingRequests().catch(() => 0),
+      countPendingCoachRequests().catch(() => 0),
+    ]).then(([url, profile, reqs, coachReqs]) => {
+      if (!alive) return
+      setMe((m) => ({
+        ...m,
+        url,
+        name: profile?.display_name || profile?.email || '',
+      }))
+      setReqCount(reqs + coachReqs)
+    })
     return () => {
       alive = false
     }
@@ -146,10 +153,15 @@ export default function Dashboard() {
         <button
           className="avatar-btn"
           onClick={() => navigate('/profile')}
-          title="Profile"
-          aria-label="Profile"
+          title={reqCount > 0 ? 'Profile — you have friend requests' : 'Profile'}
+          aria-label={
+            reqCount > 0
+              ? `Profile — ${reqCount} friend request${reqCount === 1 ? '' : 's'}`
+              : 'Profile'
+          }
         >
           <Avatar url={me.url} emoji={me.emoji} name={me.name} size={40} />
+          {reqCount > 0 && <span className="avatar-dot" aria-hidden="true" />}
         </button>
         <div className="dash-title">
           <h1>Treningsdagbok</h1>

@@ -2761,3 +2761,187 @@ textarea {
   font-size: 1.15rem;
   padding: 8px 11px;
 }
+
+/* ----- people card: friends + coach, side by side, on the profile ----- */
+.people-card {
+  /* two columns want a little more of the card's width than the default */
+  padding: 16px 14px;
+}
+.people-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.people-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.people-col:first-child {
+  padding-right: 14px;
+}
+.people-col + .people-col {
+  padding-left: 14px;
+  border-left: 1px solid var(--border);
+}
+.people-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 26px;
+}
+.people-title {
+  display: inline-flex;
+  align-items: center;
+  font-size: 1rem;
+  font-weight: 800;
+}
+/* Small count pill next to a column heading. */
+.friends-count {
+  margin-left: 7px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+/* Round +/× toggle that reveals the email invite field. */
+.people-add-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1.2rem;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  cursor: pointer;
+  flex: none;
+}
+.people-add-btn.is-open {
+  background: var(--surface-2);
+}
+.people-add {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.people-add input {
+  width: 100%;
+}
+.people-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+/* A person entry: a single row (avatar + name + action), or a stacked block
+   (row + subtitle + accept/decline) for requests. */
+.person {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.person-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.person-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.person-row.is-pending {
+  opacity: 0.6;
+}
+.person-actions {
+  display: flex;
+  gap: 6px;
+}
+.person-actions .btn {
+  flex: 1;
+  padding: 5px 4px;
+}
+/* Small × remove, lighter than the 40px icon-btn used in page headers. */
+.person-x {
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 4px;
+  cursor: pointer;
+  flex: none;
+}
+.person-x:active {
+  color: var(--text);
+}
+.person-tappable {
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  padding: 0;
+  cursor: pointer;
+}
+.person-chevron {
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  flex: none;
+}
+.xsmall {
+  font-size: 0.74rem;
+}
+
+/* Notification dot on the dashboard profile avatar - flags friend requests. */
+.avatar-btn {
+  position: relative;
+}
+.avatar-dot {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--danger);
+  border: 2px solid var(--bg);
+}
+
+/* ----- changelog ("what's new") ----- */
+.changelog-entry {
+  gap: 10px;
+}
+.changelog-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.changelog-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+.changelog-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.changelog-list li {
+  line-height: 1.4;
+}

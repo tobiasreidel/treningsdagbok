@@ -529,6 +529,18 @@ export default function Settings() {
         </section>
 
         <section className="card settings-card stack">
+          <h2 className="step-q">About</h2>
+          <button
+            type="button"
+            className="btn btn-secondary btn-block settings-link-row"
+            onClick={() => navigate('/changelog')}
+          >
+            <span>✨ What’s new</span>
+            <span className="settings-link-arrow">›</span>
+          </button>
+        </section>
+
+        <section className="card settings-card stack">
           <h2 className="step-q">Feedback</h2>
           <p className="muted small">
             Hit a bug or wish the app did something? Send it straight to Tobias.

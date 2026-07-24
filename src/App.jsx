@@ -21,6 +21,7 @@ import Logbook from './pages/Logbook'
 import CustomizeDashboard from './pages/CustomizeDashboard'
 import Friends from './pages/Friends'
 import AthleteView from './pages/AthleteView'
+import Changelog from './pages/Changelog'
 import ResetPassword from './components/ResetPassword'
 import TabBar, { TABBAR_PATHS } from './components/TabBar'
 
@@ -96,6 +97,7 @@ export default function App() {
         <Route path="/logbook" element={<Logbook />} />
         <Route path="/widgets" element={<CustomizeDashboard />} />
         <Route path="/friends" element={<Friends />} />
+        <Route path="/changelog" element={<Changelog />} />
         <Route path="/athlete/:id" element={<AthleteView />} />
         <Route path="/athlete/:id/stats" element={<Stats />} />
         <Route path="*" element={<Navigate to="/" replace />} />

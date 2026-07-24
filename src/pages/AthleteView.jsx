@@ -36,7 +36,7 @@ export default function AthleteView() {
   return (
     <div className="page dashboard">
       <header className="dash-head">
-        <button className="icon-btn" onClick={() => navigate('/friends')} aria-label="Back">
+        <button className="icon-btn" onClick={() => navigate('/profile')} aria-label="Back">
           ‹
         </button>
         <div className="wizard-title">

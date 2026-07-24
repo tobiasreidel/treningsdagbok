@@ -4,38 +4,16 @@ import { HBars } from '../components/charts'
 import { SPORTS } from '../lib/constants'
 import { lastNDaysRange, inRange, formatDayShort, formatDuration } from '../lib/format'
 import { fetchSessions } from '../lib/sessions'
-import {
-  loadConnections,
-  friendsFeed,
-  sendRequest,
-  respondRequest,
-  removeFriend,
-} from '../lib/friends'
-import {
-  loadCoachLinks,
-  sendCoachRequest,
-  respondCoachRequest,
-  removeCoachLink,
-} from '../lib/coaches'
-
-const EMPTY_COACH = { coaches: [], requests: [], athletes: [] }
+import { loadConnections, friendsFeed } from '../lib/friends'
 
 const round1 = (n) => Math.round(n * 10) / 10
 
+// Managing people (friends and coaches) now lives on the profile; this page is
+// just for seeing what friends are up to.
 const TABS = [
   { key: 'feed', label: 'Feed' },
   { key: 'leaderboard', label: 'Leaderboard' },
-  { key: 'friends', label: 'Friends' },
-  { key: 'coach', label: 'Coach' },
 ]
-
-// Count waiting on me, per tab: friend requests on Friends, coaching requests
-// on Coach.
-const tabBadge = (key, data) => {
-  if (key === 'friends') return data?.incoming?.length || 0
-  if (key === 'coach') return data?.coach?.requests?.length || 0
-  return 0
-}
 
 export default function Friends() {
   const navigate = useNavigate()
@@ -44,18 +22,16 @@ export default function Friends() {
 
   const load = useCallback(async () => {
     const conn = await loadConnections()
-    const [feed, mine, coach] = await Promise.all([
+    const [feed, mine] = await Promise.all([
       friendsFeed(conn.friends).catch(() => []),
       fetchSessions().catch(() => []),
-      // Best-effort: coaches.sql may not be applied yet on older setups.
-      loadCoachLinks().catch(() => EMPTY_COACH),
     ])
-    setData({ ...conn, feed, mine, coach })
+    setData({ ...conn, feed, mine })
   }, [])
 
   useEffect(() => {
     load().catch(() =>
-      setData({ friends: [], incoming: [], outgoing: [], feed: [], mine: [], coach: EMPTY_COACH }),
+      setData({ friends: [], incoming: [], outgoing: [], feed: [], mine: [] }),
     )
   }, [load])
 
@@ -80,9 +56,6 @@ export default function Friends() {
               onClick={() => setTab(t.key)}
             >
               {t.label}
-              {tabBadge(t.key, data) ? (
-                <span className="pill-badge">{tabBadge(t.key, data)}</span>
-              ) : null}
             </button>
           ))}
         </div>
@@ -93,12 +66,8 @@ export default function Friends() {
           </div>
         ) : tab === 'feed' ? (
           <Feed feed={data.feed} navigate={navigate} />
-        ) : tab === 'leaderboard' ? (
-          <Leaderboard data={data} />
-        ) : tab === 'friends' ? (
-          <Manage data={data} reload={load} />
         ) : (
-          <CoachManager coach={data.coach || EMPTY_COACH} reload={load} navigate={navigate} />
+          <Leaderboard data={data} />
         )}
       </main>
     </div>
@@ -129,7 +98,7 @@ function Feed({ feed, navigate }) {
     return (
       <div className="card empty-state">
         <p>No friend activity yet.</p>
-        <p className="muted small">Add friends and you'll see their sessions here.</p>
+        <p className="muted small">Add friends on your profile and you'll see their sessions here.</p>
       </div>
     )
   }
@@ -178,7 +147,7 @@ function Leaderboard({ data }) {
     return (
       <div className="card empty-state">
         <p>Nothing to rank yet.</p>
-        <p className="muted small">Add friends to compare the last 7 days.</p>
+        <p className="muted small">Add friends on your profile to compare the last 7 days.</p>
       </div>
     )
   }
@@ -208,240 +177,5 @@ function Leaderboard({ data }) {
   )
 }
 
-function Manage({ data, reload }) {
-  const [email, setEmail] = useState('')
-  const [msg, setMsg] = useState(null)
-  const [busy, setBusy] = useState(false)
-
-  const send = async () => {
-    if (!email.trim()) return
-    setBusy(true)
-    setMsg(null)
-    try {
-      const res = await sendRequest(email)
-      const messages = {
-        ok: { ok: true, text: 'Request sent!' },
-        not_found: { ok: false, text: 'No account found with that email.' },
-        self: { ok: false, text: "That's you 🙂" },
-        exists: { ok: false, text: "You're already connected or have a pending request." },
-      }
-      setMsg(messages[res] || { ok: false, text: 'Could not send request.' })
-      if (res === 'ok') {
-        setEmail('')
-        reload()
-      }
-    } catch (e) {
-      setMsg({ ok: false, text: e.message })
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const act = async (fn) => {
-    await fn()
-    reload()
-  }
-
-  const nameOf = (c) => c.profile?.display_name || c.profile?.email || 'Someone'
-
-  return (
-    <div className="stack">
-      <div className="card stack">
-        <label className="field">
-          <span className="field-label">Add a friend by email</span>
-          <input
-            type="email"
-            value={email}
-            placeholder="friend@example.com"
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </label>
-        <button className="btn btn-primary btn-block" onClick={send} disabled={busy}>
-          {busy ? 'Sending…' : 'Send request'}
-        </button>
-        {msg && <p className={msg.ok ? 'auth-notice' : 'auth-error'}>{msg.text}</p>}
-      </div>
-
-      {data.incoming.length > 0 && (
-        <section className="section">
-          <h2 className="section-title">Requests</h2>
-          {data.incoming.map((c) => (
-            <div className="card friend-row" key={c.id}>
-              <span className="friend-name">{nameOf(c)}</span>
-              <span className="friend-actions">
-                <button className="btn btn-primary btn-sm" onClick={() => act(() => respondRequest(c.id, true))}>
-                  Accept
-                </button>
-                <button className="btn btn-ghost btn-sm" onClick={() => act(() => respondRequest(c.id, false))}>
-                  Decline
-                </button>
-              </span>
-            </div>
-          ))}
-        </section>
-      )}
-
-      <section className="section">
-        <h2 className="section-title">Friends ({data.friends.length})</h2>
-        {data.friends.length === 0 ? (
-          <div className="card empty-state">
-            <p className="muted small">No friends yet. Send a request above.</p>
-          </div>
-        ) : (
-          data.friends.map((c) => (
-            <div className="card friend-row" key={c.id}>
-              <span className="friend-name">{nameOf(c)}</span>
-              <button className="btn btn-ghost btn-sm" onClick={() => act(() => removeFriend(c.id))}>
-                Remove
-              </button>
-            </div>
-          ))
-        )}
-      </section>
-
-      {data.outgoing.length > 0 && (
-        <section className="section">
-          <h2 className="section-title">Pending sent</h2>
-          {data.outgoing.map((c) => (
-            <div className="card friend-row" key={c.id}>
-              <span className="friend-name">{nameOf(c)}</span>
-              <span className="muted small">pending</span>
-            </div>
-          ))}
-        </section>
-      )}
-
-      <p className="muted small">
-        Control whether friends can see your activities in Settings → privacy.
-      </p>
-    </div>
-  )
-}
-
-// Coaches get full read-only access to your account. You add a coach by email;
-// they accept. You can also accept people who ask you to coach them, and open
-// any athlete you coach to see their overview and stats.
-function CoachManager({ coach, reload, navigate }) {
-  const [email, setEmail] = useState('')
-  const [msg, setMsg] = useState(null)
-  const [busy, setBusy] = useState(false)
-
-  const nameOf = (c) => c.profile?.display_name || c.profile?.email || 'Someone'
-  const act = async (fn) => {
-    await fn()
-    reload()
-  }
-
-  const send = async () => {
-    if (!email.trim()) return
-    setBusy(true)
-    setMsg(null)
-    try {
-      const res = await sendCoachRequest(email)
-      const messages = {
-        ok: { ok: true, text: 'Coach invited. They need to accept.' },
-        not_found: { ok: false, text: 'No account found with that email.' },
-        self: { ok: false, text: "That's you 🙂" },
-        exists: { ok: false, text: 'That person is already your coach (or invited).' },
-      }
-      setMsg(messages[res] || { ok: false, text: 'Could not send invite.' })
-      if (res === 'ok') {
-        setEmail('')
-        reload()
-      }
-    } catch (e) {
-      setMsg({ ok: false, text: e.message })
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <div className="stack">
-      <div className="card stack">
-        <label className="field">
-          <span className="field-label">Add a coach by email</span>
-          <span className="field-hint">
-            A coach can see everything in your account: sessions, calendar and
-            stats. They can’t change anything.
-          </span>
-          <input
-            type="email"
-            value={email}
-            placeholder="coach@example.com"
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </label>
-        <button className="btn btn-primary btn-block" onClick={send} disabled={busy}>
-          {busy ? 'Sending…' : 'Invite coach'}
-        </button>
-        {msg && <p className={msg.ok ? 'auth-notice' : 'auth-error'}>{msg.text}</p>}
-      </div>
-
-      {coach.requests.length > 0 && (
-        <section className="section">
-          <h2 className="section-title">Coaching requests</h2>
-          {coach.requests.map((c) => (
-            <div className="card friend-row" key={c.id}>
-              <span className="friend-name">{nameOf(c)} wants you to coach them</span>
-              <span className="friend-actions">
-                <button
-                  className="btn btn-primary btn-sm"
-                  onClick={() => act(() => respondCoachRequest(c.id, true))}
-                >
-                  Accept
-                </button>
-                <button
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => act(() => respondCoachRequest(c.id, false))}
-                >
-                  Decline
-                </button>
-              </span>
-            </div>
-          ))}
-        </section>
-      )}
-
-      {coach.athletes.length > 0 && (
-        <section className="section">
-          <h2 className="section-title">Athletes you coach ({coach.athletes.length})</h2>
-          {coach.athletes.map((c) => (
-            <button
-              className="card friend-row clickable-row"
-              key={c.id}
-              onClick={() => navigate(`/athlete/${c.otherId}`)}
-            >
-              <span className="friend-name">{nameOf(c)}</span>
-              <span className="muted small">View ›</span>
-            </button>
-          ))}
-        </section>
-      )}
-
-      <section className="section">
-        <h2 className="section-title">Your coaches</h2>
-        {coach.coaches.length === 0 ? (
-          <div className="card empty-state">
-            <p className="muted small">No coaches yet. Invite one above.</p>
-          </div>
-        ) : (
-          coach.coaches.map((c) => (
-            <div className="card friend-row" key={c.id}>
-              <span className="friend-name">
-                {nameOf(c)}
-                {c.status === 'pending' && <span className="muted small"> · pending</span>}
-              </span>
-              <button
-                className="btn btn-ghost btn-sm"
-                onClick={() => act(() => removeCoachLink(c.id))}
-              >
-                Remove
-              </button>
-            </div>
-          ))
-        )}
-      </section>
-    </div>
-  )
-}
+// Coach management (your coaches, athletes you coach, invites) now lives on the
+// profile, alongside friends — see PeopleCard in pages/Profile.jsx.

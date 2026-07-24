@@ -6,7 +6,20 @@ import { SPORTS } from '../lib/constants'
 import Avatar from '../components/Avatar'
 import { SettingsIcon, PencilIcon } from '../components/icons'
 import { useAuth } from '../context/AuthContext'
-import { getMyProfile, setDisplayName } from '../lib/friends'
+import {
+  getMyProfile,
+  setDisplayName,
+  loadConnections,
+  sendRequest,
+  respondRequest,
+  removeFriend,
+} from '../lib/friends'
+import {
+  loadCoachLinks,
+  sendCoachRequest,
+  respondCoachRequest,
+  removeCoachLink,
+} from '../lib/coaches'
 import { getAvatarUrl, uploadAvatar, removeAvatar } from '../lib/profile'
 import { fetchSessions } from '../lib/sessions'
 import { sumHours, currentWeekStreak, round1 } from '../lib/stats'
@@ -311,6 +324,8 @@ export default function Profile() {
           style={{ display: 'none' }}
         />
 
+        <PeopleCard />
+
         <section className="card settings-card stack">
           <h2 className="step-q">Health</h2>
 
@@ -374,6 +389,354 @@ export default function Profile() {
       </main>
 
       {flash && <div className="toast">{flash}</div>}
+    </div>
+  )
+}
+
+const personName = (c) => c.profile?.display_name || c.profile?.email || 'Someone'
+const EMPTY_COACH = { coaches: [], requests: [], athletes: [] }
+
+// Everyone you're connected with, side by side: friends on the left, coaches on
+// the right. Both used to live behind the Friends tab - the profile is a more
+// natural home. The two sides load together so the whole card refreshes as one.
+function PeopleCard() {
+  const [data, setData] = useState(null)
+
+  const load = () =>
+    Promise.all([
+      loadConnections().catch(() => ({ friends: [], incoming: [], outgoing: [] })),
+      // Best-effort: coaches.sql may not be applied on older setups.
+      loadCoachLinks().catch(() => EMPTY_COACH),
+    ]).then(([conn, coach]) => setData({ ...conn, coach }))
+
+  useEffect(() => {
+    load()
+  }, [])
+
+  return (
+    <section className="card people-card">
+      {!data ? (
+        <div className="splash inline">
+          <div className="spinner" />
+        </div>
+      ) : (
+        <div className="people-grid">
+          <FriendColumn data={data} reload={load} />
+          <CoachColumn data={data} reload={load} />
+        </div>
+      )}
+    </section>
+  )
+}
+
+// Left column: friends, requests waiting on you, and adding one by email.
+function FriendColumn({ data, reload }) {
+  const [adding, setAdding] = useState(false)
+  const [email, setEmail] = useState('')
+  const [msg, setMsg] = useState(null)
+  const [busy, setBusy] = useState(false)
+
+  const friends = data.friends || []
+  const incoming = data.incoming || []
+  const outgoing = data.outgoing || []
+
+  const act = async (fn) => {
+    await fn()
+    reload()
+  }
+
+  const send = async () => {
+    if (!email.trim()) return
+    setBusy(true)
+    setMsg(null)
+    try {
+      const res = await sendRequest(email)
+      const messages = {
+        ok: { ok: true, text: 'Request sent!' },
+        not_found: { ok: false, text: 'No account with that email.' },
+        self: { ok: false, text: "That's you 🙂" },
+        exists: { ok: false, text: 'Already connected or pending.' },
+      }
+      setMsg(messages[res] || { ok: false, text: 'Could not send.' })
+      if (res === 'ok') {
+        setEmail('')
+        reload()
+      }
+    } catch (e) {
+      setMsg({ ok: false, text: e.message })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const removeF = (c) => {
+    if (!window.confirm(`Remove ${personName(c)} as a friend?`)) return
+    act(() => removeFriend(c.id))
+  }
+
+  const empty = !friends.length && !incoming.length && !outgoing.length
+
+  return (
+    <div className="people-col">
+      <div className="people-head">
+        <span className="people-title">
+          Friends
+          {friends.length > 0 && <span className="friends-count">{friends.length}</span>}
+        </span>
+        <button
+          type="button"
+          className={`people-add-btn ${adding ? 'is-open' : ''}`}
+          onClick={() => setAdding((v) => !v)}
+          aria-label={adding ? 'Close' : 'Add a friend'}
+          title={adding ? 'Close' : 'Add a friend'}
+        >
+          {adding ? '×' : '+'}
+        </button>
+      </div>
+
+      {adding && (
+        <div className="people-add">
+          <input
+            type="email"
+            value={email}
+            placeholder="friend@email.com"
+            autoComplete="off"
+            onChange={(e) => setEmail(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && send()}
+          />
+          <button className="btn btn-primary btn-sm btn-block" onClick={send} disabled={busy}>
+            {busy ? 'Sending…' : 'Send request'}
+          </button>
+          {msg && <p className={msg.ok ? 'auth-notice' : 'auth-error'}>{msg.text}</p>}
+        </div>
+      )}
+
+      {incoming.length > 0 && (
+        <div className="people-group">
+          <span className="field-label">
+            Requests <span className="pill-badge">{incoming.length}</span>
+          </span>
+          {incoming.map((c) => (
+            <div className="person" key={c.id}>
+              <div className="person-row">
+                <Avatar name={personName(c)} size={30} />
+                <span className="person-name">{personName(c)}</span>
+              </div>
+              <div className="person-actions">
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => act(() => respondRequest(c.id, true))}
+                >
+                  Accept
+                </button>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => act(() => respondRequest(c.id, false))}
+                >
+                  Decline
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {friends.length > 0 && (
+        <div className="people-group">
+          {friends.map((c) => (
+            <div className="person-row" key={c.id}>
+              <Avatar name={personName(c)} size={30} />
+              <span className="person-name">{personName(c)}</span>
+              <button
+                type="button"
+                className="person-x"
+                aria-label={`Remove ${personName(c)}`}
+                title="Remove friend"
+                onClick={() => removeF(c)}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {outgoing.length > 0 && (
+        <div className="people-group">
+          <span className="field-label">Pending</span>
+          {outgoing.map((c) => (
+            <div className="person-row is-pending" key={c.id}>
+              <Avatar name={personName(c)} size={30} />
+              <span className="person-name">{personName(c)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {empty && !adding && (
+        <p className="muted small">No friends yet. Tap + to add one by email.</p>
+      )}
+    </div>
+  )
+}
+
+// Right column: your coaches, athletes you coach, coaching requests, and
+// inviting a coach by email. A coach gets read-only access to your whole
+// account (see lib/coaches).
+function CoachColumn({ data, reload }) {
+  const navigate = useNavigate()
+  const [adding, setAdding] = useState(false)
+  const [email, setEmail] = useState('')
+  const [msg, setMsg] = useState(null)
+  const [busy, setBusy] = useState(false)
+
+  const coach = data.coach || EMPTY_COACH
+
+  const act = async (fn) => {
+    await fn()
+    reload()
+  }
+
+  const send = async () => {
+    if (!email.trim()) return
+    setBusy(true)
+    setMsg(null)
+    try {
+      const res = await sendCoachRequest(email)
+      const messages = {
+        ok: { ok: true, text: 'Invite sent. They must accept.' },
+        not_found: { ok: false, text: 'No account with that email.' },
+        self: { ok: false, text: "That's you 🙂" },
+        exists: { ok: false, text: 'Already your coach or invited.' },
+      }
+      setMsg(messages[res] || { ok: false, text: 'Could not send.' })
+      if (res === 'ok') {
+        setEmail('')
+        reload()
+      }
+    } catch (e) {
+      setMsg({ ok: false, text: e.message })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const removeC = (c) => {
+    if (!window.confirm(`Remove ${personName(c)}?`)) return
+    act(() => removeCoachLink(c.id))
+  }
+
+  const empty = !coach.coaches.length && !coach.requests.length && !coach.athletes.length
+
+  return (
+    <div className="people-col">
+      <div className="people-head">
+        <span className="people-title">Coach</span>
+        <button
+          type="button"
+          className={`people-add-btn ${adding ? 'is-open' : ''}`}
+          onClick={() => setAdding((v) => !v)}
+          aria-label={adding ? 'Close' : 'Invite a coach'}
+          title={adding ? 'Close' : 'Invite a coach'}
+        >
+          {adding ? '×' : '+'}
+        </button>
+      </div>
+
+      {adding && (
+        <div className="people-add">
+          <input
+            type="email"
+            value={email}
+            placeholder="coach@email.com"
+            autoComplete="off"
+            onChange={(e) => setEmail(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && send()}
+          />
+          <button className="btn btn-primary btn-sm btn-block" onClick={send} disabled={busy}>
+            {busy ? 'Sending…' : 'Invite coach'}
+          </button>
+          {msg && <p className={msg.ok ? 'auth-notice' : 'auth-error'}>{msg.text}</p>}
+          <p className="muted small">A coach sees everything in your account, read-only.</p>
+        </div>
+      )}
+
+      {coach.requests.length > 0 && (
+        <div className="people-group">
+          <span className="field-label">
+            Requests <span className="pill-badge">{coach.requests.length}</span>
+          </span>
+          {coach.requests.map((c) => (
+            <div className="person" key={c.id}>
+              <div className="person-row">
+                <Avatar name={personName(c)} size={30} />
+                <span className="person-name">{personName(c)}</span>
+              </div>
+              <span className="muted xsmall">wants you to coach them</span>
+              <div className="person-actions">
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => act(() => respondCoachRequest(c.id, true))}
+                >
+                  Accept
+                </button>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => act(() => respondCoachRequest(c.id, false))}
+                >
+                  Decline
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {coach.athletes.length > 0 && (
+        <div className="people-group">
+          <span className="field-label">You coach</span>
+          {coach.athletes.map((c) => (
+            <button
+              type="button"
+              className="person-row person-tappable"
+              key={c.id}
+              onClick={() => navigate(`/athlete/${c.otherId}`)}
+            >
+              <Avatar name={personName(c)} size={30} />
+              <span className="person-name">{personName(c)}</span>
+              <span className="person-chevron">›</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {coach.coaches.length > 0 && (
+        <div className="people-group">
+          <span className="field-label">Your coaches</span>
+          {coach.coaches.map((c) => (
+            <div className="person-row" key={c.id}>
+              <Avatar name={personName(c)} size={30} />
+              <span className="person-name">
+                {personName(c)}
+                {c.status === 'pending' && <span className="muted small"> · pending</span>}
+              </span>
+              <button
+                type="button"
+                className="person-x"
+                aria-label={`Remove ${personName(c)}`}
+                title="Remove"
+                onClick={() => removeC(c)}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {empty && !adding && (
+        <p className="muted small">No coach yet. Tap + to invite one by email.</p>
+      )}
     </div>
   )
 }

@@ -52,6 +52,19 @@ export async function loadCoachLinks() {
   }
 }
 
+// Number of people asking me to coach them - feeds the dashboard notification
+// dot alongside pending friend requests. Cheap: a head-only count.
+export async function countPendingCoachRequests() {
+  const me = await uid()
+  if (!me) return 0
+  const { count } = await supabase
+    .from('coach_links')
+    .select('id', { count: 'exact', head: true })
+    .eq('coach', me)
+    .eq('status', 'pending')
+  return count || 0
+}
+
 export async function respondCoachRequest(id, accept) {
   if (accept) {
     const { error } = await supabase.from('coach_links').update({ status: 'accepted' }).eq('id', id)

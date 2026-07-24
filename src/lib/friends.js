@@ -85,6 +85,19 @@ export async function loadConnections() {
   }
 }
 
+// Just the number of pending requests waiting on me - cheap enough to run on
+// the dashboard, where it drives the notification dot on the profile avatar.
+export async function countIncomingRequests() {
+  const me = await uid()
+  if (!me) return 0
+  const { count } = await supabase
+    .from('friendships')
+    .select('id', { count: 'exact', head: true })
+    .eq('addressee', me)
+    .eq('status', 'pending')
+  return count || 0
+}
+
 export async function respondRequest(id, accept) {
   if (accept) {
     const { error } = await supabase.from('friendships').update({ status: 'accepted' }).eq('id', id)
