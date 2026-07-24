@@ -2335,6 +2335,15 @@ textarea {
   font-weight: 600;
   font-size: 0.9rem;
 }
+/* A secondary metric under the row's name (e.g. normalised power under Power). */
+.avgmax-sub {
+  display: block;
+  margin-top: 2px;
+  font-weight: 600;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
 .avgmax-val {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -2425,11 +2434,17 @@ textarea {
   stroke-opacity: 0.5;
   stroke-width: 1;
 }
-.strips {
+.strips,
+.strips * {
   /* All touch is ours: fingers scrub/mark instead of scrolling (pan-y let
      iOS claim sloppy horizontal drags as scrolls, killing scrubbing on
-     phones). Scroll the page from outside the card - same as every chart app. */
+     phones). iOS also reads touch-action off the element the finger actually
+     lands on - the child SVGs, not just .strips - so it has to be set on the
+     whole subtree or a drag onto a chart still scrolls the page. Scroll the
+     page from outside the card, same as every chart app. */
   touch-action: none;
+}
+.strips {
   cursor: crosshair;
   user-select: none;
   -webkit-user-select: none;

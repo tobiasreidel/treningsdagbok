@@ -27,11 +27,15 @@ export default function SessionDetail() {
   const [myId, setMyId] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [periodMark, setPeriodMark] = useState(false)
+  // Stats from the analysis charts (once they load) - used for the max power
+  // in the summary, which has no stored field of its own.
+  const [analysisStats, setAnalysisStats] = useState(null)
   const isPending = id?.startsWith('local-')
 
   useEffect(() => {
     if (isPending) return
     let alive = true
+    setAnalysisStats(null) // don't carry one activity's max onto the next
     getCurrentUserId().then((u) => alive && setMyId(u))
     getSession(id)
       .then(async (s) => {
@@ -140,11 +144,17 @@ export default function SessionDetail() {
       avgMax.push({ label: 'Heart rate', avg: num(e.avg_hr), max: num(e.max_hr), unit: 'bpm' })
     }
     if (num(e.avg_power) || num(e.norm_power)) {
+      // Max power has no stored field - take it from the analysis stream (the
+      // same value the Power chart header shows), so it's the real max, not the
+      // normalised power that used to sit misleadingly in this column. Norm
+      // power moves to a sub-line under the label.
+      const norm = num(e.norm_power)
+      const streamMax = analysisStats?.watts?.max
       avgMax.push({
         label: 'Power',
+        sub: norm != null ? `norm ${Math.round(norm)} W` : null,
         avg: num(e.avg_power),
-        max: num(e.norm_power),
-        maxLabel: 'norm',
+        max: streamMax != null ? Math.round(streamMax) : null,
         unit: 'W',
       })
     }
@@ -265,7 +275,10 @@ export default function SessionDetail() {
           </div>
           {avgMax.map((r) => (
             <div className="avgmax-row" key={r.label}>
-              <span className="avgmax-label">{r.label}</span>
+              <span className="avgmax-label">
+                {r.label}
+                {r.sub && <small className="avgmax-sub">{r.sub}</small>}
+              </span>
               <span className="avgmax-val">
                 {r.avg != null ? (
                   <>
@@ -321,7 +334,11 @@ export default function SessionDetail() {
           copy stored when they opened the activity themselves (never their
           route - see supabase/session_streams.sql). */}
       {isEndurance && myId && (
-        <ActivityAnalysis session={session} isOwner={Boolean(isOwner)} />
+        <ActivityAnalysis
+          session={session}
+          isOwner={Boolean(isOwner)}
+          onStats={setAnalysisStats}
+        />
       )}
 
       {hasWarmupRehab && (

@@ -47,7 +47,7 @@ const maxOf = (arr) => {
 // lives in their intervals.icu account, which your API key cannot touch - so
 // a friend's ride shows charts once they've opened it themselves, and simply
 // nothing before that.
-export default function ActivityAnalysis({ session, isOwner }) {
+export default function ActivityAnalysis({ session, isOwner, onStats }) {
   const intervalsId = session.extra?.intervals_id
   const sessionId = session.id
   const [state, setState] = useState({ status: 'loading' })
@@ -80,6 +80,15 @@ export default function ActivityAnalysis({ session, isOwner }) {
       alive = false
     }
   }, [intervalsId, sessionId, isOwner])
+
+  // Hand the computed stats up so SessionDetail can show max power in its
+  // summary. It's the true stream max (the same number the Power chart header
+  // shows) and it works for your own rides and a friend's shared copy alike -
+  // no stored field to backfill onto older activities.
+  useEffect(() => {
+    if (!onStats) return
+    onStats(state.status === 'ready' ? state.analysis?.stats || null : null)
+  }, [state, onStats])
 
   if (isOwner && !intervalsId) return null
   if (state.status === 'no-creds') return null
@@ -271,6 +280,21 @@ function StreamStrips({ points, stats, isRun, onScrub }) {
   const view = useMemo(() => sliceView(points, range), [points, range])
   const n = view.n
   const offset = range ? range[0] : 0
+
+  // iOS Safari doesn't reliably honour `touch-action: none` when the finger
+  // lands on a child (the SVGs compute to touch-action: auto), so a drag that
+  // drifts even slightly vertically gets stolen by the page scroll and the
+  // scrub dies - worst on a tall page like your own ride with its map. A
+  // non-passive touchmove that always preventDefaults keeps every finger ours;
+  // React's onTouchMove is passive and can't. Scroll the page from outside the
+  // card, same as every other chart app.
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el) return undefined
+    const block = (e) => e.preventDefault()
+    el.addEventListener('touchmove', block, { passive: false })
+    return () => el.removeEventListener('touchmove', block)
+  }, [])
 
   const strips = STRIPS.filter((s) => view[s.key]).map((s) => {
     const strip = { ...s }
