@@ -10,7 +10,7 @@ import {
   fetchInjuries,
   injuryDays,
 } from '../lib/health'
-import { getLogPeriod, getAvatarEmoji } from '../lib/prefs'
+import { getLogPeriod, getCoachEnabled, getAvatarEmoji } from '../lib/prefs'
 import { getMyProfile, countIncomingRequests } from '../lib/friends'
 import { countPendingCoachRequests } from '../lib/coaches'
 import { getAvatarUrl } from '../lib/profile'
@@ -20,6 +20,7 @@ import SummaryCards from '../components/SummaryCards'
 import WeekTable from '../components/WeekTable'
 import DaySheet from '../components/DaySheet'
 import CycleCard from '../components/CycleCard'
+import CoachCard from '../components/CoachCard'
 import Avatar from '../components/Avatar'
 import { SettingsIcon } from '../components/icons'
 
@@ -36,6 +37,8 @@ export default function Dashboard() {
   const [toast, setToast] = useState(location.state?.toast || null)
   // Period tracking (Settings → Health). Days are ISO strings from the server.
   const periodEnabled = getLogPeriod()
+  // Training coach (Settings → Training coach). Off by default.
+  const coachEnabled = getCoachEnabled()
   const [periodDays, setPeriodDays] = useState([])
   // Injury log (always on - see Profile). Logged injuries badge their days.
   const [injuries, setInjuries] = useState([])
@@ -202,6 +205,8 @@ export default function Dashboard() {
           </div>
 
           {periodEnabled && <CycleCard analysis={cycle} />}
+
+          {coachEnabled && <CoachCard sessions={sessions} injuries={injuries} />}
 
           <Calendar
             monthRef={monthRef}

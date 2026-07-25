@@ -13,6 +13,58 @@ const KEYS = {
   hrZones7: 'pref.hrZones7',
   hrUseIcu: 'pref.hrUseIcuZones',
   gearSports: 'pref.gearSports',
+  coach: 'pref.coach',
+  coachModel: 'pref.coachModel',
+  coachDays: 'pref.coachDays',
+}
+
+// ---- training coach (Settings → Training coach) ----------------------------
+// Off by default. When on, the dashboard shows a finger-recovery status and a
+// suggestion for today, derived from the sessions you already log. Purely an
+// awareness aid - see src/lib/coach.js.
+export function getCoachEnabled() {
+  try {
+    return localStorage.getItem(KEYS.coach) === '1'
+  } catch {
+    return false
+  }
+}
+
+export function setCoachEnabled(on) {
+  if (on) localStorage.setItem(KEYS.coach, '1')
+  else localStorage.removeItem(KEYS.coach)
+}
+
+// Periodisation model the session generator follows. No climbing study shows
+// one model beating another, so this is a preference, not a recommendation -
+// variation and sticking with it matter more than the choice.
+export function getCoachModel() {
+  try {
+    return localStorage.getItem(KEYS.coachModel) === 'linear' ? 'linear' : 'undulating'
+  } catch {
+    return 'undulating'
+  }
+}
+
+export function setCoachModel(key) {
+  if (key === 'linear') localStorage.setItem(KEYS.coachModel, 'linear')
+  else localStorage.removeItem(KEYS.coachModel)
+}
+
+// Sessions per week the plan is built around (2-5).
+export function getCoachDays() {
+  try {
+    const v = Number(localStorage.getItem(KEYS.coachDays))
+    return v >= 2 && v <= 5 ? v : 3
+  } catch {
+    return 3
+  }
+}
+
+export function setCoachDays(n) {
+  const v = Number(n)
+  if (v >= 2 && v <= 5 && v !== 3) localStorage.setItem(KEYS.coachDays, String(v))
+  else localStorage.removeItem(KEYS.coachDays)
 }
 
 // ---- gear logging (Settings → Gear, logging on Profile) --------------------

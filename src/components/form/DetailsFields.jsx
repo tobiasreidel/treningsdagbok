@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Field, Scale, NumberField, Chips, Segmented } from '../ui'
 import { FEELING_LABELS, gradesFor, formatGrade } from '../../lib/constants'
+import { PUMP_SCALE } from '../../lib/exercises'
 import { avgSpeedFrom, pacePerKm, pacePer100m } from '../../lib/format'
 import { getGearSports } from '../../lib/prefs'
 import { fetchGearItems, GEAR_NOUN } from '../../lib/gear'
+
+const num = (v) => Number(v) || 0
 
 // Step 3 fields: subjective ratings, duration, and sport-specific numbers.
 export default function DetailsFields({ form, update, updateExtra }) {
@@ -11,6 +14,7 @@ export default function DetailsFields({ form, update, updateExtra }) {
   const isClimbing = form.sport === 'climbing'
   const isRunning = form.sport === 'running'
   const isSwimming = form.sport === 'swimming'
+  const isFinger = form.sport === 'finger'
   const extra = form.extra || {}
 
   return (
@@ -44,6 +48,43 @@ export default function DetailsFields({ form, update, updateExtra }) {
           highLabel="Max"
         />
       </Field>
+
+      {/* Fingers and forearms get their own ratings on climbing and finger
+          sessions, and they are deliberately two scales rather than one.
+          Crimping strains pulleys and tendons, which recover over days; pump is
+          metabolic and gone in hours. A pumpy endurance session and a session
+          of hard crimping can share a whole-body RPE and leave the fingers in
+          completely different states - only the first number feeds the coach's
+          finger-recovery window. */}
+      {(isClimbing || isFinger) && (
+        <>
+          <Field
+            label="Finger RPE"
+            hint={fingerRpeHint(extra.rpe_finger)}
+            optional
+          >
+            <Scale
+              min={1}
+              max={10}
+              value={num(extra.rpe_finger) || null}
+              onChange={(v) => updateExtra({ rpe_finger: v })}
+              lowLabel="Easy"
+              highLabel="Max"
+            />
+          </Field>
+
+          <Field label="Pump" hint={pumpHint(extra.pump)} optional>
+            <Scale
+              min={1}
+              max={5}
+              value={num(extra.pump) || null}
+              onChange={(v) => updateExtra({ pump: v })}
+              lowLabel="None"
+              highLabel="Maxed"
+            />
+          </Field>
+        </>
+      )}
 
       <Field label="Duration" required>
         <NumberField
@@ -275,6 +316,29 @@ function SwimmingFields({ form, updateExtra }) {
 
 function feelingHint(v) {
   return v ? FEELING_LABELS[v] : null
+}
+
+// Anchored on purpose. An unanchored self-report scale drifts over months, and
+// this one feeds the finger-recovery model, so what "8" means has to stay put.
+const FINGER_RPE_ANCHORS = {
+  2: '2 — jugs, fingers barely involved',
+  4: '4 — noticeable, nowhere near failing',
+  6: '6 — small holds, working hard',
+  8: '8 — failing ON holds, not on moves',
+  10: '10 — absolute max, skin and tendons feel it',
+}
+
+function fingerRpeHint(v) {
+  const n = Number(v) || 0
+  if (!n) return 'How hard it was on your fingers — crimping, small holds, pockets. 8 = failing on holds, not on moves.'
+  const keys = Object.keys(FINGER_RPE_ANCHORS).map(Number)
+  const nearest = keys.reduce((a, b) => (Math.abs(b - n) < Math.abs(a - n) ? b : a))
+  return FINGER_RPE_ANCHORS[nearest]
+}
+
+function pumpHint(v) {
+  const p = PUMP_SCALE.find((x) => x.level === Number(v))
+  return p ? `${p.label} · ${p.quality}` : 'Forearm pump — the endurance side, separate from finger load'
 }
 
 function CyclingFields({ form, updateExtra }) {

@@ -2215,6 +2215,427 @@ textarea {
   margin: 0;
 }
 
+/* ----- training coach card (dashboard) ----- */
+.coach-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.coach-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.coach-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.coach-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--tone, var(--text-muted));
+}
+/* Tone -> colour, shared by the suggestion dot and the finger-status box. */
+.coach-dot-go,
+.coach-finger-good {
+  --tone: #22c55e;
+}
+.coach-dot-moderate,
+.coach-finger-ok {
+  --tone: #f59e0b;
+}
+.coach-dot-easy {
+  --tone: #38bdf8;
+}
+.coach-dot-caution {
+  --tone: var(--danger);
+}
+.coach-finger-warn {
+  --tone: #f59e0b;
+}
+.coach-suggest-title {
+  font-size: 1.05rem;
+}
+.coach-detail {
+  margin: 0;
+}
+.coach-reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.coach-reason {
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+.coach-finger {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--tone, var(--text-muted));
+  padding: 10px 12px;
+  margin-top: 2px;
+}
+.coach-finger-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.coach-finger-label {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.coach-finger-state {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--tone);
+}
+.coach-finger-hint {
+  margin: 0;
+}
+.coach-nowrap {
+  white-space: nowrap;
+}
+.coach-disclaimer {
+  font-size: 0.72rem;
+  line-height: 1.4;
+  margin: 2px 0 0;
+  opacity: 0.85;
+}
+
+/* "beta" marker — this feature's numbers are starting points, and the label
+   should say so wherever the feature is named. */
+.beta-tag {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 6px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Session prescription (Coach page): label/value rows. */
+.coach-spec {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 2px;
+}
+.coach-spec-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 2px 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+}
+.coach-spec-row:last-child {
+  border-bottom: none;
+}
+.coach-spec-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+.coach-spec-value {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: right;
+  margin-left: auto;
+}
+
+/* Readiness z-score chips. */
+.coach-zrow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 6px;
+}
+.coach-z {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-muted);
+}
+.coach-z.is-up {
+  color: #22c55e;
+}
+.coach-z.is-down {
+  color: #f59e0b;
+}
+.coach-z.is-off {
+  opacity: 0.55;
+}
+
+/* This week's plan. */
+.coach-week {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.coach-week-day {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  font-size: 0.88rem;
+}
+.coach-week-main,
+.coach-week-second {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.coach-week-second {
+  padding-top: 6px;
+  border-top: 1px dashed var(--border);
+  opacity: 0.8;
+}
+.coach-week-pm {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.coach-week-day.is-rest {
+  opacity: 0.6;
+  background: transparent;
+  border: 1px dashed var(--border);
+}
+.coach-week-day.is-done {
+  opacity: 0.5;
+}
+.coach-week-day.is-next {
+  outline: 2px solid var(--primary);
+}
+.coach-week-emoji {
+  flex: 0 0 auto;
+}
+.coach-week-label {
+  flex: 1;
+  font-weight: 600;
+}
+.coach-week-tag {
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--primary);
+}
+
+.coach-sub {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 6px 0 0;
+}
+
+/* ----- prescribed exercises ----- */
+.ex-card {
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 11px 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ex-card.is-primary {
+  outline: 2px solid var(--primary);
+}
+.ex-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ex-id {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  background: var(--surface);
+  color: var(--text-muted);
+  padding: 2px 7px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+.ex-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  flex: 1;
+  min-width: 0;
+}
+.ex-how {
+  margin: 0;
+}
+.ex-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.ex-meta-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  background: var(--surface);
+  border-radius: 7px;
+  padding: 3px 8px;
+  font-size: 0.74rem;
+}
+.ex-meta-label {
+  color: var(--text-muted);
+}
+.ex-meta-value {
+  font-weight: 600;
+}
+
+/* ----- goals ----- */
+.goal-row,
+.coach-goal-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.goal-row {
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+}
+.goal-row:last-child {
+  border-bottom: none;
+}
+.goal-row.is-done .goal-title {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+.goal-emoji {
+  flex: 0 0 auto;
+  font-size: 1.1rem;
+}
+.goal-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.goal-title {
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+/* ----- session menu (intensity × category grid) ----- */
+.menu-row {
+  display: flex;
+  gap: 11px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+.menu-tier {
+  flex: 0 0 62px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.menu-level {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: #fff;
+  background: var(--text-muted);
+}
+.menu-level-1 { background: #22c55e; }
+.menu-level-2 { background: #84cc16; }
+.menu-level-3 { background: #f59e0b; }
+.menu-level-4 { background: #f97316; }
+.menu-level-5 { background: var(--danger); }
+.menu-tier-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-align: center;
+}
+.menu-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.menu-text {
+  font-size: 0.87rem;
+  line-height: 1.4;
+}
+.menu-ref {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+/* ----- OSTRC questionnaire options ----- */
+.ostrc-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ostrc-opt {
+  text-align: left;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.87rem;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.ostrc-opt.is-active {
+  border-color: var(--primary);
+  background: var(--primary-tint);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* Weekday chip on a planned day. */
+.coach-week-weekday {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  flex: 0 0 30px;
+}
+
 /* ----- warm-up / rehab row in the details form ----- */
 .wr-row {
   display: flex;

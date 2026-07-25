@@ -22,6 +22,10 @@ import CustomizeDashboard from './pages/CustomizeDashboard'
 import Friends from './pages/Friends'
 import AthleteView from './pages/AthleteView'
 import Changelog from './pages/Changelog'
+import Coach from './pages/Coach'
+import CoachSetup from './pages/CoachSetup'
+import CoachLibrary from './pages/CoachLibrary'
+import CheckIn from './pages/CheckIn'
 import ResetPassword from './components/ResetPassword'
 import TabBar, { TABBAR_PATHS } from './components/TabBar'
 
@@ -98,6 +102,10 @@ export default function App() {
         <Route path="/widgets" element={<CustomizeDashboard />} />
         <Route path="/friends" element={<Friends />} />
         <Route path="/changelog" element={<Changelog />} />
+        <Route path="/coach" element={<Coach />} />
+        <Route path="/coach/setup" element={<CoachSetup />} />
+        <Route path="/coach/library" element={<CoachLibrary />} />
+        <Route path="/checkin" element={<CheckIn />} />
         <Route path="/athlete/:id" element={<AthleteView />} />
         <Route path="/athlete/:id/stats" element={<Stats />} />
         <Route path="*" element={<Navigate to="/" replace />} />

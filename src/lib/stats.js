@@ -273,8 +273,15 @@ export function maxExtra(arr, key) {
 
 // ---- training load + fitness/form (intervals.icu-style) --------------------
 // Load for one session: the stored intervals.icu training load when present,
-// otherwise a session-RPE estimate mapped onto the same scale (1 h at RPE 10
-// ≈ 100, i.e. IF ≈ rpe/10). Sessions with neither contribute nothing.
+// otherwise an RPE-derived estimate on the same scale (1 h at RPE 10 ≈ 100,
+// i.e. IF ≈ rpe/10). Sessions with neither contribute nothing.
+//
+// NOTE: this is a TSS-analogue heuristic, NOT Foster's session-RPE. Foster's is
+// linear (RPE × minutes); this squares the intensity term so the number is
+// commensurable with imported TSS. The side effect is that easy sessions count
+// for very little - an hour at RPE 4 is 16% of an hour at RPE 10 - so volume
+// days build less chronic load here than they do in Foster's units, which
+// inflates any ratio measured against that baseline.
 export function sessionLoad(s) {
   const stored = num(s.extra?.training_load)
   if (stored > 0) return stored

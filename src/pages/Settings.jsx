@@ -19,6 +19,8 @@ import {
   setLogPeriod,
   getGearSports,
   setGearSports,
+  getCoachEnabled,
+  setCoachEnabled,
   GEAR_SPORTS,
   ALL_SPORTS,
 } from '../lib/prefs'
@@ -45,6 +47,7 @@ export default function Settings() {
   })
   const [enabledSports, setEnabledSportsState] = useState(getEnabledSports)
   const [logPeriod, setLogPeriodState] = useState(getLogPeriod)
+  const [coach, setCoachState] = useState(getCoachEnabled)
   const [gearSports, setGearSportsState] = useState(getGearSports)
   const [share, setShare] = useState(true)
   const [theme, setThemeState] = useState(getTheme)
@@ -118,6 +121,14 @@ export default function Settings() {
   const toggleLogPeriod = () => {
     setLogPeriodState((prev) => {
       setLogPeriod(!prev)
+      return !prev
+    })
+    showFlash()
+  }
+
+  const toggleCoach = () => {
+    setCoachState((prev) => {
+      setCoachEnabled(!prev)
       return !prev
     })
     showFlash()
@@ -363,6 +374,56 @@ export default function Settings() {
             stats show on your profile. Only you can ever see this, never
             friends or coaches.
           </p>
+        </section>
+
+        <section className="card settings-card stack">
+          <h2 className="step-q">
+            Training coach <span className="beta-tag">beta</span>
+          </h2>
+          <div className="toggle-list">
+            <label className="toggle-row">
+              <span className="toggle-label">
+                <span className="toggle-emoji">🧭</span>
+                Suggest today’s session
+              </span>
+              <span className="switch">
+                <input type="checkbox" checked={coach} onChange={toggleCoach} />
+                <span className="switch-track" />
+                <span className="switch-thumb" />
+              </span>
+            </label>
+          </div>
+          <p className="muted small">
+            Adds a card to your dashboard: a finger-tissue recovery status (days
+            since your last hard finger session, from the ~48–72 h collagen
+            rebuild window), a readiness score, a load trend and a suggested
+            session — all read from what you already log.
+          </p>
+          <p className="muted small">
+            Still beta: the thresholds are educated starting points, not settled
+            science. It’s a training-awareness aid, not medical advice, and it
+            deliberately never gives you an injury-risk number.
+          </p>
+          {coach && (
+            <>
+              <button
+                type="button"
+                className="btn btn-secondary btn-block settings-link-row"
+                onClick={() => navigate('/coach')}
+              >
+                <span>🧭 Open the coach</span>
+                <span className="settings-link-arrow">›</span>
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn-block settings-link-row"
+                onClick={() => navigate('/checkin')}
+              >
+                <span>📋 Daily check-in</span>
+                <span className="settings-link-arrow">›</span>
+              </button>
+            </>
+          )}
         </section>
 
         <section className="card settings-card stack">

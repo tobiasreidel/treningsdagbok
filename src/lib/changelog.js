@@ -5,6 +5,24 @@
 export const CHANGELOG = [
   {
     date: '2026-07-24',
+    title: 'A training coach on your dashboard (beta)',
+    changes: [
+      'A daily check-in: sleep, fatigue, soreness and stress, ten seconds a day. Rest days too — that’s the point, since a score built only from days you trained never sees the days you felt too rough to train.',
+      'A weekly overuse check based on the OSTRC questionnaire from the Oslo Sports Trauma Research Centre, so the coach can back off when something is building rather than waiting until you call it an injury.',
+      'Injuries can now say which part of you — the coach routes around that area instead of guessing.',
+      'Turn it on in Settings → Training coach to get a “Today” card on your home screen, with the full picture on a new Coach page.',
+      'Finger-tissue recovery: how long since your last hard finger session, against the ~48–72 h window your tendons and pulleys take to rebuild.',
+      'Readiness: one number against your own normal, built from how you’ve felt plus HRV, resting heart rate and form when intervals.icu is connected.',
+      'A load trend (this week against the baseline you’ve built) and a monotony check for when every day starts to look the same.',
+      'A suggested session with real numbers — grades scaled to your own limit, volume, rest and target RPE — plus this week’s plan. Pick linear or undulating in the Coach page.',
+      'Tell it about yourself once — grades, how often you train, what you have access to, injury history — and it prescribes real sessions from the training plan: F1 Max deadhang, B3 4×4, K5 Up–Down–Up, with sets, reps, rest and edge size. Browse them all in the exercise library.',
+      'Write down your goals with dates. A competition or a trip turns the plan from a repeating loop into a countdown that peaks on the day.',
+      'Climbing and finger sessions now take two separate ratings: “Finger RPE” for crimping and “Pump” on a 1–5 scale. They’re different things — pump clears in hours, finger tissue takes days — and only the finger one feeds the recovery window.',
+      'It’s beta: the thresholds are educated starting points. It’s a training-awareness aid, not medical advice, and it deliberately never gives an injury-risk number — pain is always the real signal.',
+    ],
+  },
+  {
+    date: '2026-07-24',
     title: 'Friends live on your profile',
     changes: [
       'Your friends, friend requests and invites moved to your profile — tap your picture, top-left of the home screen.',

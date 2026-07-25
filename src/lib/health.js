@@ -154,10 +154,13 @@ export async function fetchInjuries() {
   return data || []
 }
 
-export async function addInjury(note, started) {
+// `region` lets the training coach route around the affected structure. Without
+// it the best it can do is guess, and prescribing antagonist work - which is
+// mostly shoulder and push - is the worst possible answer to a shoulder injury.
+export async function addInjury(note, started, region = null) {
   const { error } = await supabase
     .from('injuries')
-    .insert({ note: note.trim(), started: started || todayISO() })
+    .insert({ note: note.trim(), started: started || todayISO(), region })
   if (error) throw error
 }
 

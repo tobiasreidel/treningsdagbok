@@ -1,0 +1,157 @@
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { coachReadout } from '../lib/coach'
+import { fetchIcuFitnessData } from '../lib/fitness'
+import { fetchCoachProfile, fetchGoals, isProfileComplete } from '../lib/coachProfile'
+import { fetchWellness, fetchOstrc, hasLoggedToday } from '../lib/wellness'
+import { getCoachModel, getCoachDays } from '../lib/prefs'
+
+// Dashboard card shown when the Training coach is on (Settings → Training
+// coach). Reads only the sessions you already log. The summary lives here;
+// the full breakdown and the plan are on /coach. Framed as awareness, never a
+// prediction or a risk score.
+export default function CoachCard({ sessions, injuries }) {
+  const navigate = useNavigate()
+  // Wellness (HRV, resting HR, form) feeds readiness. Cached for the day by
+  // fetchIcuFitnessData, and simply absent when intervals.icu isn't connected -
+  // readiness then runs on the signals that are available.
+  const [icu, setIcu] = useState(null)
+  const [profile, setProfile] = useState(null)
+  const [goals, setGoals] = useState([])
+  const [wellness, setWellness] = useState([])
+  const [ostrc, setOstrc] = useState([])
+
+  useEffect(() => {
+    let alive = true
+    const load = () => {
+      fetchIcuFitnessData()
+        .then((d) => alive && setIcu(d.wellness))
+        .catch(() => {})
+      fetchWellness()
+        .then((w) => alive && setWellness(w))
+        .catch(() => {})
+      fetchOstrc()
+        .then((o) => alive && setOstrc(o))
+        .catch(() => {})
+      fetchCoachProfile()
+        .then((p) => alive && setProfile(p?.missingTable ? null : p))
+        .catch(() => {})
+      fetchGoals()
+        .then((g) => alive && setGoals(g))
+        .catch(() => {})
+    }
+    load()
+    window.addEventListener('coach:changed', load)
+    return () => {
+      alive = false
+      window.removeEventListener('coach:changed', load)
+    }
+  }, [])
+
+  const { recovery, suggestion, readiness, goalPhase } = useMemo(
+    () =>
+      coachReadout(sessions, injuries, icu, {
+        model: getCoachModel(),
+        daysPerWeek: getCoachDays(),
+        profile,
+        goals,
+        wellness,
+        ostrc,
+      }),
+    [sessions, injuries, icu, profile, goals, wellness, ostrc],
+  )
+  const setUp = isProfileComplete(profile)
+
+  const sinceLabel =
+    recovery.daysSinceMax == null
+      ? 'none logged recently'
+      : recovery.daysSinceMax === 0
+        ? 'today'
+        : `${recovery.daysSinceMax} day${recovery.daysSinceMax === 1 ? '' : 's'} ago`
+
+  return (
+    <div className="card coach-card">
+      <div className="coach-head">
+        <span className="coach-title">
+          🧭 Today <span className="beta-tag">beta</span>
+        </span>
+        <span className={`coach-dot coach-dot-${suggestion.tone}`} aria-hidden="true" />
+      </div>
+
+      <strong className="coach-suggest-title">
+        {suggestion.type.emoji} {suggestion.type.label}
+      </strong>
+      <p className="muted small coach-detail">
+        {suggestion.exercises[0] && suggestion.key !== 'deload'
+          ? `${suggestion.exercises[0].id} · ${suggestion.exercises[0].name}`
+          : suggestion.type.goal}
+        {suggestion.grades ? ` · around ${suggestion.grades.text}` : ''}
+      </p>
+      {goalPhase && (
+        <p className="muted small coach-detail">
+          {goalPhase.phase.label} phase · {goalPhase.goal.title} in {goalPhase.days} day
+          {goalPhase.days === 1 ? '' : 's'}
+        </p>
+      )}
+      {suggestion.reasons.length > 0 && (
+        <div className="coach-reasons">
+          {suggestion.reasons.map((r) => (
+            <span className="coach-reason" key={r}>{r}</span>
+          ))}
+        </div>
+      )}
+
+      <div className={`coach-finger coach-finger-${recovery.tone}`}>
+        <div className="coach-finger-row">
+          <span className="coach-finger-label">🤏 Finger tissue</span>
+          <span className="coach-finger-state">{recovery.label}</span>
+        </div>
+        <p className="muted small coach-finger-hint">
+          {recovery.hint} <span className="coach-nowrap">Last hard load: {sinceLabel}.</span>
+        </p>
+      </div>
+
+      {readiness.enough && (
+        <div className={`coach-finger coach-finger-${readiness.tone}`}>
+          <div className="coach-finger-row">
+            <span className="coach-finger-label">🔋 Readiness</span>
+            <span className="coach-finger-state">
+              {readiness.index} · {readiness.label}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {setUp && !hasLoggedToday(wellness) && (
+        <button
+          type="button"
+          className="btn btn-primary btn-block settings-link-row"
+          onClick={() => navigate('/checkin')}
+        >
+          <span>How are you today?</span>
+          <span className="settings-link-arrow">›</span>
+        </button>
+      )}
+
+      <button
+        type="button"
+        className={`btn ${setUp ? 'btn-secondary' : 'btn-primary'} btn-block settings-link-row`}
+        onClick={() => navigate(setUp ? '/coach' : '/coach/setup')}
+      >
+        <span>{setUp ? 'See the plan & why' : 'Set up the coach →'}</span>
+        <span className="settings-link-arrow">›</span>
+      </button>
+      {!setUp && (
+        <p className="muted small">
+          Tell it what you climb and it can give you a real session instead of a
+          generic one.
+        </p>
+      )}
+
+      <p className="muted coach-disclaimer">
+        A training-awareness tool, not medical advice. Pain is your real signal — see a
+        professional for persistent symptoms.
+      </p>
+    </div>
+  )
+}

@@ -8,7 +8,10 @@ import { format, subDays } from 'date-fns'
 import { getSettings, hasCredentials, authHeader } from './intervals'
 
 const API_BASE = 'https://intervals.icu/api/v1'
-const CACHE_KEY = 'icu-fitness:v2'
+// v3 adds hrv + restingHR to each row (used by the training coach's readiness
+// score). Bumping the key retires v2 caches rather than reading rows that are
+// missing the new fields.
+const CACHE_KEY = 'icu-fitness:v3'
 const FETCH_DAYS = 430 // covers the 1Y stats range
 
 let memory = null
@@ -51,13 +54,22 @@ export async function fetchIcuFitnessData() {
   const oldest = format(subDays(new Date(), FETCH_DAYS), 'yyyy-MM-dd')
 
   const rows = await apiGet(
-    `/athlete/${id}/wellness.json?oldest=${oldest}&newest=${today}&cols=ctl,atl`,
+    `/athlete/${id}/wellness.json?oldest=${oldest}&newest=${today}&cols=ctl,atl,hrv,restingHR`,
     settings.apiKey,
   )
   const wellness = []
   for (const r of Array.isArray(rows) ? rows : []) {
+    // ctl/atl still gate a row: the fitness chart reads these and a row without
+    // them would plot as zero. hrv/restingHR ride along and are often absent
+    // (no morning measurement that day), so they stay nullable.
     if (r?.id && r.ctl != null && r.atl != null) {
-      wellness.push({ date: r.id, ctl: r.ctl, atl: r.atl })
+      wellness.push({
+        date: r.id,
+        ctl: r.ctl,
+        atl: r.atl,
+        hrv: r.hrv ?? null,
+        restingHR: r.restingHR ?? null,
+      })
     }
   }
   wellness.sort((a, b) => a.date.localeCompare(b.date))

@@ -23,6 +23,7 @@ import {
 import { getAvatarUrl, uploadAvatar, removeAvatar } from '../lib/profile'
 import { fetchSessions } from '../lib/sessions'
 import { sumHours, currentWeekStreak, round1 } from '../lib/stats'
+import { BODY_AREAS, areaLabel } from '../lib/wellness'
 import {
   fetchPeriodDays,
   analyzeCycle,
@@ -1208,6 +1209,7 @@ function InjuriesCard() {
   const [injuries, setInjuries] = useState(null) // null = loading
   const [loadErr, setLoadErr] = useState(false)
   const [note, setNote] = useState('')
+  const [region, setRegion] = useState('')
   const [started, setStarted] = useState(todayISO())
   const [busy, setBusy] = useState(false)
 
@@ -1240,8 +1242,9 @@ function InjuriesCard() {
 
   const add = () =>
     act(async () => {
-      await addInjury(note, started)
+      await addInjury(note, started, region)
       setNote('')
+      setRegion('')
       setStarted(todayISO())
     })
 
@@ -1289,7 +1292,9 @@ function InjuriesCard() {
             <div className="injury-row" key={i.id}>
               <span className="injury-main">
                 <span className="injury-note">{i.note}</span>
-                <span className="muted small">since {formatDayShort(i.started)} · active</span>
+                <span className="muted small">
+                  {i.region ? `${areaLabel(i.region)} · ` : ''}since {formatDayShort(i.started)} · active
+                </span>
               </span>
               <span className="injury-actions">
                 <button
@@ -1350,6 +1355,16 @@ function InjuriesCard() {
             onChange={(e) => setNote(e.target.value)}
             placeholder="e.g. A2 pulley, right ring finger"
           />
+          {/* Region lets the training coach route around the affected
+              structure instead of guessing — prescribing antagonist work,
+              which is mostly shoulder and push, is the worst possible answer
+              to a shoulder injury. */}
+          <select value={region} onChange={(e) => setRegion(e.target.value)}>
+            <option value="">Which part? (optional)</option>
+            {BODY_AREAS.map((a) => (
+              <option key={a.key} value={a.key}>{a.emoji} {a.label}</option>
+            ))}
+          </select>
           <div className="wr-row">
             <input
               type="date"

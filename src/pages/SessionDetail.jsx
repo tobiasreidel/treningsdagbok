@@ -14,6 +14,7 @@ import { isPeriodDay } from '../lib/health'
 import { getLogPeriod } from '../lib/prefs'
 import { embeddedStrengthMinutes, embeddedFingerMinutes } from '../lib/stats'
 import { normalizeHang } from '../lib/formState'
+import { pumpLabel } from '../lib/exercises'
 import ActivityAnalysis from '../components/ActivityAnalysis'
 
 const num = (v) => (v === '' || v == null ? null : Number(v))
@@ -183,6 +184,12 @@ export default function SessionDetail() {
   if (!isEndurance) {
     if (session.feeling) tiles.push({ label: 'Feeling', value: FEELING_LABELS[session.feeling], sub: `${session.feeling}/5` })
     if (session.rpe) tiles.push({ label: 'RPE', value: session.rpe, sub: '/10' })
+    if (num(e.rpe_finger)) {
+      tiles.push({ label: 'Finger RPE', value: num(e.rpe_finger), sub: '/10' })
+    }
+    if (num(e.pump)) {
+      tiles.push({ label: 'Pump', value: num(e.pump), sub: `/5 · ${pumpLabel(e.pump)}` })
+    }
     const strengthMin = embeddedStrengthMinutes(session)
     const fingerMin = embeddedFingerMinutes(session)
     if (session.duration) {

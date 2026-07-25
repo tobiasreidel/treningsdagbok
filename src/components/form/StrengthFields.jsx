@@ -169,6 +169,25 @@ function FingerPanel({ finger, updateExtra }) {
         />
       </Field>
 
+      {/* Two-finger and pocket work carries pulley and lumbrical risk out of
+          proportion to how hard it feels, and nothing else in the log reveals
+          it - so the coach can't see it unless it's asked for. */}
+      <label className="toggle-row">
+        <span className="toggle-label">
+          <span className="toggle-emoji">🤞</span>
+          Two-finger / pocket work
+        </span>
+        <span className="switch">
+          <input
+            type="checkbox"
+            checked={!!finger.pockets}
+            onChange={() => setFinger({ pockets: !finger.pockets })}
+          />
+          <span className="switch-track" />
+          <span className="switch-thumb" />
+        </span>
+      </label>
+
       <div>
         <span className="field-label">Hangboard</span>
         <div className="stack" style={{ marginTop: 8 }}>
