@@ -1,12 +1,14 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Field, Scale, Segmented } from '../components/ui'
+import { Field, Scale, Segmented, useBack } from '../components/ui'
+import { Line } from '../components/charts'
 import {
   HOOPER_ITEMS,
   OSTRC_QUESTIONS,
   BODY_AREAS,
   getWellnessDay,
   saveWellnessDay,
+  fetchWellness,
   fetchOstrc,
   saveOstrc,
   currentWeekStart,
@@ -16,6 +18,7 @@ import {
   areaLabel,
 } from '../lib/wellness'
 import { todayISO, formatDayShort } from '../lib/format'
+import { format, subDays } from 'date-fns'
 
 // Daily wellness + the weekly overuse questionnaire.
 //
@@ -24,8 +27,10 @@ import { todayISO, formatDayShort } from '../lib/format'
 // of the data. The daily check-in takes about ten seconds.
 export default function CheckIn() {
   const navigate = useNavigate()
+  const back = useBack('/')
   const [day, setDay] = useState(null)
   const [ostrc, setOstrc] = useState([])
+  const [history, setHistory] = useState([])
   const [tab, setTab] = useState('today')
   const [error, setError] = useState(null)
   const [flash, setFlash] = useState(null)
@@ -33,9 +38,14 @@ export default function CheckIn() {
 
   const load = useCallback(async () => {
     try {
-      const [d, o] = await Promise.all([getWellnessDay(todayISO()), fetchOstrc()])
+      const [d, o, h] = await Promise.all([
+        getWellnessDay(todayISO()),
+        fetchOstrc(),
+        fetchWellness(30).catch(() => []),
+      ])
       setDay(d || {})
       setOstrc(o)
+      setHistory(h)
     } catch (err) {
       setError(err.message || 'Could not load')
       setDay({})
@@ -76,7 +86,7 @@ export default function CheckIn() {
   return (
     <div className="page">
       <header className="wizard-head">
-        <button className="icon-btn" onClick={() => navigate(-1)} aria-label="Back">
+        <button className="icon-btn" onClick={back} aria-label="Back">
           ‹
         </button>
         <div className="wizard-title">
@@ -90,10 +100,11 @@ export default function CheckIn() {
           options={[
             { key: 'today', label: 'Today' },
             { key: 'week', label: 'This week' },
+            { key: 'history', label: 'History' },
           ]}
           value={tab}
           onChange={setTab}
-          columns={2}
+          columns={3}
         />
 
         {tab === 'today' ? (
@@ -102,7 +113,8 @@ export default function CheckIn() {
             <p className="muted small">
               Ten seconds, every day — including rest days. That’s the point: if this
               only got filled in on training days it would only ever see you on the days
-              you felt good enough to train.
+              you felt good enough to train. Only today is editable — backfilling from
+              memory is exactly the data this must not contain.
             </p>
             {HOOPER_ITEMS.map((item) => (
               <Field key={item.key} label={item.label} hint={item.hint}>
@@ -118,13 +130,104 @@ export default function CheckIn() {
             ))}
             {error && <p className="auth-error">{error}</p>}
           </section>
-        ) : (
+        ) : tab === 'week' ? (
           <OstrcSection rows={ostrc} onSaved={load} />
+        ) : (
+          <WellnessHistory
+            rows={history}
+            onReadiness={() => navigate('/coach/signals/readiness')}
+          />
         )}
       </main>
 
       {flash && <div className="toast">{flash}</div>}
     </div>
+  )
+}
+
+// The last 30 days of check-ins, one trend per item. Past days are shown, not
+// editable - see the note on the Today tab.
+function WellnessHistory({ rows, onReadiness }) {
+  const byDate = useMemo(() => new Map(rows.map((r) => [r.date, r])), [rows])
+  const days = useMemo(() => {
+    const out = []
+    for (let i = 29; i >= 0; i -= 1) {
+      const d = subDays(new Date(), i)
+      out.push({ iso: format(d, 'yyyy-MM-dd'), label: format(d, 'd/M') })
+    }
+    return out
+  }, [])
+
+  const loggedDays = days.filter((d) => byDate.has(d.iso)).length
+  const streak = (() => {
+    let n = 0
+    for (let i = days.length - 1; i >= 0; i -= 1) {
+      if (byDate.has(days[i].iso)) n += 1
+      else break
+    }
+    return n
+  })()
+
+  if (loggedDays === 0) {
+    return (
+      <div className="card empty-state">
+        <p>No check-ins yet.</p>
+        <p className="muted small">
+          Fill in the Today tab — after a few days there’s a trend to see here.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <div className="tile-grid">
+        <div className="tile">
+          <span className="tile-label">Days logged</span>
+          <span className="tile-value">
+            {loggedDays}
+            <small> / 30</small>
+          </span>
+        </div>
+        <div className="tile">
+          <span className="tile-label">Current streak</span>
+          <span className="tile-value">
+            {streak}
+            <small> {streak === 1 ? 'day' : 'days'}</small>
+          </span>
+        </div>
+      </div>
+
+      {HOOPER_ITEMS.map((item) => {
+        const data = days.map((d) => {
+          const v = byDate.get(d.iso)?.[item.key]
+          return { label: d.label, value: v == null ? null : Number(v) }
+        })
+        const has = data.some((p) => p.value != null)
+        return (
+          <div className="card chart-card" key={item.key}>
+            <div className="chart-card-head">
+              <span className="chart-card-title">{item.label}</span>
+              <span className="chart-card-value">1–5 · 5 = {item.high.toLowerCase()}</span>
+            </div>
+            {has ? (
+              <Line data={data} fromZero={false} color="var(--primary)" />
+            ) : (
+              <p className="muted small">Nothing logged for this one yet.</p>
+            )}
+          </div>
+        )
+      })}
+
+      <button
+        type="button"
+        className="btn btn-secondary btn-block settings-link-row"
+        onClick={onReadiness}
+      >
+        <span>🔋 How this feeds readiness</span>
+        <span className="settings-link-arrow">›</span>
+      </button>
+    </>
   )
 }
 

@@ -16,6 +16,30 @@ const KEYS = {
   coach: 'pref.coach',
   coachModel: 'pref.coachModel',
   coachDays: 'pref.coachDays',
+  checkinPromptDay: 'pref.checkinPromptDay',
+  bodyweight: 'pref.bodyweightKg',
+}
+
+// A local mirror of coach_profile.bodyweight_kg, written when the profile is
+// saved. The session form needs it to render "total load" helper text without
+// a server round-trip on every keystroke; the profile row remains the source
+// of truth for anything the coach computes.
+//
+// One value, no history, deliberately: see supabase/coach_v4.sql for why a
+// bodyweight *trend* is a feature this app does not build.
+export function getBodyweight() {
+  try {
+    const v = Number(localStorage.getItem(KEYS.bodyweight))
+    return Number.isFinite(v) && v > 0 ? v : null
+  } catch {
+    return null
+  }
+}
+
+export function setBodyweight(kg) {
+  const v = Number(kg)
+  if (Number.isFinite(v) && v > 0) localStorage.setItem(KEYS.bodyweight, String(v))
+  else localStorage.removeItem(KEYS.bodyweight)
 }
 
 // ---- training coach (Settings → Training coach) ----------------------------
@@ -33,6 +57,25 @@ export function getCoachEnabled() {
 export function setCoachEnabled(on) {
   if (on) localStorage.setItem(KEYS.coach, '1')
   else localStorage.removeItem(KEYS.coach)
+}
+
+// The last day the daily check-in sheet was shown (saved or dismissed). One
+// prompt per day: dismissing it must not mean being nagged again an hour
+// later, and the sheet can still be reached any time via the check-in page.
+export function getCheckinPromptDay() {
+  try {
+    return localStorage.getItem(KEYS.checkinPromptDay) || ''
+  } catch {
+    return ''
+  }
+}
+
+export function setCheckinPromptDay(iso) {
+  try {
+    localStorage.setItem(KEYS.checkinPromptDay, iso)
+  } catch {
+    // storage full/blocked - the sheet just shows again next open
+  }
 }
 
 // Periodisation model the session generator follows. No climbing study shows

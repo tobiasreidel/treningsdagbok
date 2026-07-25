@@ -25,6 +25,7 @@ import Changelog from './pages/Changelog'
 import Coach from './pages/Coach'
 import CoachSetup from './pages/CoachSetup'
 import CoachLibrary from './pages/CoachLibrary'
+import CoachSignals from './pages/CoachSignals'
 import CheckIn from './pages/CheckIn'
 import ResetPassword from './components/ResetPassword'
 import TabBar, { TABBAR_PATHS } from './components/TabBar'
@@ -105,6 +106,8 @@ export default function App() {
         <Route path="/coach" element={<Coach />} />
         <Route path="/coach/setup" element={<CoachSetup />} />
         <Route path="/coach/library" element={<CoachLibrary />} />
+        <Route path="/coach/signals" element={<CoachSignals />} />
+        <Route path="/coach/signals/:key" element={<CoachSignals />} />
         <Route path="/checkin" element={<CheckIn />} />
         <Route path="/athlete/:id" element={<AthleteView />} />
         <Route path="/athlete/:id/stats" element={<Stats />} />

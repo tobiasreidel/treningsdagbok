@@ -10,17 +10,26 @@ import {
   fetchInjuries,
   injuryDays,
 } from '../lib/health'
-import { getLogPeriod, getCoachEnabled, getAvatarEmoji } from '../lib/prefs'
+import {
+  getLogPeriod,
+  getCoachEnabled,
+  getAvatarEmoji,
+  getCheckinPromptDay,
+  setCheckinPromptDay,
+} from '../lib/prefs'
 import { getMyProfile, countIncomingRequests } from '../lib/friends'
 import { countPendingCoachRequests } from '../lib/coaches'
 import { getAvatarUrl } from '../lib/profile'
 import { useOnline } from '../components/ui'
+import { fetchWellness, hasLoggedToday } from '../lib/wellness'
+import { todayISO } from '../lib/format'
 import Calendar from '../components/Calendar'
 import SummaryCards from '../components/SummaryCards'
 import WeekTable from '../components/WeekTable'
 import DaySheet from '../components/DaySheet'
 import CycleCard from '../components/CycleCard'
 import CoachCard from '../components/CoachCard'
+import CheckInSheet from '../components/CheckInSheet'
 import Avatar from '../components/Avatar'
 import { SettingsIcon } from '../components/icons'
 
@@ -46,6 +55,28 @@ export default function Dashboard() {
   // friend and coaching requests waiting on the profile page.
   const [me, setMe] = useState({ url: null, name: '', emoji: getAvatarEmoji() })
   const [reqCount, setReqCount] = useState(0)
+  // Daily check-in sheet: first thing on opening the app, once per day, only
+  // while the coach is on and today hasn't been logged yet.
+  const [checkinOpen, setCheckinOpen] = useState(false)
+
+  useEffect(() => {
+    if (!coachEnabled) return undefined
+    if (getCheckinPromptDay() === todayISO()) return undefined
+    let alive = true
+    fetchWellness(3)
+      .then((rows) => {
+        if (alive && !hasLoggedToday(rows)) setCheckinOpen(true)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [coachEnabled])
+
+  const dismissCheckin = () => {
+    setCheckinPromptDay(todayISO())
+    setCheckinOpen(false)
+  }
 
   useEffect(() => {
     let alive = true
@@ -228,6 +259,13 @@ export default function Dashboard() {
             />
           </section>
         </>
+      )}
+
+      {checkinOpen && (
+        <CheckInSheet
+          onClose={dismissCheckin}
+          onSaved={() => setToast('Checked in for today')}
+        />
       )}
 
       {dayView && (

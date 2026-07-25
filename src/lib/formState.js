@@ -67,33 +67,56 @@ export function emptyExercise() {
   return { exercise: 'pullups', sets: '', reps: '', weight: '' }
 }
 
-// A hangboard exercise: one or two hands, a rep count, an optional rest (in
-// seconds) between reps, and a list of sets. Each set carries its own added
-// weight (kg), hang time (seconds), and edge size (mm); new sets default to the
-// first set's values but can be changed individually. One-hand weight may be
-// negative (assisted via pulley); two-hand weight is added only.
+// A hangboard exercise: one or two hands, a grip, a rep count, an optional
+// rest (in seconds) between reps, and a list of sets. Each set carries its own
+// load, hang time (seconds) and edge size (mm); new sets default to the first
+// set's values but can be changed individually.
+//
+// LOAD IS STORED AS TOTAL KG — bodyweight included — matching the finger test
+// it gets compared against (see fingerLoad.js for why the denominator decides
+// whether "85% of max" is a near-maximal hang or an assisted one).
+//
+//   v4 sets:    { load_total_kg, time, edge, ... }
+//   legacy sets:{ weight }  = ADDED kg, converted with a bodyweight at read
+//               time and left untouched on disk.
 export function emptyHang() {
-  return { hands: 'two', reps: '1', rest: '', sets: [{ weight: '', time: '', edge: '' }] }
+  return {
+    hands: 'two',
+    grip: 'halfcrimp',
+    reps: '1',
+    rest: '',
+    sets: [{ load_total_kg: '', time: '', edge: '' }],
+  }
 }
 
-// Read a hangboard entry in either shape. Legacy entries were a flat
-// { hands, weight }; new ones are { hands, reps, rest, sets: [{ weight, time, edge }] }.
-// Edge size was added later, so older sets simply lack it (treated as blank).
+// Read a hangboard entry in any shape it has ever been stored in:
+//   v1 flat        { hands, weight }
+//   v2 sets        { hands, reps, rest, sets: [{ weight, time, edge }] }
+//   v4 total load  { hands, grip, reps, rest, sets: [{ load_total_kg, ... }] }
+// Legacy `weight` is preserved verbatim so nothing is lost or silently
+// reinterpreted on disk; fingerLoad.setTotalLoad() decides what it means.
 export function normalizeHang(h) {
+  const base = { load_total_kg: '', weight: '', time: '', edge: '' }
   if (h && Array.isArray(h.sets)) {
     return {
       hands: h.hands || 'two',
+      grip: h.grip || 'halfcrimp',
       reps: h.reps ?? '1',
       rest: h.rest ?? '',
-      sets: h.sets.length
-        ? h.sets.map((s) => ({ edge: '', ...s }))
-        : [{ weight: '', time: '', edge: '' }],
+      sets: h.sets.length ? h.sets.map((s) => ({ ...base, ...s })) : [{ ...base }],
     }
   }
   return {
     hands: h?.hands || 'two',
+    grip: h?.grip || 'halfcrimp',
     reps: h?.reps ?? '1',
     rest: '',
-    sets: [{ weight: h?.weight ?? '', time: '', edge: '' }],
+    sets: [{ ...base, weight: h?.weight ?? '' }],
   }
+}
+
+// Is this set expressed in the legacy added-weight form?
+export function isLegacyHangSet(set) {
+  const total = Number(set?.load_total_kg)
+  return !(Number.isFinite(total) && total > 0) && set?.weight !== '' && set?.weight != null
 }

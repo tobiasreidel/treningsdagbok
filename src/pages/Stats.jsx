@@ -4,11 +4,16 @@ import { format } from 'date-fns'
 import { asDate } from '../lib/format'
 import { fetchSessions } from '../lib/sessions'
 import { fetchIcuFitnessData } from '../lib/fitness'
+import { fetchInjuries } from '../lib/health'
 import { getAthleteProfile } from '../lib/coaches'
+import { fetchCoachProfile, fetchGoals } from '../lib/coachProfile'
+import { fetchWellness, fetchOstrc } from '../lib/wellness'
+import { coachReadout, fingerDoseSeries } from '../lib/coach'
 import { PillRow } from '../components/ui'
 import { Bars, Line, HBars, FitnessChart } from '../components/charts'
+import SignalBlock from '../components/SignalBlock'
 import { exerciseLabel } from '../lib/constants'
-import { getEnabledSports, ALL_SPORTS } from '../lib/prefs'
+import { getEnabledSports, ALL_SPORTS, getCoachEnabled, getCoachModel } from '../lib/prefs'
 import * as S from '../lib/stats'
 
 const CYCLING = 'var(--cycling)'
@@ -139,7 +144,7 @@ export default function Stats() {
         ) : tab === 'swimming' ? (
           <Swimming view={view} />
         ) : tab === 'climbing' ? (
-          <Climbing view={view} />
+          <Climbing view={view} showCoach={!athleteId && getCoachEnabled()} />
         ) : tab === 'strength' ? (
           <Strength view={view} />
         ) : tab === 'finger' ? (
@@ -570,7 +575,116 @@ function Swimming({ view }) {
 }
 
 // ---- Climbing ----
-function Climbing({ view }) {
+// The coach's four signals, in the climbing stats where the training actually
+// shows up. Same numbers as the dashboard, same tap-through to the history.
+function CoachSignalsBlock({ sessions }) {
+  const navigate = useNavigate()
+  const [data, setData] = useState(null)
+
+  useEffect(() => {
+    let alive = true
+    Promise.allSettled([
+      fetchInjuries(),
+      fetchIcuFitnessData(),
+      fetchCoachProfile(),
+      fetchGoals(),
+      fetchWellness(),
+      fetchOstrc(),
+    ]).then(([inj, fit, prof, gls, well, ost]) => {
+      if (!alive) return
+      const val = (r, fb) => (r.status === 'fulfilled' ? r.value : fb)
+      const p = val(prof, null)
+      setData({
+        injuries: val(inj, []),
+        icu: val(fit, {})?.wellness ?? null,
+        profile: p?.missingTable ? null : p,
+        goals: val(gls, []),
+        wellness: val(well, []),
+        ostrc: val(ost, []),
+      })
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const readout = useMemo(
+    () =>
+      data
+        ? coachReadout(sessions, data.injuries, data.icu, {
+            model: getCoachModel(),
+            profile: data.profile,
+            goals: data.goals,
+            wellness: data.wellness,
+            ostrc: data.ostrc,
+          })
+        : null,
+    [sessions, data],
+  )
+  const dose = useMemo(
+    () =>
+      readout ? fingerDoseSeries(sessions, readout.limits, data.profile, 28) : [],
+    [readout, sessions, data],
+  )
+
+  if (!readout) return null
+  const { recovery, readiness, trend, monotony } = readout
+  const doseBars = dose.map((d) => ({
+    label: format(asDate(d.date), 'd/M'),
+    value: d.dose,
+    color:
+      d.tier === 'maximal'
+        ? 'var(--danger)'
+        : d.tier === 'hard'
+          ? '#f59e0b'
+          : '#22c55e',
+  }))
+
+  return (
+    <div className="detail-block">
+      <h2 className="section-title">Coach signals</h2>
+      <div className="stack">
+        <SignalBlock
+          title="🤏 Finger tissue"
+          state={recovery.label}
+          tone={recovery.tone}
+          onPress={() => navigate('/coach/signals/finger')}
+        />
+        <SignalBlock
+          title="🔋 Readiness"
+          state={readiness.enough ? `${readiness.index} · ${readiness.label}` : 'Building baseline'}
+          tone={readiness.enough ? readiness.tone : 'ok'}
+          onPress={() => navigate('/coach/signals/readiness')}
+        />
+        <SignalBlock
+          title="📈 Load trend"
+          state={trend.enough ? `${trend.pctLabel} of normal` : 'No baseline yet'}
+          tone={trend.enough ? trend.tone : 'ok'}
+          onPress={() => navigate('/coach/signals/load')}
+        />
+        <SignalBlock
+          title="🔁 Monotony"
+          state={
+            !monotony.enough
+              ? 'Quiet week'
+              : monotony.monotony == null
+                ? 'Very high'
+                : monotony.monotony.toFixed(1)
+          }
+          tone={!monotony.enough ? 'ok' : monotony.flag ? 'warn' : 'good'}
+          onPress={() => navigate('/coach/signals/monotony')}
+        />
+        {dose.some((d) => d.dose > 0) && (
+          <Card title="Finger dose, last 28 days">
+            <Bars data={doseBars} />
+          </Card>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function Climbing({ view, showCoach }) {
   const { buckets, climbing } = view
   if (climbing.length === 0) return <div className="card empty-state"><p>No climbing in this period.</p></div>
   const feeling = buckets.map((b) => ({ label: b.label, value: S.round1(S.avgFeeling(S.bySport(b.sessions, 'climbing'))) }))
@@ -589,6 +703,7 @@ function Climbing({ view }) {
           { label: 'Indoor', value: loc.indoor },
         ]}
       />
+      {showCoach && <CoachSignalsBlock sessions={view.base} />}
       {sportCarriesLoad(view, 'climbing') && <FitnessBlock view={view} />}
       <SplitHoursCard
         view={view}

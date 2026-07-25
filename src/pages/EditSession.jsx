@@ -5,8 +5,10 @@ import DetailsFields from '../components/form/DetailsFields'
 import RoutesEditor from '../components/form/RoutesEditor'
 import StrengthFields from '../components/form/StrengthFields'
 import NotesPhoto from '../components/form/NotesPhoto'
+import CoachPlanField, { COACH_SPORTS } from '../components/form/CoachPlanField'
 import { sessionToForm, isOutdoorClimbing, usesStrengthModule } from '../lib/formState'
 import { SPORTS, SUBTYPES, LOCATIONS } from '../lib/constants'
+import { getCoachEnabled } from '../lib/prefs'
 import {
   getSession,
   updateSession,
@@ -154,6 +156,13 @@ export default function EditSession() {
               onChange={(v) => update({ location: v })}
               columns={2}
             />
+          </section>
+        )}
+
+        {getCoachEnabled() && COACH_SPORTS.includes(form.sport) && (
+          <section>
+            <h2 className="step-q">The plan</h2>
+            <CoachPlanField form={form} updateExtra={updateExtra} />
           </section>
         )}
 

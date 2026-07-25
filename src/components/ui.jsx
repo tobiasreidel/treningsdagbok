@@ -1,6 +1,20 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 // Reusable, touch-friendly form controls. Big tap targets, one-handed use.
+
+// A back button that actually goes back. Pushing the parent route instead
+// (navigate('/coach')) grows the history every tap, so back then bounces
+// between the two screens forever. Real history-back when there is somewhere
+// to go back to; the fallback covers deep links and fresh PWA launches, where
+// this screen is the first history entry.
+export function useBack(fallback = '/') {
+  const navigate = useNavigate()
+  return () => {
+    if (window.history.state?.idx > 0) navigate(-1)
+    else navigate(fallback, { replace: true })
+  }
+}
 
 export function Field({ label, hint, children, optional, required }) {
   return (

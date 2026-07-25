@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Field, NumberField, Segmented } from '../ui'
 import { SPORTS, STRENGTH_EXERCISES } from '../../lib/constants'
-import { emptyExercise, emptyHang, normalizeHang } from '../../lib/formState'
+import { emptyExercise, emptyHang, normalizeHang, isLegacyHangSet } from '../../lib/formState'
+import { GRIPS } from '../../lib/fingerLoad'
+import { getBodyweight } from '../../lib/prefs'
 
 // The strength + finger-training module. Both panels (lifts and campus/
 // hangboard) are always available behind a tab toggle, so a combined workout
@@ -145,6 +147,7 @@ function StrengthPanel({ exercises, updateExtra }) {
 // Finger training: a campus choice and a list of hangboard exercises.
 function FingerPanel({ finger, updateExtra }) {
   const hangs = finger.hangboard || []
+  const bodyweight = getBodyweight()
   const setFinger = (patch) => updateExtra({ finger: { ...finger, ...patch } })
   const setHang = (i, next) =>
     setFinger({ hangboard: hangs.map((x, idx) => (idx === i ? next : x)) })
@@ -200,6 +203,7 @@ function FingerPanel({ finger, updateExtra }) {
               index={i}
               onChange={(next) => setHang(i, next)}
               onRemove={() => removeHang(i)}
+              bodyweight={bodyweight}
             />
           ))}
 
@@ -216,9 +220,9 @@ function FingerPanel({ finger, updateExtra }) {
 // count grows/shrinks the list, seeding new sets from the first one; weight and
 // time stay editable per set. The count is applied on blur/Enter so clearing
 // the field to retype it never wipes the sets you already filled in.
-function HangEditor({ hang, index, onChange, onRemove }) {
+function HangEditor({ hang, index, onChange, onRemove, bodyweight }) {
   const h = normalizeHang(hang)
-  const oneHand = h.hands === 'one'
+  const legacySets = h.sets.filter(isLegacyHangSet).length
   // While the Sets field is focused we show the raw text being typed; otherwise
   // it mirrors the actual set count (so it stays correct if the list reorders).
   const [editing, setEditing] = useState(false)
@@ -231,7 +235,7 @@ function HangEditor({ hang, index, onChange, onRemove }) {
     if (!Number.isFinite(count) || count < 1) count = 1
     count = Math.min(count, 30)
     if (count === h.sets.length) return
-    const template = h.sets[0] || { weight: '', time: '', edge: '' }
+    const template = h.sets[0] || { load_total_kg: '', time: '', edge: '' }
     const sets = h.sets.slice(0, count)
     while (sets.length < count) sets.push({ ...template })
     onChange({ ...h, sets })
@@ -281,6 +285,19 @@ function HangEditor({ hang, index, onChange, onRemove }) {
           onChange={(v) => onChange({ ...h, hands: v })}
           columns={2}
         />
+      </Field>
+
+      {/* Grip matters: half-crimp and open-hand maxima commonly differ by
+          ~20%, so a session logged without one can only be compared against a
+          generic number. */}
+      <Field label="Grip">
+        <select value={h.grip} onChange={(e) => onChange({ ...h, grip: e.target.value })}>
+          {GRIPS.map((g) => (
+            <option key={g.key} value={g.key}>
+              {g.label}
+            </option>
+          ))}
+        </select>
       </Field>
 
       <div className="two-col">
@@ -335,11 +352,11 @@ function HangEditor({ hang, index, onChange, onRemove }) {
           <div className="set-row" key={i}>
             <span className="set-row-label">Set {i + 1}</span>
             <NumberField
-              value={s.weight}
-              onChange={(v) => setSet(i, { weight: v })}
-              placeholder="0"
+              value={s.load_total_kg}
+              onChange={(v) => setSet(i, { load_total_kg: v, weight: '' })}
+              placeholder={bodyweight ? String(Math.round(bodyweight)) : 'total'}
               unit="kg"
-              min={oneHand ? -500 : 0}
+              min={0}
             />
             <NumberField
               value={s.time}
@@ -359,9 +376,24 @@ function HangEditor({ hang, index, onChange, onRemove }) {
         ))}
       </div>
       <span className="field-hint">
-        {oneHand ? 'Weight: + added · − assisted (pulley).' : 'Weight: added weight.'} Time is
-        the hang in seconds. Edge is the depth in mm. The first set is the default for the rest.
+        <strong>Load is total kilos — your bodyweight included.</strong> Hanging at
+        bodyweight with 10 kg on the harness
+        {bodyweight ? ` is ${Math.round(bodyweight) + 10} kg` : ' is bodyweight + 10'}; hanging
+        with 10 kg taken off by a pulley
+        {bodyweight ? ` is ${Math.round(bodyweight) - 10} kg` : ' is bodyweight − 10'}. This
+        matches how your max is recorded, so “85% of max” means the same thing in both places.
+        Time is the hang in seconds, edge the depth in mm. The first set is the default for the
+        rest.
       </span>
+      {legacySets > 0 && (
+        <span className="field-hint">
+          {legacySets} set{legacySets === 1 ? '' : 's'} in this session were logged as{' '}
+          <em>added</em> weight by an older version.{' '}
+          {bodyweight
+            ? 'They are read as bodyweight + added.'
+            : 'Add your bodyweight in the coach setup so they can be read at all.'}
+        </span>
+      )}
     </div>
   )
 }

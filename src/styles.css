@@ -2457,6 +2457,141 @@ textarea {
   margin: 6px 0 0;
 }
 
+/* A signal block that opens its history: same look, plus a chevron. */
+.coach-finger-press {
+  width: 100%;
+  border: none;
+  border-left: 3px solid var(--tone, var(--text-muted));
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.coach-finger-chev {
+  margin-left: 6px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+/* Rolling 7-day plan extras. */
+.coach-week-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.coach-week-day.is-today {
+  outline: 2px solid var(--primary);
+}
+.coach-week-day.is-logged {
+  opacity: 0.75;
+}
+.coach-week-check {
+  flex: 0 0 auto;
+  font-weight: 700;
+  color: #22c55e;
+}
+.coach-week-divider {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--primary);
+  padding: 2px 2px 0;
+}
+
+/* Pressable plan rows: the main row becomes a button, same layout. */
+.coach-week-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+}
+.coach-week-caret {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  transition: transform 0.15s ease;
+}
+.coach-week-caret.is-open {
+  transform: rotate(90deg);
+}
+
+/* Expanded day detail. */
+.coach-week-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+}
+.coach-week-detail-goal,
+.coach-week-detail-fit,
+.coach-week-detail-note {
+  margin: 0;
+}
+.coach-week-exlist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+}
+
+/* Block timeline (the road to a goal / the 4-week cycle). */
+.coach-road {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.coach-road-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 10px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+}
+.coach-road-row.is-now {
+  outline: 2px solid var(--primary);
+}
+.coach-road-row.is-past {
+  opacity: 0.5;
+}
+.coach-road-label {
+  font-weight: 600;
+  flex: 0 0 auto;
+}
+.coach-road-dates {
+  flex: 1;
+  text-align: right;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+/* Daily check-in bottom sheet. */
+.checkin-sheet {
+  max-height: min(88dvh, 660px);
+  overflow-y: auto;
+}
+.checkin-sheet-intro {
+  margin: 0;
+}
+.checkin-sheet-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 /* ----- prescribed exercises ----- */
 .ex-card {
   background: var(--surface-2);
@@ -2626,14 +2761,14 @@ textarea {
   font-weight: 600;
 }
 
-/* Weekday chip on a planned day. */
+/* Weekday chip on a planned day ("Today" / "Mon 28"). */
 .coach-week-weekday {
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--text-muted);
-  flex: 0 0 30px;
+  flex: 0 0 52px;
 }
 
 /* ----- warm-up / rehab row in the details form ----- */

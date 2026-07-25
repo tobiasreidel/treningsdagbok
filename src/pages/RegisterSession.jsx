@@ -6,9 +6,10 @@ import RoutesEditor from '../components/form/RoutesEditor'
 import StrengthFields from '../components/form/StrengthFields'
 import NotesPhoto from '../components/form/NotesPhoto'
 import NotesField from '../components/form/NotesField'
+import CoachPlanField, { COACH_SPORTS } from '../components/form/CoachPlanField'
 import { emptyForm, isOutdoorClimbing } from '../lib/formState'
 import { SPORTS, SUBTYPES, LOCATIONS } from '../lib/constants'
-import { getEnabledSports } from '../lib/prefs'
+import { getEnabledSports, getCoachEnabled } from '../lib/prefs'
 import { createSession, notifySessionsChanged } from '../lib/sessions'
 
 export default function RegisterSession() {
@@ -38,10 +39,12 @@ export default function RegisterSession() {
   //   • strength / finger → no subtype; a single training step
   //   • outdoor climbing  → a routes step
   //   • indoor climbing   → an (optional) strength + finger step
+  //   • coach on          → a "was this the plan?" step for the sports it covers
   const steps = useMemo(() => {
-    if (form.sport === 'strength') return ['sport', 'details', 'strength', 'notes']
-    if (form.sport === 'finger') return ['sport', 'details', 'finger', 'notes']
-    const s = ['sport', 'subtype', 'details']
+    const plan = getCoachEnabled() && COACH_SPORTS.includes(form.sport) ? ['plan'] : []
+    if (form.sport === 'strength') return ['sport', ...plan, 'details', 'strength', 'notes']
+    if (form.sport === 'finger') return ['sport', ...plan, 'details', 'finger', 'notes']
+    const s = ['sport', 'subtype', ...plan, 'details']
     if (isOutdoorClimbing(form)) s.push('routes')
     else if (form.sport === 'climbing' && form.location === 'indoor') s.push('strength')
     s.push('notes')
@@ -143,6 +146,13 @@ export default function RegisterSession() {
                 />
               </div>
             )}
+          </section>
+        )}
+
+        {current === 'plan' && (
+          <section className="stack">
+            <h2 className="step-q">The plan</h2>
+            <CoachPlanField form={form} updateExtra={updateExtra} />
           </section>
         )}
 

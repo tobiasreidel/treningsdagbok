@@ -5,6 +5,7 @@ import { fetchIcuFitnessData } from '../lib/fitness'
 import { fetchCoachProfile, fetchGoals, isProfileComplete } from '../lib/coachProfile'
 import { fetchWellness, fetchOstrc, hasLoggedToday } from '../lib/wellness'
 import { getCoachModel, getCoachDays } from '../lib/prefs'
+import SignalBlock from './SignalBlock'
 
 // Dashboard card shown when the Training coach is on (Settings → Training
 // coach). Reads only the sessions you already log. The summary lives here;
@@ -69,6 +70,12 @@ export default function CoachCard({ sessions, injuries }) {
         ? 'today'
         : `${recovery.daysSinceMax} day${recovery.daysSinceMax === 1 ? '' : 's'} ago`
 
+  // The readiness block below already shows the number - repeating it as a
+  // reason chip said the same thing twice on one card.
+  const reasons = readiness.enough
+    ? suggestion.reasons.filter((r) => !/^Readiness \d+$/.test(r))
+    : suggestion.reasons
+
   return (
     <div className="card coach-card">
       <div className="coach-head">
@@ -93,33 +100,34 @@ export default function CoachCard({ sessions, injuries }) {
           {goalPhase.days === 1 ? '' : 's'}
         </p>
       )}
-      {suggestion.reasons.length > 0 && (
+      {reasons.length > 0 && (
         <div className="coach-reasons">
-          {suggestion.reasons.map((r) => (
+          {reasons.map((r) => (
             <span className="coach-reason" key={r}>{r}</span>
           ))}
         </div>
       )}
 
-      <div className={`coach-finger coach-finger-${recovery.tone}`}>
-        <div className="coach-finger-row">
-          <span className="coach-finger-label">🤏 Finger tissue</span>
-          <span className="coach-finger-state">{recovery.label}</span>
-        </div>
-        <p className="muted small coach-finger-hint">
-          {recovery.hint} <span className="coach-nowrap">Last hard load: {sinceLabel}.</span>
-        </p>
-      </div>
+      <SignalBlock
+        title="🤏 Finger tissue"
+        state={recovery.label}
+        tone={recovery.tone}
+        hint={
+          <>
+            {recovery.hint}{' '}
+            <span className="coach-nowrap">Last hard load: {sinceLabel}.</span>
+          </>
+        }
+        onPress={() => navigate('/coach/signals/finger')}
+      />
 
       {readiness.enough && (
-        <div className={`coach-finger coach-finger-${readiness.tone}`}>
-          <div className="coach-finger-row">
-            <span className="coach-finger-label">🔋 Readiness</span>
-            <span className="coach-finger-state">
-              {readiness.index} · {readiness.label}
-            </span>
-          </div>
-        </div>
+        <SignalBlock
+          title="🔋 Readiness"
+          state={`${readiness.index} · ${readiness.label}`}
+          tone={readiness.tone}
+          onPress={() => navigate('/coach/signals/readiness')}
+        />
       )}
 
       {setUp && !hasLoggedToday(wellness) && (

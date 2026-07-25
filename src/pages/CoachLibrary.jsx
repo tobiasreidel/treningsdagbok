@@ -1,19 +1,22 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { PillRow } from '../components/ui'
+import { PillRow, useBack } from '../components/ui'
 import {
   FINGER_EXERCISES,
   ROPE_EXERCISES,
   BOULDER_EXERCISES,
   GYM_EXERCISES,
   STRETCH_EXERCISES,
+  MENTAL_EXERCISES,
   STRETCH_PROTOCOL,
   PUMP_SCALE,
   MATRIX_ROWS,
   MATRIX_COLUMNS,
   EXERCISE_MAP,
+  WARMUP_PROTOCOLS,
+  tierLabel,
 } from '../lib/exercises'
 import { fetchCoachProfile } from '../lib/coachProfile'
+import { fetchFingerTests } from '../lib/fingerTests'
 import { ExerciseCard } from './Coach'
 
 // The whole training plan, browsable. The coach picks from this; this page is
@@ -24,17 +27,23 @@ const TABS = [
   { key: 'rope', label: '🧗 Rope', list: ROPE_EXERCISES },
   { key: 'strength', label: '🏋 Strength', list: GYM_EXERCISES },
   { key: 'stretch', label: '🧘 Mobility', list: STRETCH_EXERCISES },
+  { key: 'mental', label: '🧠 Mental', list: MENTAL_EXERCISES },
+  { key: 'warmup', label: '🔥 Warm-up', list: null },
   { key: 'menu', label: '🗓 Session menu', list: null },
 ]
 
 export default function CoachLibrary() {
-  const navigate = useNavigate()
+  const back = useBack('/coach')
   const [tab, setTab] = useState('finger')
   const [profile, setProfile] = useState(null)
+  const [tests, setTests] = useState([])
 
   useEffect(() => {
     fetchCoachProfile()
       .then((p) => setProfile(p?.missingTable ? null : p))
+      .catch(() => {})
+    fetchFingerTests()
+      .then(setTests)
       .catch(() => {})
   }, [])
 
@@ -43,7 +52,7 @@ export default function CoachLibrary() {
   return (
     <div className="page">
       <header className="wizard-head">
-        <button className="icon-btn" onClick={() => navigate('/coach')} aria-label="Back">
+        <button className="icon-btn" onClick={back} aria-label="Back">
           ‹
         </button>
         <div className="wizard-title">
@@ -62,12 +71,30 @@ export default function CoachLibrary() {
 
         {tab === 'menu' ? (
           <SessionMenu />
+        ) : tab === 'warmup' ? (
+          <WarmupList />
         ) : (
           <>
             {tab === 'stretch' && <p className="muted small">{STRETCH_PROTOCOL}</p>}
             <div className="stack">
               {active.list.map((ex) => (
-                <ExerciseCard key={ex.id} ex={ex} profile={profile} />
+                <div key={ex.id}>
+                  <div className="coach-reasons" style={{ marginBottom: 4 }}>
+                    <span className="coach-reason">
+                      Tier {ex.tier} · {tierLabel(ex.tier)}
+                    </span>
+                    {ex.youth === 'blocked' && (
+                      <span className="coach-reason">Not for under-18s</span>
+                    )}
+                    {ex.minYearsClimbing > 0 && (
+                      <span className="coach-reason">{ex.minYearsClimbing}+ yrs climbing</span>
+                    )}
+                    {ex.warmup === 'finger_full' && (
+                      <span className="coach-reason">Finger warm-up required</span>
+                    )}
+                  </div>
+                  <ExerciseCard ex={ex} profile={profile} tests={tests} />
+                </div>
               ))}
             </div>
           </>
@@ -92,6 +119,28 @@ export default function CoachLibrary() {
           </div>
         </section>
       </main>
+    </div>
+  )
+}
+
+// The warm-up protocols. Separated out because they are prerequisites rather
+// than sessions: nothing maximal should be prescribed without one.
+function WarmupList() {
+  return (
+    <div className="stack">
+      <p className="muted small">
+        These are prerequisites, not optional extras. Any session marked “finger warm-up
+        required” means the full protocol before you load anything hard.
+      </p>
+      {Object.values(WARMUP_PROTOCOLS).map((w) => (
+        <div className="ex-card" key={w.id}>
+          <div className="ex-head">
+            <span className="ex-id">{w.id}</span>
+            <span className="ex-name">{w.name}</span>
+          </div>
+          <p className="muted small ex-how">{w.how}</p>
+        </div>
+      ))}
     </div>
   )
 }
