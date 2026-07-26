@@ -15,7 +15,6 @@ const KEYS = {
   gearSports: 'pref.gearSports',
   coach: 'pref.coach',
   coachModel: 'pref.coachModel',
-  coachDays: 'pref.coachDays',
   coachPick: 'pref.coachPick',
   checkinPromptDay: 'pref.checkinPromptDay',
   bodyweight: 'pref.bodyweightKg',
@@ -93,22 +92,6 @@ export function getCoachModel() {
 export function setCoachModel(key) {
   if (key === 'linear') localStorage.setItem(KEYS.coachModel, 'linear')
   else localStorage.removeItem(KEYS.coachModel)
-}
-
-// Sessions per week the plan is built around (2-5).
-export function getCoachDays() {
-  try {
-    const v = Number(localStorage.getItem(KEYS.coachDays))
-    return v >= 2 && v <= 5 ? v : 3
-  } catch {
-    return 3
-  }
-}
-
-export function setCoachDays(n) {
-  const v = Number(n)
-  if (v >= 2 && v <= 5 && v !== 3) localStorage.setItem(KEYS.coachDays, String(v))
-  else localStorage.removeItem(KEYS.coachDays)
 }
 
 // Which of "Sessions that fit" you picked for today, when you didn't want the
@@ -311,10 +294,6 @@ export function getEnabledSports() {
 export function setEnabledSports(keys) {
   const kept = ALL_SPORTS.filter((k) => keys.includes(k))
   localStorage.setItem(KEYS.enabledSports, JSON.stringify(kept.length ? kept : ALL_SPORTS))
-}
-
-export function isSportEnabled(key) {
-  return getEnabledSports().includes(key)
 }
 
 // First-run onboarding: a new user picks their sports before reaching the app.

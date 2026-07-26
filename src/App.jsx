@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { isConfigured } from './lib/supabase'
 import { useAuth } from './context/AuthContext'
@@ -10,25 +10,30 @@ import SetupNeeded from './components/SetupNeeded'
 import Onboarding from './components/Onboarding'
 import Login from './components/Login'
 import Dashboard from './pages/Dashboard'
-import RegisterSession from './pages/RegisterSession'
-import SessionDetail from './pages/SessionDetail'
-import EditSession from './pages/EditSession'
-import Settings from './pages/Settings'
-import Profile from './pages/Profile'
-import ImportRides from './pages/ImportRides'
-import Stats from './pages/Stats'
-import Logbook from './pages/Logbook'
-import CustomizeDashboard from './pages/CustomizeDashboard'
-import Friends from './pages/Friends'
-import AthleteView from './pages/AthleteView'
-import Changelog from './pages/Changelog'
-import Coach from './pages/Coach'
-import CoachSetup from './pages/CoachSetup'
-import CoachLibrary from './pages/CoachLibrary'
-import CoachSignals from './pages/CoachSignals'
-import CheckIn from './pages/CheckIn'
 import ResetPassword from './components/ResetPassword'
 import TabBar, { TABBAR_PATHS } from './components/TabBar'
+
+// Only the dashboard ships in the first download - it is the screen every
+// launch lands on, and on a phone the rest is dead weight until tapped. Each
+// page below becomes its own chunk, fetched on navigation and then precached
+// by the service worker, so the second visit (and offline) still has them.
+const RegisterSession = lazy(() => import('./pages/RegisterSession'))
+const SessionDetail = lazy(() => import('./pages/SessionDetail'))
+const EditSession = lazy(() => import('./pages/EditSession'))
+const Settings = lazy(() => import('./pages/Settings'))
+const Profile = lazy(() => import('./pages/Profile'))
+const ImportRides = lazy(() => import('./pages/ImportRides'))
+const Stats = lazy(() => import('./pages/Stats'))
+const Logbook = lazy(() => import('./pages/Logbook'))
+const CustomizeDashboard = lazy(() => import('./pages/CustomizeDashboard'))
+const Friends = lazy(() => import('./pages/Friends'))
+const AthleteView = lazy(() => import('./pages/AthleteView'))
+const Changelog = lazy(() => import('./pages/Changelog'))
+const Coach = lazy(() => import('./pages/Coach'))
+const CoachSetup = lazy(() => import('./pages/CoachSetup'))
+const CoachLibrary = lazy(() => import('./pages/CoachLibrary'))
+const CoachSignals = lazy(() => import('./pages/CoachSignals'))
+const CheckIn = lazy(() => import('./pages/CheckIn'))
 
 export default function App() {
   const { session, loading, recovery } = useAuth()
@@ -67,13 +72,7 @@ export default function App() {
 
   if (!isConfigured) return <SetupNeeded />
 
-  if (loading) {
-    return (
-      <div className="splash">
-        <div className="spinner" />
-      </div>
-    )
-  }
+  if (loading) return <Splash />
 
   // Arrived via a password-reset email link: let them set a new password
   // before anything else.
@@ -90,30 +89,43 @@ export default function App() {
 
   return (
     <div className={showTabs ? 'with-tabbar' : ''}>
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/new" element={<RegisterSession />} />
-        <Route path="/session/:id" element={<SessionDetail />} />
-        <Route path="/session/:id/edit" element={<EditSession />} />
-        <Route path="/import" element={<ImportRides />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/stats" element={<Stats />} />
-        <Route path="/logbook" element={<Logbook />} />
-        <Route path="/widgets" element={<CustomizeDashboard />} />
-        <Route path="/friends" element={<Friends />} />
-        <Route path="/changelog" element={<Changelog />} />
-        <Route path="/coach" element={<Coach />} />
-        <Route path="/coach/setup" element={<CoachSetup />} />
-        <Route path="/coach/library" element={<CoachLibrary />} />
-        <Route path="/coach/signals" element={<CoachSignals />} />
-        <Route path="/coach/signals/:key" element={<CoachSignals />} />
-        <Route path="/checkin" element={<CheckIn />} />
-        <Route path="/athlete/:id" element={<AthleteView />} />
-        <Route path="/athlete/:id/stats" element={<Stats />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <Suspense fallback={<Splash />}>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/new" element={<RegisterSession />} />
+          <Route path="/session/:id" element={<SessionDetail />} />
+          <Route path="/session/:id/edit" element={<EditSession />} />
+          <Route path="/import" element={<ImportRides />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/stats" element={<Stats />} />
+          <Route path="/logbook" element={<Logbook />} />
+          <Route path="/widgets" element={<CustomizeDashboard />} />
+          <Route path="/friends" element={<Friends />} />
+          <Route path="/changelog" element={<Changelog />} />
+          <Route path="/coach" element={<Coach />} />
+          <Route path="/coach/setup" element={<CoachSetup />} />
+          <Route path="/coach/library" element={<CoachLibrary />} />
+          <Route path="/coach/signals" element={<CoachSignals />} />
+          <Route path="/coach/signals/:key" element={<CoachSignals />} />
+          <Route path="/checkin" element={<CheckIn />} />
+          <Route path="/athlete/:id" element={<AthleteView />} />
+          <Route path="/athlete/:id/stats" element={<Stats />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
       {showTabs && <TabBar />}
+    </div>
+  )
+}
+
+// Shown while the app boots and while a page chunk is on its way. Same markup
+// either way, so a slow network looks like a slightly longer launch rather
+// than a second, different loading state.
+function Splash() {
+  return (
+    <div className="splash">
+      <div className="spinner" />
     </div>
   )
 }

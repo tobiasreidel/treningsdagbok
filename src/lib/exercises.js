@@ -58,10 +58,6 @@ export function tierLabel(tier) {
   return TIERS.find((t) => t.tier === tier)?.label || String(tier)
 }
 
-export function sessionCategoryLabel(key) {
-  return SESSION_CATEGORIES.find((c) => c.key === key)?.label || key
-}
-
 // The pump scale used throughout. Pump is metabolic and clears in hours -
 // deliberately a different axis from finger/pulley load, which takes days.
 export const PUMP_SCALE = [
@@ -103,10 +99,6 @@ export const WARMUP_PROTOCOLS = {
     name_no: 'Skulder- og albueoppvarming',
     how: 'Band external rotations, scapular pull-ups and easy presses — 2 sets each, light. Before any hard pulling.',
   },
-}
-
-export function warmupFor(key) {
-  return WARMUP_PROTOCOLS[key] || null
 }
 
 // Defaults applied to every entry so the engine can rely on the fields being

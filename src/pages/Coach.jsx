@@ -1,11 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Field, Segmented, useBack } from '../components/ui'
-import { fetchSessions } from '../lib/sessions'
-import { fetchInjuries } from '../lib/health'
-import { fetchIcuFitnessData } from '../lib/fitness'
 import {
-  coachReadout,
   rollingPlan,
   phaseTimeline,
   pickExercises,
@@ -13,16 +9,11 @@ import {
   COACH_MODELS,
   hangTestAge,
 } from '../lib/coach'
-import { fetchWellness, fetchOstrc, hasLoggedToday, areaLabel } from '../lib/wellness'
+import { loadCoachInputs, readoutFrom, EMPTY_COACH_INPUTS } from '../lib/coachData'
+import { hasLoggedToday, areaLabel } from '../lib/wellness'
 import { pumpLabel, STRETCH_PROTOCOL, EXERCISE_MAP, tierLabel } from '../lib/exercises'
 import { maxTotalFor, prescribeHang } from '../lib/fingerLoad'
-import { fetchFingerTests, fetchPhysicalTests } from '../lib/fingerTests'
-import {
-  fetchCoachProfile,
-  fetchGoals,
-  isProfileComplete,
-  goalKind,
-} from '../lib/coachProfile'
+import { isProfileComplete, goalKind } from '../lib/coachProfile'
 import { getCoachModel, setCoachModel, getSessionPick, setSessionPick } from '../lib/prefs'
 import { formatDayShort, asDate, todayISO } from '../lib/format'
 import { format } from 'date-fns'
@@ -35,45 +26,13 @@ import SignalBlock from '../components/SignalBlock'
 export default function Coach() {
   const navigate = useNavigate()
   const back = useBack('/')
-  const [sessions, setSessions] = useState([])
-  const [injuries, setInjuries] = useState([])
-  const [icu, setIcu] = useState(null)
-  const [profile, setProfile] = useState(null)
-  const [goals, setGoals] = useState([])
-  const [wellness, setWellness] = useState([])
-  const [ostrc, setOstrc] = useState([])
-  const [fingerTests, setFingerTests] = useState([])
-  const [physicalTests, setPhysicalTests] = useState([])
+  const [inputs, setInputs] = useState(EMPTY_COACH_INPUTS)
   const [loading, setLoading] = useState(true)
   const [model, setModelState] = useState(getCoachModel)
   const [pick, setPick] = useState(() => getSessionPick(todayISO()))
 
   const load = useCallback(async () => {
-    const [s, inj, fit, prof, gls, well, ost, ft, pt] = await Promise.allSettled([
-      fetchSessions(),
-      fetchInjuries(),
-      fetchIcuFitnessData(),
-      fetchCoachProfile(),
-      fetchGoals(),
-      fetchWellness(),
-      fetchOstrc(),
-      fetchFingerTests(),
-      fetchPhysicalTests(),
-    ])
-    setFingerTests(ft.status === 'fulfilled' ? ft.value : [])
-    setPhysicalTests(pt.status === 'fulfilled' ? pt.value : [])
-    setSessions(s.status === 'fulfilled' ? s.value : [])
-    setInjuries(inj.status === 'fulfilled' ? inj.value : [])
-    // Not connected to intervals.icu is normal, not an error - readiness just
-    // runs on the signals that are available.
-    setIcu(fit.status === 'fulfilled' ? fit.value.wellness : null)
-    // A missing table means "not set up", not "a profile that answered no to
-    // everything" - normalise it away so nothing downstream treats it as one.
-    const p = prof.status === 'fulfilled' ? prof.value : null
-    setProfile(p?.missingTable ? null : p)
-    setGoals(gls.status === 'fulfilled' ? gls.value : [])
-    setWellness(well.status === 'fulfilled' ? well.value : [])
-    setOstrc(ost.status === 'fulfilled' ? ost.value : [])
+    setInputs(await loadCoachInputs())
     setLoading(false)
   }, [])
 
@@ -83,12 +42,10 @@ export default function Coach() {
     return () => window.removeEventListener('coach:changed', load)
   }, [load])
 
+  const { sessions, goals, profile, fingerTests } = inputs
   const readout = useMemo(
-    () =>
-      coachReadout(sessions, injuries, icu, {
-        model, profile, goals, wellness, ostrc, fingerTests, physicalTests, pick,
-      }),
-    [sessions, injuries, icu, model, profile, goals, wellness, ostrc, fingerTests, physicalTests, pick],
+    () => readoutFrom(inputs, { model, pick }),
+    [inputs, model, pick],
   )
   const week = useMemo(
     () => rollingPlan(sessions, model, readout.daysPerWeek, goals, profile, readout.suggestion),
@@ -157,7 +114,7 @@ export default function Coach() {
           </section>
         )}
 
-        {!hasLoggedToday(wellness) && (
+        {!hasLoggedToday(inputs.wellness) && (
           <button
             type="button"
             className="btn btn-primary btn-block settings-link-row"

@@ -1098,13 +1098,6 @@ export const GOAL_PHASES = [
 // will drift past.
 export const PHASE_DURATION = { taper: 0.5, deload: 0.6 }
 
-export function durationFor(exercise, { taper = false, deload = false } = {}) {
-  const base = exercise?.durationTarget_min || null
-  if (!base) return null
-  const mult = taper ? PHASE_DURATION.taper : deload ? PHASE_DURATION.deload : 1
-  return { minutes: Math.round(base * mult), reduced: mult < 1, mult }
-}
-
 // A deload exists to shed the fatigue built by the weeks before it. A goal set
 // when it was already close has no such weeks behind it: dropping a recovery
 // week into a five-week run-up costs a fifth of the whole preparation and

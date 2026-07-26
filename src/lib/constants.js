@@ -103,12 +103,3 @@ export const FEELING_LABELS = {
   4: 'Good',
   5: 'Strong',
 }
-
-export const RPE_HINT = {
-  1: 'Very easy',
-  3: 'Easy',
-  5: 'Moderate',
-  7: 'Hard',
-  9: 'Very hard',
-  10: 'Max',
-}

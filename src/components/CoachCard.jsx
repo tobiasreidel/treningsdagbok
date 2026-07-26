@@ -1,11 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { coachReadout } from '../lib/coach'
-import { fetchIcuFitnessData } from '../lib/fitness'
-import { fetchCoachProfile, fetchGoals, isProfileComplete } from '../lib/coachProfile'
-import { fetchWellness, fetchOstrc, hasLoggedToday } from '../lib/wellness'
-import { getCoachModel, getCoachDays, getSessionPick } from '../lib/prefs'
-import { todayISO } from '../lib/format'
+import { loadCoachInputs, readoutFrom, EMPTY_COACH_INPUTS } from '../lib/coachData'
+import { isProfileComplete } from '../lib/coachProfile'
+import { hasLoggedToday } from '../lib/wellness'
 import SignalBlock from './SignalBlock'
 
 // Dashboard card shown when the Training coach is on (Settings → Training
@@ -14,32 +11,16 @@ import SignalBlock from './SignalBlock'
 // prediction or a risk score.
 export default function CoachCard({ sessions, injuries }) {
   const navigate = useNavigate()
-  // Wellness (HRV, resting HR, form) feeds readiness. Cached for the day by
-  // fetchIcuFitnessData, and simply absent when intervals.icu isn't connected -
-  // readiness then runs on the signals that are available.
-  const [icu, setIcu] = useState(null)
-  const [profile, setProfile] = useState(null)
-  const [goals, setGoals] = useState([])
-  const [wellness, setWellness] = useState([])
-  const [ostrc, setOstrc] = useState([])
+  // Everything but the sessions, which the dashboard already holds and passes
+  // in. Same inputs as /coach, so the card can't disagree with the page it
+  // summarises (see lib/coachData.js).
+  const [inputs, setInputs] = useState(EMPTY_COACH_INPUTS)
 
   useEffect(() => {
     let alive = true
     const load = () => {
-      fetchIcuFitnessData()
-        .then((d) => alive && setIcu(d.wellness))
-        .catch(() => {})
-      fetchWellness()
-        .then((w) => alive && setWellness(w))
-        .catch(() => {})
-      fetchOstrc()
-        .then((o) => alive && setOstrc(o))
-        .catch(() => {})
-      fetchCoachProfile()
-        .then((p) => alive && setProfile(p?.missingTable ? null : p))
-        .catch(() => {})
-      fetchGoals()
-        .then((g) => alive && setGoals(g))
+      loadCoachInputs({ sessions: [] })
+        .then((i) => alive && setInputs(i))
         .catch(() => {})
     }
     load()
@@ -51,21 +32,10 @@ export default function CoachCard({ sessions, injuries }) {
   }, [])
 
   const { recovery, suggestion, readiness, goalPhase } = useMemo(
-    () =>
-      coachReadout(sessions, injuries, icu, {
-        model: getCoachModel(),
-        daysPerWeek: getCoachDays(),
-        profile,
-        goals,
-        wellness,
-        ostrc,
-        // Read here rather than held in state: the card remounts on every
-        // return to the dashboard, which is the only way the pick can change.
-        pick: getSessionPick(todayISO()),
-      }),
-    [sessions, injuries, icu, profile, goals, wellness, ostrc],
+    () => readoutFrom({ ...inputs, sessions, injuries }),
+    [inputs, sessions, injuries],
   )
-  const setUp = isProfileComplete(profile)
+  const setUp = isProfileComplete(inputs.profile)
 
   const sinceLabel =
     recovery.daysSinceMax == null
@@ -134,7 +104,7 @@ export default function CoachCard({ sessions, injuries }) {
         />
       )}
 
-      {setUp && !hasLoggedToday(wellness) && (
+      {setUp && !hasLoggedToday(inputs.wellness) && (
         <button
           type="button"
           className="btn btn-primary btn-block settings-link-row"

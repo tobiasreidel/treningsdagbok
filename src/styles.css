@@ -2934,6 +2934,15 @@ textarea {
   font-size: 1.05rem;
 }
 
+/* Holds the space while the analysis chunk (Leaflet + charts) loads, so the
+   page doesn't jump when it arrives. */
+.analysis-placeholder {
+  height: 250px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
 /* ----- analysis: route map (Leaflet + OSM) ----- */
 .route-map {
   height: 250px;

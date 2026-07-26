@@ -66,10 +66,6 @@ export async function deleteGearItem(id) {
   if (error) throw error
 }
 
-export function mainGearItem(items, sport) {
-  return items.find((i) => i.sport === sport && i.is_main) || null
-}
-
 // ---- events ----------------------------------------------------------------
 
 export async function fetchGearEvents() {

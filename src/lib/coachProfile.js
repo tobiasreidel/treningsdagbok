@@ -4,20 +4,9 @@
 //
 // Every read degrades to "not set up yet" when the tables are missing, so the
 // app still runs before supabase/coach.sql has been applied.
-import { supabase } from './supabase'
+import { supabase, currentUserId, isMissingTable } from './supabase'
 import { differenceInCalendarDays } from 'date-fns'
 import { asDate, todayISO } from './format'
-
-// The table isn't there at all: the migration was never run. PostgREST reports
-// this as PGRST205 rather than passing through Postgres's own 42P01.
-//
-// Deliberately NOT matched on the message text: PostgREST phrases a missing
-// *column* almost identically ("Could not find the ... in the schema cache"),
-// and treating that as a missing table tells someone who has already run the
-// migration to go and run it again.
-function isMissingTable(err) {
-  return err?.code === 'PGRST205' || err?.code === '42P01'
-}
 
 // The table exists but is missing a column - an older version of coach.sql was
 // run and the file has gained fields since. Re-running it fixes this, and the
@@ -40,11 +29,6 @@ function schemaError(err) {
     return e
   }
   return null
-}
-
-async function uid() {
-  const { data } = await supabase.auth.getSession()
-  return data?.session?.user?.id ?? null
 }
 
 export function notifyCoachChanged() {
@@ -80,7 +64,7 @@ export function hasOldSchema(profile) {
 }
 
 export async function saveCoachProfile(patch) {
-  const userId = await uid()
+  const userId = await currentUserId()
   if (!userId) throw new Error('Not signed in')
   const { error } = await supabase
     .from('coach_profile')
@@ -116,7 +100,7 @@ export async function fetchGoals() {
 }
 
 export async function addGoal(goal) {
-  const userId = await uid()
+  const userId = await currentUserId()
   if (!userId) throw new Error('Not signed in')
   const { error } = await supabase.from('coach_goals').insert({ ...goal, user_id: userId })
   if (error) throw schemaError(error) || error

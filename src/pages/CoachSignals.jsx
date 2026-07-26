@@ -3,13 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { PillRow, useBack } from '../components/ui'
 import { Bars, Line } from '../components/charts'
 import SignalBlock from '../components/SignalBlock'
-import { fetchSessions } from '../lib/sessions'
-import { fetchInjuries } from '../lib/health'
-import { fetchIcuFitnessData } from '../lib/fitness'
-import { fetchCoachProfile, fetchGoals } from '../lib/coachProfile'
-import { fetchWellness, fetchOstrc, hasLoggedToday } from '../lib/wellness'
+import { loadCoachInputs, readoutFrom, EMPTY_COACH_INPUTS } from '../lib/coachData'
+import { hasLoggedToday } from '../lib/wellness'
 import {
-  coachReadout,
   fingerDoseSeries,
   dailyLoadSeries,
   trendSeries,
@@ -17,7 +13,6 @@ import {
   readinessSeries,
   FINGER_TIERS,
 } from '../lib/coach'
-import { getCoachModel } from '../lib/prefs'
 import { asDate } from '../lib/format'
 import { format } from 'date-fns'
 
@@ -46,33 +41,11 @@ export default function CoachSignals() {
   const { key } = useParams()
   const signal = SIGNALS.some((s) => s.key === key) ? key : 'finger'
 
-  const [sessions, setSessions] = useState([])
-  const [injuries, setInjuries] = useState([])
-  const [icu, setIcu] = useState(null)
-  const [profile, setProfile] = useState(null)
-  const [goals, setGoals] = useState([])
-  const [wellness, setWellness] = useState([])
-  const [ostrc, setOstrc] = useState([])
+  const [inputs, setInputs] = useState(EMPTY_COACH_INPUTS)
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
-    const [s, inj, fit, prof, gls, well, ost] = await Promise.allSettled([
-      fetchSessions(),
-      fetchInjuries(),
-      fetchIcuFitnessData(),
-      fetchCoachProfile(),
-      fetchGoals(),
-      fetchWellness(),
-      fetchOstrc(),
-    ])
-    setSessions(s.status === 'fulfilled' ? s.value : [])
-    setInjuries(inj.status === 'fulfilled' ? inj.value : [])
-    setIcu(fit.status === 'fulfilled' ? fit.value.wellness : null)
-    const p = prof.status === 'fulfilled' ? prof.value : null
-    setProfile(p?.missingTable ? null : p)
-    setGoals(gls.status === 'fulfilled' ? gls.value : [])
-    setWellness(well.status === 'fulfilled' ? well.value : [])
-    setOstrc(ost.status === 'fulfilled' ? ost.value : [])
+    setInputs(await loadCoachInputs())
     setLoading(false)
   }, [])
 
@@ -82,17 +55,8 @@ export default function CoachSignals() {
     return () => window.removeEventListener('coach:changed', load)
   }, [load])
 
-  const readout = useMemo(
-    () =>
-      coachReadout(sessions, injuries, icu, {
-        model: getCoachModel(),
-        profile,
-        goals,
-        wellness,
-        ostrc,
-      }),
-    [sessions, injuries, icu, profile, goals, wellness, ostrc],
-  )
+  const { sessions, profile, wellness, icu, fingerTests } = inputs
+  const readout = useMemo(() => readoutFrom(inputs), [inputs])
 
   if (loading) {
     return (
@@ -123,7 +87,12 @@ export default function CoachSignals() {
         />
 
         {signal === 'finger' && (
-          <FingerDetail readout={readout} sessions={sessions} profile={profile} />
+          <FingerDetail
+            readout={readout}
+            sessions={sessions}
+            profile={profile}
+            tests={fingerTests}
+          />
         )}
         {signal === 'readiness' && (
           <ReadinessDetail
@@ -169,11 +138,14 @@ function WhyRow({ label, value }) {
 }
 
 // ---- finger tissue ----------------------------------------------------------
-function FingerDetail({ readout, sessions, profile }) {
+function FingerDetail({ readout, sessions, profile, tests }) {
   const { recovery, limits } = readout
+  // The tests matter here too: without your tested max, a hangboard set is
+  // scored off edge size alone, and the chart would disagree with the headline
+  // number above it.
   const series = useMemo(
-    () => fingerDoseSeries(sessions, limits, profile, 28),
-    [sessions, limits, profile],
+    () => fingerDoseSeries(sessions, limits, profile, 28, tests),
+    [sessions, limits, profile, tests],
   )
   const bars = series.map((d) => ({
     label: dayLabel(d.date),

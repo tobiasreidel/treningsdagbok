@@ -18,3 +18,19 @@ export const supabase = isConfigured
   : null
 
 export const PHOTO_BUCKET = 'session-photos'
+
+// The signed-in user's id, or null. getSession() reads the locally-stored
+// session (no network round-trip), which keeps writes fast and avoids hanging
+// on a flaky connection.
+export async function currentUserId() {
+  const { data } = await supabase.auth.getSession()
+  return data?.session?.user?.id ?? null
+}
+
+// PostgREST reports a missing table as PGRST205; 42P01 is Postgres's own code.
+// Deliberately NOT matched on the message text: PGRST204 (a missing *column*)
+// is phrased almost identically, and telling someone to re-run a migration
+// they have already run is worse than saying nothing.
+export function isMissingTable(err) {
+  return err?.code === 'PGRST205' || err?.code === '42P01'
+}

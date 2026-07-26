@@ -2,21 +2,8 @@
 //
 // Both degrade to [] when the migration hasn't been run, like every other coach
 // table, so the app keeps working and the setup screen says what to run.
-import { supabase } from './supabase'
+import { supabase, currentUserId, isMissingTable } from './supabase'
 import { notifyCoachChanged } from './coachProfile'
-
-function isMissingTable(err) {
-  // PostgREST reports a missing table as PGRST205, not Postgres's own 42P01.
-  // Never matched on message text: PGRST204 (missing *column*) is phrased
-  // almost identically and telling someone to re-run a migration they already
-  // ran is worse than saying nothing.
-  return err?.code === 'PGRST205' || err?.code === '42P01'
-}
-
-async function uid() {
-  const { data } = await supabase.auth.getSession()
-  return data?.session?.user?.id ?? null
-}
 
 // ---- finger tests ----------------------------------------------------------
 
@@ -33,7 +20,7 @@ export async function fetchFingerTests() {
 }
 
 export async function addFingerTest(row) {
-  const userId = await uid()
+  const userId = await currentUserId()
   if (!userId) throw new Error('Not signed in')
   const { error } = await supabase.from('finger_tests').insert({ ...row, user_id: userId })
   if (error) {
@@ -94,7 +81,7 @@ export async function fetchPhysicalTests() {
 }
 
 export async function addPhysicalTest(row) {
-  const userId = await uid()
+  const userId = await currentUserId()
   if (!userId) throw new Error('Not signed in')
   const { error } = await supabase.from('physical_tests').insert({ ...row, user_id: userId })
   if (error) {

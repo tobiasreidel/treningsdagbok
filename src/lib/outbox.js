@@ -28,7 +28,3 @@ export async function listPending() {
 export async function remove(localId) {
   await del(localId, store)
 }
-
-export async function pendingCount() {
-  return (await entries(store)).length
-}

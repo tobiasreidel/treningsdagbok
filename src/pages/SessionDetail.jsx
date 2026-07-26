@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { SPORTS, SEND_TYPES, FEELING_LABELS, exerciseLabel, formatGrade } from '../lib/constants'
 import { formatDay, formatDuration, pacePerKm, pacePer100m } from '../lib/format'
@@ -15,7 +15,10 @@ import { getLogPeriod } from '../lib/prefs'
 import { embeddedStrengthMinutes, embeddedFingerMinutes } from '../lib/stats'
 import { normalizeHang } from '../lib/formState'
 import { pumpLabel } from '../lib/exercises'
-import ActivityAnalysis from '../components/ActivityAnalysis'
+// Leaflet and the charts are the heaviest thing the app bundles, and only a
+// ride or run ever shows them - so they load with the session that needs them
+// rather than with every launch.
+const ActivityAnalysis = lazy(() => import('../components/ActivityAnalysis'))
 
 const num = (v) => (v === '' || v == null ? null : Number(v))
 
@@ -341,11 +344,13 @@ export default function SessionDetail() {
           copy stored when they opened the activity themselves (never their
           route - see supabase/session_streams.sql). */}
       {isEndurance && myId && (
-        <ActivityAnalysis
-          session={session}
-          isOwner={Boolean(isOwner)}
-          onStats={setAnalysisStats}
-        />
+        <Suspense fallback={<div className="analysis-placeholder" />}>
+          <ActivityAnalysis
+            session={session}
+            isOwner={Boolean(isOwner)}
+            onStats={setAnalysisStats}
+          />
+        </Suspense>
       )}
 
       {hasWarmupRehab && (

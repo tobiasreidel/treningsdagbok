@@ -1,7 +1,7 @@
 // Data access for sessions. This is the only module that talks to Supabase for
 // session data. It transparently falls back to the offline outbox on write when
 // there's no connectivity, so a logged session is never lost.
-import { supabase, isConfigured, PHOTO_BUCKET } from './supabase'
+import { supabase, isConfigured, PHOTO_BUCKET, currentUserId } from './supabase'
 import { enqueue, listPending, remove } from './outbox'
 
 // Broadcast helper so views can refresh after sessions change (create/edit/
@@ -13,13 +13,6 @@ export function notifySessionsChanged() {
 // ---------------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------------
-async function currentUserId() {
-  // getSession() reads the locally-stored session (no network round-trip),
-  // which keeps writes fast and avoids hanging on flaky connections.
-  const { data } = await supabase.auth.getSession()
-  return data?.session?.user?.id ?? null
-}
-
 function isNetworkError(err) {
   if (typeof navigator !== 'undefined' && !navigator.onLine) return true
   const msg = (err?.message || '').toLowerCase()

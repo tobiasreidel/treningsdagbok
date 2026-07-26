@@ -52,4 +52,18 @@ export default defineConfig({
     host: true,
     port: 5173,
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Dependencies change on an npm update; app code changes on every
+        // push. Keeping them apart means a deploy re-downloads a few kB of
+        // app chunks over mobile data instead of React and Supabase again -
+        // which matters here because the service worker precaches the lot.
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          supabase: ['@supabase/supabase-js'],
+        },
+      },
+    },
+  },
 })

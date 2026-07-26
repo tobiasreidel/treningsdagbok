@@ -1,12 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ChipSelect, Field } from '../ui'
-import { fetchSessions } from '../../lib/sessions'
-import { fetchInjuries } from '../../lib/health'
-import { fetchIcuFitnessData } from '../../lib/fitness'
-import { fetchCoachProfile, fetchGoals } from '../../lib/coachProfile'
-import { fetchWellness, fetchOstrc } from '../../lib/wellness'
-import { coachReadout } from '../../lib/coach'
-import { getCoachModel, getSessionPick } from '../../lib/prefs'
+import { loadCoachInputs, readoutFrom } from '../../lib/coachData'
 import {
   FINGER_EXERCISES,
   BOULDER_EXERCISES,
@@ -48,29 +42,11 @@ export default function CoachPlanField({ form, updateExtra }) {
       return undefined
     }
     let alive = true
-    Promise.allSettled([
-      fetchSessions(),
-      fetchInjuries(),
-      fetchIcuFitnessData(),
-      fetchCoachProfile(),
-      fetchGoals(),
-      fetchWellness(),
-      fetchOstrc(),
-    ]).then(([s, inj, fit, prof, gls, well, ost]) => {
+    // Same inputs as /coach, so "as planned" means the session the coach page
+    // actually showed you - including the one you picked yourself.
+    loadCoachInputs().then((inputs) => {
       if (!alive) return
-      const val = (r, fb) => (r.status === 'fulfilled' ? r.value : fb)
-      const p = val(prof, null)
-      const readout = coachReadout(val(s, []), val(inj, []), val(fit, {})?.wellness ?? null, {
-        model: getCoachModel(),
-        profile: p?.missingTable ? null : p,
-        goals: val(gls, []),
-        wellness: val(well, []),
-        ostrc: val(ost, []),
-        // "As planned" has to mean the session you actually picked on /coach,
-        // not the one the coach would have chosen for you.
-        pick: getSessionPick(todayISO()),
-      })
-      setPlan(readout.suggestion)
+      setPlan(readoutFrom(inputs).suggestion)
       setPlanLoading(false)
     })
     return () => {

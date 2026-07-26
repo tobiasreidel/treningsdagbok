@@ -85,14 +85,12 @@ export function buckets(sessions, start, grain) {
 
 // ---- per-array aggregates --------------------------------------------------
 export const sumHours = (arr) => arr.reduce((a, s) => a + num(s.duration), 0) / 60
-export const sumMinutes = (arr) => arr.reduce((a, s) => a + num(s.duration), 0)
 export const sumDistance = (arr) =>
   arr.reduce((a, s) => a + num(s.extra?.distance_km), 0)
 export const sumDistanceM = (arr) =>
   arr.reduce((a, s) => a + num(s.extra?.distance_m), 0)
 export const sumElevation = (arr) =>
   arr.reduce((a, s) => a + num(s.extra?.elevation_m), 0)
-export const sumLoad = (arr) => arr.reduce((a, s) => a + num(s.extra?.training_load), 0)
 
 export function avgFeeling(arr) {
   const vals = arr.map((s) => num(s.feeling)).filter(Boolean)

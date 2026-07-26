@@ -2,12 +2,7 @@
 // All access is RLS-guarded server-side (see supabase/coaches.sql). The athlete
 // sends the request; the coach accepts. Once accepted the coach can view - but
 // never change - the athlete's sessions, calendar and stats.
-import { supabase } from './supabase'
-
-async function uid() {
-  const { data } = await supabase.auth.getSession()
-  return data?.session?.user?.id ?? null
-}
+import { supabase, currentUserId } from './supabase'
 
 // Ask someone (by email) to be your coach. They must accept.
 // returns 'ok' | 'not_found' | 'self' | 'exists'
@@ -19,7 +14,7 @@ export async function sendCoachRequest(email) {
 
 // All of my coach links, split by my role in each.
 export async function loadCoachLinks() {
-  const me = await uid()
+  const me = await currentUserId()
   if (!me) return { me: null, coaches: [], requests: [], athletes: [] }
   const { data: links, error } = await supabase.from('coach_links').select('*')
   if (error) throw error
@@ -55,7 +50,7 @@ export async function loadCoachLinks() {
 // Number of people asking me to coach them - feeds the dashboard notification
 // dot alongside pending friend requests. Cheap: a head-only count.
 export async function countPendingCoachRequests() {
-  const me = await uid()
+  const me = await currentUserId()
   if (!me) return 0
   const { count } = await supabase
     .from('coach_links')

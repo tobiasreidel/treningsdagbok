@@ -8,17 +8,8 @@
 // have is selected in the flattering direction. Sampling has to be independent
 // of training for the score to mean anything.
 import { format, startOfWeek, subDays } from 'date-fns'
-import { supabase } from './supabase'
+import { supabase, currentUserId, isMissingTable } from './supabase'
 import { asDate, todayISO } from './format'
-
-function isMissingTable(err) {
-  return err?.code === 'PGRST205' || err?.code === '42P01'
-}
-
-async function uid() {
-  const { data } = await supabase.auth.getSession()
-  return data?.session?.user?.id ?? null
-}
 
 export function notifyWellnessChanged() {
   window.dispatchEvent(new Event('coach:changed'))
@@ -78,7 +69,7 @@ export async function getWellnessDay(date) {
 }
 
 export async function saveWellnessDay(date, patch) {
-  const userId = await uid()
+  const userId = await currentUserId()
   if (!userId) throw new Error('Not signed in')
   const { error } = await supabase
     .from('wellness_days')
@@ -189,7 +180,7 @@ export async function fetchOstrc(weeks = 12) {
 }
 
 export async function saveOstrc(weekStart, area, answers) {
-  const userId = await uid()
+  const userId = await currentUserId()
   if (!userId) throw new Error('Not signed in')
   const { error } = await supabase
     .from('ostrc_reports')

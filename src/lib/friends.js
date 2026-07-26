@@ -1,15 +1,10 @@
 // Friends, requests, shared feed + leaderboard, and privacy. All access is
 // RLS-guarded server-side; the client only ever sees what it's allowed to.
-import { supabase } from './supabase'
-
-async function uid() {
-  const { data } = await supabase.auth.getSession()
-  return data?.session?.user?.id ?? null
-}
+import { supabase, currentUserId } from './supabase'
 
 // ---- profile + privacy -----------------------------------------------------
 export async function getMyProfile() {
-  const id = await uid()
+  const id = await currentUserId()
   if (!id) return null
   const { data } = await supabase
     .from('profiles')
@@ -20,7 +15,7 @@ export async function getMyProfile() {
 }
 
 export async function setDisplayName(name) {
-  const id = await uid()
+  const id = await currentUserId()
   if (!id) throw new Error('Not signed in')
   const { error } = await supabase
     .from('profiles')
@@ -37,7 +32,7 @@ export async function getShareSetting() {
 }
 
 export async function setShareSetting(value) {
-  const id = await uid()
+  const id = await currentUserId()
   if (!id) throw new Error('Not signed in')
   const { error } = await supabase
     .from('user_settings')
@@ -56,7 +51,7 @@ export async function sendRequest(email) {
 }
 
 export async function loadConnections() {
-  const me = await uid()
+  const me = await currentUserId()
   if (!me) return { me: null, friends: [], incoming: [], outgoing: [] }
   const { data: fs, error } = await supabase.from('friendships').select('*')
   if (error) throw error
@@ -88,7 +83,7 @@ export async function loadConnections() {
 // Just the number of pending requests waiting on me - cheap enough to run on
 // the dashboard, where it drives the notification dot on the profile avatar.
 export async function countIncomingRequests() {
-  const me = await uid()
+  const me = await currentUserId()
   if (!me) return 0
   const { count } = await supabase
     .from('friendships')

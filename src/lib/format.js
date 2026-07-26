@@ -38,10 +38,6 @@ export function formatDayShort(value) {
   return format(asDate(value), 'd MMM')
 }
 
-export function weekRange(ref = new Date()) {
-  return { start: startOfWeek(ref, WEEK_OPTS), end: endOfWeek(ref, WEEK_OPTS) }
-}
-
 export function monthRange(ref = new Date()) {
   return { start: startOfMonth(ref), end: endOfMonth(ref) }
 }
@@ -70,11 +66,6 @@ export function formatDuration(minutes) {
 // minutes -> hours with one decimal (for summary cards)
 export function toHours(minutes) {
   return Math.round(((Number(minutes) || 0) / 60) * 10) / 10
-}
-
-export function formatHours(minutes) {
-  const h = toHours(minutes)
-  return `${h}h`
 }
 
 // Average speed in km/h from distance (km) + duration (min), 1 decimal.
