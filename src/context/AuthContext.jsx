@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase, isConfigured } from '../lib/supabase'
+import { invalidate as forgetSessions } from '../lib/sessionCache'
+import { forgetSettings } from '../lib/intervals'
 
 const AuthContext = createContext(null)
 
@@ -20,6 +22,13 @@ export function AuthProvider({ children }) {
       setLoading(false)
     })
     const { data: sub } = supabase.auth.onAuthStateChange((event, newSession) => {
+      // Whoever is signed in changed: drop the in-memory copies so nothing
+      // held for the previous account can be read by this one. (The persisted
+      // session copy is keyed by user id, so it needs no clearing.)
+      if (event === 'SIGNED_OUT' || event === 'SIGNED_IN') {
+        forgetSessions()
+        forgetSettings()
+      }
       setSession(newSession)
       if (event === 'PASSWORD_RECOVERY') setRecovery(true)
     })

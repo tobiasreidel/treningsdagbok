@@ -14,6 +14,8 @@ import { isPeriodDay } from '../lib/health'
 import { getLogPeriod } from '../lib/prefs'
 import { embeddedStrengthMinutes, embeddedFingerMinutes } from '../lib/stats'
 import { normalizeHang } from '../lib/formState'
+import { hasUnreadableHangs } from '../lib/fingerLoad'
+import { getBodyweight } from '../lib/prefs'
 import { pumpLabel } from '../lib/exercises'
 // Leaflet and the charts are the heaviest thing the app bundles, and only a
 // ride or run ever shows them - so they load with the session that needs them
@@ -220,6 +222,7 @@ export default function SessionDetail() {
   const finger = e.finger || {}
   const hangs = finger.hangboard || []
   const hasFinger = finger.campus || hangs.length > 0
+  const unreadableHangs = hasFinger && hasUnreadableHangs(session, getBodyweight())
   const warmupMin = Number(e.warmup_minutes) || 0
   const warmupNote = (e.warmup_note || '').trim()
   const rehabMin = Number(e.rehab_minutes) || 0
@@ -446,6 +449,23 @@ export default function SessionDetail() {
               )
             })}
           </div>
+          {/* A set logged as added weight, with no bodyweight to add it to,
+              can't be turned into a real load - so the coach scores it off the
+              edge alone and quietly under-counts a hard session. Better to say
+              so than to let the recovery window drift. */}
+          {unreadableHangs && (
+            <p className="muted small">
+              Some of these sets can’t be read as a total load without your bodyweight, so
+              the coach is scoring them off edge size alone.{' '}
+              <button
+                type="button"
+                className="link-btn"
+                onClick={() => navigate('/coach/setup')}
+              >
+                Add your bodyweight ›
+              </button>
+            </p>
+          )}
         </div>
       )}
 

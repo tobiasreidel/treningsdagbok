@@ -5,6 +5,19 @@
 export const CHANGELOG = [
   {
     date: '2026-07-26',
+    title: 'Works offline, logs the test battery, exports your data',
+    changes: [
+      'Your training is now stored on your phone as well as the server, so the app opens with your diary in it even with no signal — a gym basement, a plane, abroad. It says when you’re looking at a saved copy.',
+      'Opening the app is quicker: it used to download your whole history three times over on every launch.',
+      'The Norwegian Climbing Federation’s test battery can now be logged — fingers, strength, power and mobility, left and right separately. A test you stop because of pain is recorded as that, and the coach backs off for a few weeks.',
+      '“Log this session” on the Coach page: it opens the form with the sport, the length and the plan already filled in.',
+      'Download your data from Settings → Your data: sessions as a spreadsheet, or everything as a JSON file to keep.',
+      'A hangboard set logged as added weight now says when it can’t be read without your bodyweight, instead of quietly counting for less than it should.',
+      'Deleting your account now deletes your photos too, rather than leaving them in storage.',
+    ],
+  },
+  {
+    date: '2026-07-26',
     title: 'Pick your own session for today',
     changes: [
       'Under “Sessions that fit” on the Coach page, tap any of the alternatives to make it today’s session — the coach’s first choice is a suggestion, not an order.',

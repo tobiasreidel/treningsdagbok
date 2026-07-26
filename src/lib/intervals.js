@@ -1,32 +1,44 @@
 // intervals.icu integration. The PWA calls intervals.icu directly from the
 // browser - the API supports CORS and HTTP Basic auth (username "API_KEY",
 // password = your personal key), so no server proxy is needed.
-import { supabase } from './supabase'
+import { supabase, currentUserId } from './supabase'
 import { format, subDays } from 'date-fns'
 import { fetchSessions, createSession } from './sessions'
 
 const API_BASE = 'https://intervals.icu/api/v1'
 
-async function userId() {
-  const { data } = await supabase.auth.getSession()
-  return data?.session?.user?.id ?? null
-}
-
 // ---- credential storage (RLS-protected user_settings table) ----------------
+
+// Held for the visit, keyed by user so signing in as someone else can never
+// read the previous account's credentials. One boot asks for this row four
+// times over (auto-import, the friend-share pass, the fitness fetch, the
+// import screen) and it only changes on the settings screen, which clears it.
+let settingsCache = null
+let settingsCacheUser = null
+
 export async function getSettings() {
+  const uid = await currentUserId()
+  if (settingsCache && settingsCacheUser === uid) return settingsCache
   const { data, error } = await supabase
     .from('user_settings')
     .select('intervals_athlete_id, intervals_api_key')
     .maybeSingle()
   if (error) throw error
-  return {
+  settingsCache = {
     athleteId: data?.intervals_athlete_id || '',
     apiKey: data?.intervals_api_key || '',
   }
+  settingsCacheUser = uid
+  return settingsCache
+}
+
+export function forgetSettings() {
+  settingsCache = null
+  settingsCacheUser = null
 }
 
 export async function saveSettings({ athleteId, apiKey }) {
-  const uid = await userId()
+  const uid = await currentUserId()
   if (!uid) throw new Error('Not signed in')
   const { error } = await supabase.from('user_settings').upsert({
     user_id: uid,
@@ -35,6 +47,7 @@ export async function saveSettings({ athleteId, apiKey }) {
     updated_at: new Date().toISOString(),
   })
   if (error) throw error
+  forgetSettings()
 }
 
 export function hasCredentials(settings) {

@@ -18,7 +18,18 @@ import {
 import { todayISO, formatDayShort } from '../lib/format'
 import { MAX_TRAINING_DAYS } from '../lib/coach'
 import { setBodyweight } from '../lib/prefs'
-import { fetchFingerTests, addFingerTest, deleteFingerTest } from '../lib/fingerTests'
+import {
+  fetchFingerTests,
+  addFingerTest,
+  deleteFingerTest,
+  fetchPhysicalTests,
+  addPhysicalTest,
+  deletePhysicalTest,
+  latestPerTest,
+  TEST_BATTERY,
+  TEST_GROUPS,
+  testMeta,
+} from '../lib/fingerTests'
 import { GRIPS, HANG_PROTOCOLS, gripLabel, maxTotalFor } from '../lib/fingerLoad'
 
 // The coach's setup form. Everything here exists because the generator can't
@@ -30,6 +41,7 @@ export default function CoachSetup() {
   const [form, setForm] = useState(null)
   const [goals, setGoals] = useState([])
   const [fingerTests, setFingerTests] = useState([])
+  const [physicalTests, setPhysicalTests] = useState([])
   const [missingTable, setMissingTable] = useState(false)
   const [oldSchema, setOldSchema] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -38,12 +50,14 @@ export default function CoachSetup() {
 
   const load = useCallback(async () => {
     try {
-      const [p, g, ft] = await Promise.all([
+      const [p, g, ft, pt] = await Promise.all([
         fetchCoachProfile(),
         fetchGoals(),
         fetchFingerTests().catch(() => []),
+        fetchPhysicalTests().catch(() => []),
       ])
       setFingerTests(ft)
+      setPhysicalTests(pt)
       if (p?.missingTable) {
         setMissingTable(true)
         setForm(emptyProfile())
@@ -353,6 +367,9 @@ export default function CoachSetup() {
             onMigrate={(patch) => commit(patch)}
           />
         )}
+
+        {/* ---- the wider battery ---- */}
+        <PhysicalTestsSection tests={physicalTests} onChanged={load} />
 
         {/* ---- injuries ---- */}
         <section className="card settings-card stack">
@@ -725,6 +742,244 @@ function GradeSelect({ grades, value, onChange }) {
 
 // Goals drive the periodisation: the soonest dated goal is what the plan counts
 // back from.
+// The wider test battery (see lib/fingerTests.js). Logged here rather than as
+// a session: a test is a measurement, not training, and the value of one is in
+// the comparison with the last time - so the list shows where you are now and
+// keeps the history behind it.
+//
+// A test stopped by pain is recorded as an event, not a blank: it is the most
+// informative thing the battery can produce, and the coach reads it (see
+// painAborts) to back off.
+function PhysicalTestsSection({ tests, onChanged }) {
+  const [adding, setAdding] = useState(false)
+  const [draft, setDraft] = useState(null)
+  const [err, setErr] = useState(null)
+  const [busy, setBusy] = useState(false)
+
+  const latest = latestPerTest(tests)
+  const byId = new Map(latest.map((t) => [`${t.test_id}:${t.side || ''}`, t]))
+
+  const startAdd = (testId) => {
+    const meta = testMeta(testId)
+    setDraft({
+      tested_on: todayISO(),
+      test_id: testId,
+      value: '',
+      side: meta.bilateral ? 'R' : '',
+      aborted_reason: '',
+      notes: '',
+    })
+    setAdding(true)
+    setErr(null)
+  }
+
+  const save = async () => {
+    const meta = testMeta(draft.test_id)
+    setBusy(true)
+    try {
+      await addPhysicalTest({
+        tested_on: draft.tested_on,
+        test_id: draft.test_id,
+        value: draft.value === '' ? null : Number(draft.value),
+        unit: meta.unit || null,
+        side: meta.bilateral ? draft.side : null,
+        aborted_reason: draft.aborted_reason || null,
+        notes: draft.notes?.trim() || null,
+      })
+      setAdding(false)
+      setDraft(null)
+      onChanged()
+    } catch (e) {
+      setErr(e.message || 'Could not save. Has supabase/coach_v4.sql been run?')
+    }
+    setBusy(false)
+  }
+
+  const remove = async (id) => {
+    await deletePhysicalTest(id).catch(() => {})
+    onChanged()
+  }
+
+  const meta = draft ? testMeta(draft.test_id) : null
+
+  return (
+    <section className="card settings-card stack">
+      <h2 className="step-q">Test battery</h2>
+      <p className="muted small">
+        The Norwegian Climbing Federation&rsquo;s battery. Testing everything in one
+        session is not the point — retest a handful every few months and watch the
+        direction. Where a test has a left and a right, log both: a side-to-side gap is
+        the pattern the battery exists to surface, and it disappears the moment you
+        average the two.
+      </p>
+
+      {TEST_GROUPS.map((g) => {
+        const items = TEST_BATTERY.filter((t) => t.group === g.key)
+        return (
+          <div className="stack" key={g.key}>
+            <h3 className="coach-sub">{g.label}</h3>
+            {items.map((t) => {
+              const sides = t.bilateral ? ['R', 'L'] : ['']
+              return (
+                <div className="goal-row" key={t.id}>
+                  <div className="goal-main">
+                    <span className="goal-title">{t.label}</span>
+                    <span className="muted small">
+                      {sides
+                        .map((side) => {
+                          const row = byId.get(`${t.id}:${side}`)
+                          const label = side ? `${side}: ` : ''
+                          if (!row) return `${label}—`
+                          if (row.aborted_reason) return `${label}stopped (${row.aborted_reason})`
+                          return `${label}${row.value} ${row.unit || t.unit}`
+                        })
+                        .join('  ·  ')}
+                      {byId.get(`${t.id}:${sides[0]}`)
+                        ? ` · ${formatDayShort(byId.get(`${t.id}:${sides[0]}`).tested_on)}`
+                        : ''}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="link-btn"
+                    onClick={() => startAdd(t.id)}
+                  >
+                    Log ›
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )
+      })}
+
+      {adding && draft && (
+        <div className="stack test-draft">
+          <h3 className="coach-sub">{meta.label}</h3>
+          <Field label="Date">
+            <input
+              type="date"
+              value={draft.tested_on}
+              max={todayISO()}
+              onChange={(e) => setDraft({ ...draft, tested_on: e.target.value })}
+            />
+          </Field>
+
+          {meta.bilateral && (
+            <Field label="Side">
+              <Segmented
+                options={[
+                  { key: 'R', label: 'Right' },
+                  { key: 'L', label: 'Left' },
+                ]}
+                value={draft.side}
+                onChange={(v) => setDraft({ ...draft, side: v })}
+              />
+            </Field>
+          )}
+
+          {!draft.aborted_reason && (
+            <Field label={`Result (${meta.unit})`}>
+              <NumberField
+                value={draft.value}
+                onChange={(v) => setDraft({ ...draft, value: v })}
+                unit={meta.unit}
+              />
+            </Field>
+          )}
+
+          <Field label="Stopped early?" hint="A test you cut short is data, not a blank.">
+            <Segmented
+              options={[
+                { key: '', label: 'Completed' },
+                { key: 'pain', label: 'Pain' },
+                { key: 'skin', label: 'Skin' },
+                { key: 'other', label: 'Other' },
+              ]}
+              columns={4}
+              value={draft.aborted_reason}
+              onChange={(v) => setDraft({ ...draft, aborted_reason: v })}
+            />
+          </Field>
+
+          {draft.aborted_reason === 'pain' && (
+            <p className="muted small">
+              The coach will route around this for the next few weeks. Pain in a test is
+              worth a professional&rsquo;s opinion, not an app&rsquo;s.
+            </p>
+          )}
+
+          <Field label="Notes" optional>
+            <input
+              type="text"
+              maxLength={500}
+              value={draft.notes}
+              onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
+              placeholder="Conditions, edge, how it felt"
+            />
+          </Field>
+
+          {err && <p className="auth-error">{err}</p>}
+          <div className="settings-danger-actions">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => {
+                setAdding(false)
+                setDraft(null)
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={busy || (!draft.aborted_reason && draft.value === '')}
+              onClick={save}
+            >
+              {busy ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {tests.length > 0 && (
+        <details className="test-history">
+          <summary className="muted small">All results ({tests.length})</summary>
+          <div className="stack">
+            {tests.map((t) => (
+              <div className="goal-row" key={t.id}>
+                <span className="goal-emoji">{t.aborted_reason === 'pain' ? '⚠️' : '📋'}</span>
+                <div className="goal-main">
+                  <span className="goal-title">
+                    {testMeta(t.test_id).label}
+                    {t.side ? ` · ${t.side}` : ''}
+                  </span>
+                  <span className="muted small">
+                    {t.aborted_reason
+                      ? `Stopped — ${t.aborted_reason}`
+                      : `${t.value} ${t.unit || testMeta(t.test_id).unit}`}{' '}
+                    · {formatDayShort(t.tested_on)}
+                    {t.notes ? ` · ${t.notes}` : ''}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  onClick={() => remove(t.id)}
+                  aria-label="Delete result"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+    </section>
+  )
+}
+
 function GoalsSection({ goals, onChanged }) {
   const [adding, setAdding] = useState(false)
   const [draft, setDraft] = useState(null)

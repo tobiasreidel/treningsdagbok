@@ -8,6 +8,7 @@ import { fetchSessions } from '../lib/sessions'
 import { backfillSharedAnalyses } from '../lib/streams'
 import { sendFeedback } from '../lib/feedback'
 import { deleteAccount } from '../lib/account'
+import { downloadCsv, downloadJson } from '../lib/exportData'
 import { THEMES, getTheme, setTheme } from '../lib/theme'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -37,6 +38,8 @@ const DELETE_CONFIRM_WORD = 'DELETE'
 export default function Settings() {
   const navigate = useNavigate()
   const { signOut } = useAuth()
+  const [exporting, setExporting] = useState(null)
+  const [exportNote, setExportNote] = useState(null)
   const [athleteId, setAthleteId] = useState('')
   const [apiKey, setApiKey] = useState('') // only holds a newly-typed key
   const [savedKey, setSavedKey] = useState('') // existing key, never bound to a field
@@ -231,6 +234,18 @@ export default function Settings() {
       setDeleteError(err.message || 'Could not delete account')
       setDeleting(false)
     }
+  }
+
+  const runExport = async (kind) => {
+    setExporting(kind)
+    setExportNote(null)
+    try {
+      const n = kind === 'csv' ? await downloadCsv() : await downloadJson()
+      setExportNote(`Saved ${n} session${n === 1 ? '' : 's'} to your downloads.`)
+    } catch (err) {
+      setExportNote(err.message || 'Could not build the export.')
+    }
+    setExporting(null)
   }
 
   const testConnection = async () => {
@@ -586,6 +601,36 @@ export default function Settings() {
           </button>
           <p className="muted small">
             Activities also import automatically each time you open the app.
+          </p>
+        </section>
+
+        <section className="card settings-card stack">
+          <h2 className="step-q">Your data</h2>
+          <p className="muted small">
+            Everything you have logged, in a file you keep. Worth doing now and then —
+            this app is the only place your training lives.
+          </p>
+          <button
+            type="button"
+            className="btn btn-secondary btn-block"
+            disabled={exporting !== null}
+            onClick={() => runExport('csv')}
+          >
+            {exporting === 'csv' ? 'Preparing…' : '⬇ Sessions as a spreadsheet (CSV)'}
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary btn-block"
+            disabled={exporting !== null}
+            onClick={() => runExport('json')}
+          >
+            {exporting === 'json' ? 'Preparing…' : '⬇ Everything, as stored (JSON)'}
+          </button>
+          {exportNote && <p className="muted small">{exportNote}</p>}
+          <p className="muted small">
+            The JSON holds your sessions, health log, check-ins, coach profile, goals,
+            tests and gear. Photos aren’t included — they stay in storage. Your
+            intervals.icu key is left out on purpose.
           </p>
         </section>
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { addMonths } from 'date-fns'
-import { fetchSessions, getPendingSessions } from '../lib/sessions'
+import { fetchSessions, getPendingSessions, lastReadWasOffline } from '../lib/sessions'
 import {
   fetchPeriodDays,
   setPeriodDay,
@@ -42,7 +42,7 @@ export default function Dashboard() {
   const [monthRef, setMonthRef] = useState(new Date())
   const [dayView, setDayView] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [softError, setSoftError] = useState(false)
+  const [softError, setSoftError] = useState(null)
   const [toast, setToast] = useState(location.state?.toast || null)
   // Period tracking (Settings → Health). Days are ISO strings from the server.
   const periodEnabled = getLogPeriod()
@@ -108,7 +108,12 @@ export default function Dashboard() {
     ])
     const serverRows = server.status === 'fulfilled' ? server.value : []
     const pendingRows = pending.status === 'fulfilled' ? pending.value : []
-    setSoftError(server.status === 'rejected')
+    // Three states, not two: served fresh, served from the stored copy, or
+    // nothing at all. Saying "showing offline data" when there is none was the
+    // one message here that could be flatly untrue.
+    setSoftError(
+      server.status === 'rejected' ? 'unreachable' : lastReadWasOffline() ? 'stored' : null,
+    )
     setSessions([...pendingRows, ...serverRows])
     setPeriodDays(period.status === 'fulfilled' ? period.value : [])
     setInjuries(injured.status === 'fulfilled' ? injured.value : [])
@@ -222,7 +227,9 @@ export default function Dashboard() {
         <>
           {softError && (
             <p className="muted small offline-note">
-              Showing offline data. Couldn’t reach the server.
+              {softError === 'stored'
+                ? 'Offline — showing your training as of the last time you had a connection.'
+                : 'Couldn’t reach the server, and there’s no saved copy on this device yet.'}
             </p>
           )}
 

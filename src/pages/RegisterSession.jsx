@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Segmented, useOnline } from '../components/ui'
 import DetailsFields from '../components/form/DetailsFields'
@@ -24,8 +24,11 @@ export default function RegisterSession() {
     if (location.state?.date) f.date = location.state.date
     return f
   })
-  // Skip sport/subtype for imports - jump straight to the details step.
-  const [step, setStep] = useState(prefill ? 2 : 0)
+  // A prefilled form already knows its sport, its subtype and - when it came
+  // from the coach - whether it was the planned session. Start on the first
+  // step it hasn't answered rather than a fixed index, which quietly landed on
+  // the wrong question as soon as the coach added a step.
+  const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
 
@@ -50,6 +53,18 @@ export default function RegisterSession() {
     s.push('notes')
     return s
   }, [form.sport, form.location])
+
+  // Jump past what the prefill already answered, once (steps depend on the
+  // sport, which the prefill is what sets).
+  const [skipped, setSkipped] = useState(!prefill)
+  useEffect(() => {
+    if (skipped) return
+    const answered = new Set(['sport', 'subtype'])
+    if (prefill.extra?.coach) answered.add('plan')
+    const first = steps.findIndex((k) => !answered.has(k))
+    setStep(first === -1 ? steps.length - 1 : first)
+    setSkipped(true)
+  }, [skipped, prefill, steps])
 
   const current = steps[Math.min(step, steps.length - 1)]
   const isLast = step >= steps.length - 1

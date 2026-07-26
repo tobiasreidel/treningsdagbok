@@ -3,10 +3,16 @@
 // there's no connectivity, so a logged session is never lost.
 import { supabase, isConfigured, PHOTO_BUCKET, currentUserId } from './supabase'
 import { enqueue, listPending, remove } from './outbox'
+import { fetchThroughCache, loadPersisted, invalidate } from './sessionCache'
 
 // Broadcast helper so views can refresh after sessions change (create/edit/
 // delete or an outbox flush). Views subscribe to the window event.
+//
+// Also drops the cached list: every write path already announces itself this
+// way, so hanging invalidation off the same call means a new session can never
+// be hidden behind a copy taken a moment before it.
 export function notifySessionsChanged() {
+  invalidate()
   window.dispatchEvent(new Event('sessions:changed'))
 }
 
@@ -190,8 +196,7 @@ export async function getCurrentUserId() {
 // once you have friends/coaches, RLS also permits selecting their shared
 // sessions, so an unscoped select would pull other people's sessions into your
 // personal dashboard/stats. (The friends feed fetches those separately.)
-export async function fetchSessions(forUserId) {
-  const userId = forUserId || (await currentUserId())
+async function fetchSessionsFromServer(userId) {
   let query = supabase
     .from('sessions')
     .select('*, routes(*)')
@@ -205,6 +210,32 @@ export async function fetchSessions(forUserId) {
     if (Array.isArray(s.routes)) s.routes.sort((a, b) => a.position - b.position)
   }
   return data
+}
+
+// True when the last fetchSessions() served a stored copy because the server
+// couldn't be reached. Read straight after awaiting it - the dashboard uses it
+// to say so rather than passing an empty diary off as up to date.
+let servedFromStore = false
+export function lastReadWasOffline() {
+  return servedFromStore
+}
+
+export async function fetchSessions(forUserId) {
+  const userId = forUserId || (await currentUserId())
+  try {
+    const rows = await fetchThroughCache(userId, () => fetchSessionsFromServer(userId))
+    servedFromStore = false
+    return rows
+  } catch (err) {
+    // Offline, or the server is unreachable: the stored copy is the whole
+    // point of keeping one. Any other failure is a real error and must not be
+    // papered over with stale data.
+    if (!isNetworkError(err)) throw err
+    const stored = await loadPersisted(userId)
+    if (!stored) throw err
+    servedFromStore = true
+    return stored
+  }
 }
 
 export async function getSession(id) {

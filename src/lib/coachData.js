@@ -83,3 +83,38 @@ export const EMPTY_COACH_INPUTS = {
   fingerTests: [],
   physicalTests: [],
 }
+
+// ---- logging a prescribed session -------------------------------------------
+
+// Which sport a library exercise is logged as. The library thinks in training
+// categories; the diary thinks in sports, and only the coach knows how to
+// translate between the two.
+const SPORT_FOR_CATEGORY = {
+  finger: { sport: 'finger' },
+  boulder: { sport: 'climbing', subtype: 'bouldering' },
+  rope: { sport: 'climbing', subtype: 'sport' },
+  strength: { sport: 'strength' },
+  mobility: { sport: 'strength' },
+  warmup: { sport: 'strength' },
+}
+
+// Turn today's prescription into a half-filled session, so "do this" and
+// "write down what I did" aren't two unrelated acts. Returns null for the
+// categories the diary has no sport for (the mental exercises) - the caller
+// hides the button rather than opening a form that can't be saved.
+export function sessionFromSuggestion(suggestion) {
+  const ex = suggestion?.exercises?.[0]
+  const map = ex && SPORT_FOR_CATEGORY[ex.category]
+  if (!map) return null
+  return {
+    sport: map.sport,
+    subtype: map.subtype ?? null,
+    // Indoor is a guess for board and gym work, and the wrong guess to force -
+    // left blank so the wizard still asks.
+    duration: ex.minutes ? String(ex.minutes) : '',
+    extra: {
+      // Pre-answers "was this the planned session?" - it is, by construction.
+      coach: { followed: 'planned', type: suggestion.key, exercise: ex.id },
+    },
+  }
+}

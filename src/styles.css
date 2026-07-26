@@ -2934,6 +2934,18 @@ textarea {
   font-size: 1.05rem;
 }
 
+/* ----- test battery (coach setup) ----- */
+/* The open log form, set apart from the list of tests behind it. */
+.test-draft {
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+}
+.test-history summary {
+  cursor: pointer;
+  padding: 6px 0;
+}
+
 /* Holds the space while the analysis chunk (Leaflet + charts) loads, so the
    page doesn't jump when it arrives. */
 .analysis-placeholder {

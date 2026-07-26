@@ -9,7 +9,12 @@ import {
   COACH_MODELS,
   hangTestAge,
 } from '../lib/coach'
-import { loadCoachInputs, readoutFrom, EMPTY_COACH_INPUTS } from '../lib/coachData'
+import {
+  loadCoachInputs,
+  readoutFrom,
+  sessionFromSuggestion,
+  EMPTY_COACH_INPUTS,
+} from '../lib/coachData'
 import { hasLoggedToday, areaLabel } from '../lib/wellness'
 import { pumpLabel, STRETCH_PROTOCOL, EXERCISE_MAP, tierLabel } from '../lib/exercises'
 import { maxTotalFor, prescribeHang } from '../lib/fingerLoad'
@@ -79,6 +84,8 @@ export default function Coach() {
 
   const { suggestion, recovery, readiness, trend, monotony, goalPhase, problems } = readout
   const setUp = isProfileComplete(profile)
+  // Null for the handful of library entries the diary has no sport for.
+  const logPrefill = sessionFromSuggestion(suggestion)
 
   return (
     <div className="page">
@@ -130,8 +137,11 @@ export default function Coach() {
             <h2 className="step-q">Reported problems</h2>
             {problems.map((p) => (
               <SignalBlock
-                key={p.area}
-                title={`⚠️ ${areaLabel(p.area)}`}
+                key={p.fromTest || p.area}
+                // A pain-stopped test says exactly which test it was. "Other"
+                // is what the questionnaire's area vocabulary can offer, and
+                // it isn't what you'd want to read here.
+                title={`⚠️ ${p.fromTest ? `${p.fromTest} — stopped by pain` : areaLabel(p.area)}`}
                 state={`${p.severity}/100${p.substantial ? ' · substantial' : ''}`}
                 tone={p.substantial ? 'warn' : 'ok'}
                 hint={
@@ -210,6 +220,16 @@ export default function Coach() {
             <SpecRow label="Rest" value={suggestion.type.rest} />
             <SpecRow label="Target RPE" value={suggestion.type.rpe} />
           </div>
+
+          {logPrefill && (
+            <button
+              type="button"
+              className="btn btn-primary btn-block"
+              onClick={() => navigate('/new', { state: { prefill: logPrefill } })}
+            >
+              Log this session
+            </button>
+          )}
 
           {suggestion.exercises.length > 0 && (
             <>

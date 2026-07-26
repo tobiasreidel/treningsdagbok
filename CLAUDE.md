@@ -10,11 +10,13 @@ enterprise.
 
 ```bash
 npm run dev     # vite, :5173
+npm run test    # vitest, the pure-logic tests in src/lib/*.test.js
 npm run build   # ALWAYS run before pushing — main auto-deploys to prod
 ```
 
-No test suite and no linter: the build is the only gate. Push to `main` and
-Vercel deploys it.
+No linter. The tests cover the coach engine and the finger-load maths only —
+the parts where a wrong answer is invisible on inspection — so the build is
+still the gate for everything else. Push to `main` and Vercel deploys it.
 
 ## Layout
 
@@ -60,6 +62,10 @@ Vercel deploys it.
   signal.
 - **Ship notes**: add an entry to `src/lib/changelog.js` whenever something
   user-visible changes. It renders as the in-app "What's new".
+- **Reads go through the cache.** `fetchSessions()` collapses concurrent
+  callers, stores a copy in IndexedDB and serves it when the server can't be
+  reached (`lib/sessionCache.js`). Any write must call
+  `notifySessionsChanged()`, which is what drops it.
 
 ## Gotchas
 

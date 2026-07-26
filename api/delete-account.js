@@ -46,7 +46,21 @@ export default async function handler(req, res) {
   }
   if (!user?.id) return res.status(401).json({ error: 'Your session expired - sign in again.' })
 
-  // 2) Delete the auth user with the service role. Postgres FK cascades
+  // 2) Delete the photos first. Storage objects are not rows and have no
+  //    foreign key to auth.users, so the cascade below does not touch them -
+  //    without this, "delete my account" left every session photo and the
+  //    avatar sitting in the bucket forever. Best effort: a storage failure
+  //    must not block the deletion the user actually asked for, so it is
+  //    reported alongside the success rather than instead of it.
+  let photoNote = null
+  try {
+    const removed = await deletePhotos(user.id)
+    if (removed === null) photoNote = 'Your photos could not be removed - contact the owner.'
+  } catch (err) {
+    photoNote = `Your photos could not be removed (${String(err).slice(0, 120)}).`
+  }
+
+  // 3) Delete the auth user with the service role. Postgres FK cascades
   //    remove every row that references it.
   try {
     const dr = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${user.id}`, {
@@ -67,5 +81,45 @@ export default async function handler(req, res) {
     return res.status(502).json({ error: 'Could not reach the database.', detail: String(err) })
   }
 
-  return res.status(200).json({ ok: true })
+  return res.status(200).json({ ok: true, ...(photoNote ? { note: photoNote } : {}) })
+}
+
+const PHOTO_BUCKET = 'session-photos'
+// Storage list is paginated; a long-running diary can hold hundreds of photos.
+const PAGE = 100
+
+// Every object under `<userId>/` — session photos and the avatar both live
+// there (see the storage policies in supabase/schema.sql, which key access on
+// the first path segment). Returns the number removed, or null if the bucket
+// wouldn't answer.
+async function deletePhotos(userId) {
+  const headers = {
+    apikey: SUPABASE_SERVICE_ROLE_KEY,
+    Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+    'Content-Type': 'application/json',
+  }
+  let removed = 0
+  // Always list from offset 0: each pass deletes what it lists, so the next
+  // page moves down to take its place.
+  for (let pass = 0; pass < 50; pass += 1) {
+    const lr = await fetch(`${SUPABASE_URL}/storage/v1/object/list/${PHOTO_BUCKET}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ prefix: `${userId}/`, limit: PAGE, offset: 0 }),
+    })
+    if (!lr.ok) return null
+    const items = await lr.json()
+    if (!Array.isArray(items) || items.length === 0) return removed
+
+    const prefixes = items.map((o) => `${userId}/${o.name}`)
+    const dr = await fetch(`${SUPABASE_URL}/storage/v1/object/${PHOTO_BUCKET}`, {
+      method: 'DELETE',
+      headers,
+      body: JSON.stringify({ prefixes }),
+    })
+    if (!dr.ok) return null
+    removed += prefixes.length
+    if (items.length < PAGE) return removed
+  }
+  return removed
 }

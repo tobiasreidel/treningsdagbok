@@ -52,6 +52,14 @@ export default defineConfig({
     host: true,
     port: 5173,
   },
+  test: {
+    // Blank the Supabase credentials so importing lib/supabase.js leaves the
+    // client null instead of constructing one (which needs a WebSocket
+    // implementation Node 20 doesn't have). Nothing under test talks to the
+    // server: these cover the pure logic, which is where the subtle bugs live.
+    env: { VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '' },
+    include: ['src/**/*.test.js'],
+  },
   build: {
     rollupOptions: {
       output: {

@@ -43,6 +43,13 @@ export async function deleteFingerTest(id) {
 // ---- the wider battery -----------------------------------------------------
 // The Norwegian Climbing Federation's test battery, as a supplement to the
 // development ladder: measure capacity, find weaknesses, track progress.
+export const TEST_GROUPS = [
+  { key: 'finger', label: '🤏 Fingers' },
+  { key: 'strength', label: '💪 Strength' },
+  { key: 'power', label: '⚡ Power' },
+  { key: 'mobility', label: '🧘 Mobility' },
+]
+
 export const TEST_BATTERY = [
   { id: 'half_crimp', label: 'Half-crimp max', unit: 'kg', group: 'finger', bilateral: true },
   { id: 'open_3', label: 'Three-finger open max', unit: 'kg', group: 'finger', bilateral: true },
@@ -93,6 +100,23 @@ export async function addPhysicalTest(row) {
     throw error
   }
   notifyCoachChanged()
+}
+
+export async function deletePhysicalTest(id) {
+  const { error } = await supabase.from('physical_tests').delete().eq('id', id)
+  if (error) throw error
+  notifyCoachChanged()
+}
+
+// The newest result per test (per side, where the test has two), which is what
+// "where am I now" means for a battery you retest every few months.
+export function latestPerTest(physicalTests = []) {
+  const seen = new Map()
+  for (const t of physicalTests) {
+    const key = `${t.test_id}:${t.side || ''}`
+    if (!seen.has(key)) seen.set(key, t)
+  }
+  return [...seen.values()]
 }
 
 // ---- asymmetry -------------------------------------------------------------
