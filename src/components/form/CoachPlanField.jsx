@@ -6,7 +6,7 @@ import { fetchIcuFitnessData } from '../../lib/fitness'
 import { fetchCoachProfile, fetchGoals } from '../../lib/coachProfile'
 import { fetchWellness, fetchOstrc } from '../../lib/wellness'
 import { coachReadout } from '../../lib/coach'
-import { getCoachModel } from '../../lib/prefs'
+import { getCoachModel, getSessionPick } from '../../lib/prefs'
 import {
   FINGER_EXERCISES,
   BOULDER_EXERCISES,
@@ -66,6 +66,9 @@ export default function CoachPlanField({ form, updateExtra }) {
         goals: val(gls, []),
         wellness: val(well, []),
         ostrc: val(ost, []),
+        // "As planned" has to mean the session you actually picked on /coach,
+        // not the one the coach would have chosen for you.
+        pick: getSessionPick(todayISO()),
       })
       setPlan(readout.suggestion)
       setPlanLoading(false)

@@ -16,6 +16,7 @@ const KEYS = {
   coach: 'pref.coach',
   coachModel: 'pref.coachModel',
   coachDays: 'pref.coachDays',
+  coachPick: 'pref.coachPick',
   checkinPromptDay: 'pref.checkinPromptDay',
   bodyweight: 'pref.bodyweightKg',
 }
@@ -108,6 +109,31 @@ export function setCoachDays(n) {
   const v = Number(n)
   if (v >= 2 && v <= 5 && v !== 3) localStorage.setItem(KEYS.coachDays, String(v))
   else localStorage.removeItem(KEYS.coachDays)
+}
+
+// Which of "Sessions that fit" you picked for today, when you didn't want the
+// coach's first choice. Scoped to a single day on purpose: the point is "not
+// that one, today", not a standing preference the plan should learn from -
+// letting it persist would quietly turn the rotation into a rut. An id that
+// isn't in today's list is ignored (see suggestSession), so a stale pick can
+// never resurrect yesterday's session.
+export function getSessionPick(day) {
+  try {
+    const raw = localStorage.getItem(KEYS.coachPick)
+    const saved = raw ? JSON.parse(raw) : null
+    return saved?.day === day ? saved.id : null
+  } catch {
+    return null
+  }
+}
+
+export function setSessionPick(day, id) {
+  try {
+    if (id) localStorage.setItem(KEYS.coachPick, JSON.stringify({ day, id }))
+    else localStorage.removeItem(KEYS.coachPick)
+  } catch {
+    // storage full/blocked - the coach's own pick just stands
+  }
 }
 
 // ---- gear logging (Settings → Gear, logging on Profile) --------------------

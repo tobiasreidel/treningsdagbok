@@ -1818,7 +1818,7 @@ export function phaseTimeline(goals, sessions, model) {
 export function suggestSession(sessions, ctx) {
   const {
     recovery, readinessState, trend, monotony, injuries, problems, limits,
-    model, daysPerWeek, goals, profile, level, fingerTests = [],
+    model, daysPerWeek, goals, profile, level, fingerTests = [], pick = null,
   } = ctx
   const plan = plannedType(sessions, model, daysPerWeek, goals, level)
   const planned = SESSION_TYPES[plan.key]
@@ -1979,13 +1979,20 @@ export function suggestSession(sessions, ctx) {
   // Resolve to a grid cell, then apply the accumulated soft reduction.
   const base = gridFor(key, discipline)
   const tier = clamp(base.tier - tierDrop, 1, 5)
-  const exercises = pickExercises(key, profile, plan.pos.week, discipline, style, {
+  const offered = pickExercises(key, profile, plan.pos.week, discipline, style, {
     age,
     yearsClimbing,
     injuredRegions,
     tier,
     sessionCat: base.sessionCat,
   })
+
+  // You can promote one of the alternatives to today's pick. It only reorders
+  // the list the rules already produced - everything downstream (grades, the
+  // hang prescription, the dashboard card, the log form) reads position 0, so
+  // a swap stays consistent without a second notion of "the session".
+  const at = pick ? offered.findIndex((e) => e.id === pick) : -1
+  const exercises = at > 0 ? [offered[at], ...offered.filter((_, i) => i !== at)] : offered
 
   return {
     type: SESSION_TYPES[key],
@@ -1999,6 +2006,9 @@ export function suggestSession(sessions, ctx) {
     reasons,
     grades: gradeRange(key, limits, exercises[0], tierDrop),
     exercises,
+    // Whose choice is on top, so the UI can offer to hand it back.
+    pickedByYou: at > 0,
+    coachPick: offered[0]?.id || null,
     // What "80-90% of max" actually means today, in kilos, including the
     // assisted case. Null when there is no usable max or no bodyweight.
     hang: hangPrescription(exercises[0], profile, fingerTests),
@@ -2029,7 +2039,7 @@ export function currentForm(sessions) {
 export function coachReadout(sessions, injuries, icuWellness, opts = {}) {
   const {
     model = 'undulating', profile = null, goals = [],
-    wellness = [], ostrc = [], fingerTests = [], physicalTests = [],
+    wellness = [], ostrc = [], fingerTests = [], physicalTests = [], pick = null,
   } = opts
   const daysPerWeek = profile?.sessions_week
     ? clamp(profile.sessions_week, MIN_SESSIONS_WEEK, MAX_SESSIONS_WEEK)
@@ -2057,7 +2067,7 @@ export function coachReadout(sessions, injuries, icuWellness, opts = {}) {
 
   const suggestion = suggestSession(sessions, {
     recovery, readinessState, trend, monotony, injuries, problems, limits,
-    model, daysPerWeek, goals, profile, level, fingerTests,
+    model, daysPerWeek, goals, profile, level, fingerTests, pick,
   })
 
   return {

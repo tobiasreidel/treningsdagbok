@@ -2604,6 +2604,18 @@ textarea {
 .ex-card.is-primary {
   outline: 2px solid var(--primary);
 }
+.ex-card-tap {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease;
+}
+.ex-card-tap:active {
+  transform: scale(0.99);
+}
+.ex-card-tap:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
 .ex-head {
   display: flex;
   align-items: center;

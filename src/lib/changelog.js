@@ -4,6 +4,15 @@
 // Add a new entry at the top whenever something ships that people would notice.
 export const CHANGELOG = [
   {
+    date: '2026-07-26',
+    title: 'Pick your own session for today',
+    changes: [
+      'Under “Sessions that fit” on the Coach page, tap any of the alternatives to make it today’s session — the coach’s first choice is a suggestion, not an order.',
+      'Your pick carries through to the Today card on the home screen and to “as planned” when you log the session.',
+      'It only lasts the day, and tapping the one on top hands the choice back to the coach.',
+    ],
+  },
+  {
     date: '2026-07-24',
     title: 'A training coach on your dashboard (beta)',
     changes: [

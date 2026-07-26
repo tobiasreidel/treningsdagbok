@@ -4,7 +4,8 @@ import { coachReadout } from '../lib/coach'
 import { fetchIcuFitnessData } from '../lib/fitness'
 import { fetchCoachProfile, fetchGoals, isProfileComplete } from '../lib/coachProfile'
 import { fetchWellness, fetchOstrc, hasLoggedToday } from '../lib/wellness'
-import { getCoachModel, getCoachDays } from '../lib/prefs'
+import { getCoachModel, getCoachDays, getSessionPick } from '../lib/prefs'
+import { todayISO } from '../lib/format'
 import SignalBlock from './SignalBlock'
 
 // Dashboard card shown when the Training coach is on (Settings → Training
@@ -58,6 +59,9 @@ export default function CoachCard({ sessions, injuries }) {
         goals,
         wellness,
         ostrc,
+        // Read here rather than held in state: the card remounts on every
+        // return to the dashboard, which is the only way the pick can change.
+        pick: getSessionPick(todayISO()),
       }),
     [sessions, injuries, icu, profile, goals, wellness, ostrc],
   )

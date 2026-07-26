@@ -23,8 +23,8 @@ import {
   isProfileComplete,
   goalKind,
 } from '../lib/coachProfile'
-import { getCoachModel, setCoachModel } from '../lib/prefs'
-import { formatDayShort, asDate } from '../lib/format'
+import { getCoachModel, setCoachModel, getSessionPick, setSessionPick } from '../lib/prefs'
+import { formatDayShort, asDate, todayISO } from '../lib/format'
 import { format } from 'date-fns'
 import { SPORTS } from '../lib/constants'
 import SignalBlock from '../components/SignalBlock'
@@ -46,6 +46,7 @@ export default function Coach() {
   const [physicalTests, setPhysicalTests] = useState([])
   const [loading, setLoading] = useState(true)
   const [model, setModelState] = useState(getCoachModel)
+  const [pick, setPick] = useState(() => getSessionPick(todayISO()))
 
   const load = useCallback(async () => {
     const [s, inj, fit, prof, gls, well, ost, ft, pt] = await Promise.allSettled([
@@ -85,9 +86,9 @@ export default function Coach() {
   const readout = useMemo(
     () =>
       coachReadout(sessions, injuries, icu, {
-        model, profile, goals, wellness, ostrc, fingerTests, physicalTests,
+        model, profile, goals, wellness, ostrc, fingerTests, physicalTests, pick,
       }),
-    [sessions, injuries, icu, model, profile, goals, wellness, ostrc, fingerTests, physicalTests],
+    [sessions, injuries, icu, model, profile, goals, wellness, ostrc, fingerTests, physicalTests, pick],
   )
   const week = useMemo(
     () => rollingPlan(sessions, model, readout.daysPerWeek, goals, profile, readout.suggestion),
@@ -101,6 +102,14 @@ export default function Coach() {
   const chooseModel = (k) => {
     setModelState(k)
     setCoachModel(k)
+  }
+
+  // Tapping the session already on top hands the choice back to the coach,
+  // rather than freezing today on a card that happens to match its own pick.
+  const choosePick = (id) => {
+    const next = id === readout.suggestion.exercises[0]?.id ? null : id
+    setSessionPick(todayISO(), next)
+    setPick(next)
   }
 
   if (loading) {
@@ -250,8 +259,14 @@ export default function Coach() {
               <h3 className="coach-sub">
                 {suggestion.key === 'mobility' ? 'Mobility routine' : 'Sessions that fit'}
               </h3>
-              {(suggestion.key === 'mobility') && (
+              {suggestion.key === 'mobility' ? (
                 <p className="muted small">{STRETCH_PROTOCOL}</p>
+              ) : (
+                <p className="muted small">
+                  {suggestion.pickedByYou
+                    ? 'Your pick for today. Tap it again to hand the choice back to the coach.'
+                    : 'The coach picked the first one. Tap another to do that instead — same session type, so the grades and load above still apply.'}
+                </p>
               )}
               <div className="stack">
                 {suggestion.exercises.map((ex, i) => (
@@ -259,6 +274,8 @@ export default function Coach() {
                     key={ex.id}
                     ex={ex}
                     primary={i === 0 && suggestion.key !== 'mobility'}
+                    youPicked={i === 0 && suggestion.pickedByYou}
+                    onPick={suggestion.key === 'mobility' ? null : () => choosePick(ex.id)}
                     profile={profile}
                     tests={fingerTests}
                   />
@@ -835,7 +852,9 @@ function PlanDayDetail({ d, profile, limits, suggestion, goalStyle, tests }) {
 // entered a hang max — but only while that test is recent enough to mean
 // anything. A percentage of a number from six months ago is a number nobody
 // knows, so past the staleness cut-off it goes back to describing the effort.
-export function ExerciseCard({ ex, primary, profile, tests = [], durationMult = 1 }) {
+export function ExerciseCard({
+  ex, primary, profile, tests = [], durationMult = 1, onPick = null, youPicked = false,
+}) {
   // Any exercise anchored on a percentage of max total load gets a real number
   // in kilos, including the assisted case (negative added weight is the normal
   // shape of submaximal finger work, not an error).
@@ -859,13 +878,33 @@ export function ExerciseCard({ ex, primary, profile, tests = [], durationMult = 
     note = 'Add a bodyweight to see whether that means adding weight or taking it off.'
   }
 
+  // A role rather than a <button>: the card's body is paragraphs, which a
+  // button may not contain.
+  const press = onPick
+    ? {
+        role: 'button',
+        tabIndex: 0,
+        'aria-pressed': !!primary,
+        onClick: onPick,
+        onKeyDown: (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            onPick()
+          }
+        },
+      }
+    : {}
+
   return (
-    <div className={`ex-card ${primary ? 'is-primary' : ''}`}>
+    <div
+      className={`ex-card ${primary ? 'is-primary' : ''} ${onPick ? 'ex-card-tap' : ''}`}
+      {...press}
+    >
       <div className="ex-head">
         <span className="ex-id">{ex.id}</span>
         <span className="ex-name">{ex.name}</span>
         {ex.youthReduced && <span className="coach-week-tag">u18</span>}
-        {primary && <span className="coach-week-tag">pick</span>}
+        {primary && <span className="coach-week-tag">{youPicked ? 'your pick' : 'pick'}</span>}
       </div>
       <p className="muted small ex-how">{ex.how}</p>
       {ex.margin && <p className="muted small ex-how"><strong>Margin:</strong> {ex.margin}</p>}
