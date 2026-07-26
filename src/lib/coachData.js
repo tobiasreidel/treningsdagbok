@@ -114,7 +114,8 @@ export function sessionFromSuggestion(suggestion) {
     duration: ex.minutes ? String(ex.minutes) : '',
     extra: {
       // Pre-answers "was this the planned session?" - it is, by construction.
-      coach: { followed: 'planned', type: suggestion.key, exercise: ex.id },
+      // A list, so anything else done in the same session can be added to it.
+      coach: { followed: 'planned', type: suggestion.key, exercises: [ex.id] },
     },
   }
 }

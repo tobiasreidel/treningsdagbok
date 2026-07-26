@@ -15,7 +15,12 @@ import { asDate, todayISO } from './format'
 import { BOULDER_GRADES, ROUTE_GRADES, formatGrade } from './constants'
 import { normalizeHang } from './formState'
 import { fitnessSeries, sessionLoad } from './stats'
-import { EXERCISE_MAP, availableExercises, exercisesAt } from './exercises'
+import {
+  EXERCISE_MAP,
+  availableExercises,
+  exercisesAt,
+  sessionExercises,
+} from './exercises'
 import { primaryGoal, daysUntil } from './coachProfile'
 import { activeProblems } from './wellness'
 import { setIntensity, usableMaxTotal, maxTotalFor, prescribeHang } from './fingerLoad'
@@ -354,8 +359,11 @@ export function fingerDose(s, limits, profile, tests = []) {
   // can't double-count the itemised dose. The truly maximal library entries
   // are the youth-restricted ones (max hangs, campus) - the rest of the
   // high-cost list is "hard" until the RPE says otherwise.
-  const named = EXERCISE_MAP[s.extra?.coach?.exercise]
-  if (named) {
+  // A session can be several library sessions at once (slab, then campus, then
+  // 4x4s). Each is a floor of its own: the hardest thing in the session is what
+  // the fingers have to recover from, so they take the max rather than summing
+  // - summing would count one afternoon as three days of loading.
+  for (const named of sessionExercises(s)) {
     if (named.fingerCost === 'high') {
       tier = higherTier(tier, named.youthRestricted ? 'maximal' : 'hard')
       dose = Math.max(dose, named.youthRestricted ? 30 : 20)
@@ -1561,8 +1569,8 @@ function categoryOverused(sessions, typeKey, discipline) {
   for (const s of sessions) {
     const ago = differenceInCalendarDays(today, asDate(s.date))
     if (ago < 0 || ago >= 7) continue
-    const ex = EXERCISE_MAP[s.extra?.coach?.exercise]
-    if (ex?.sessionCat === sessionCat) n += 1
+    // One session counts once, however many of its parts were in the category.
+    if (sessionExercises(s).some((ex) => ex.sessionCat === sessionCat)) n += 1
   }
   return n >= YOUTH_CATEGORY_CAP
 }

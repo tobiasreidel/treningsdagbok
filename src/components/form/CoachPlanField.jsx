@@ -24,10 +24,16 @@ const GROUPS = [
 
 // "Was this the planned session?" - only rendered while the coach is on.
 // Naming the session from the library is what lets the coach read the log
-// back: the named exercise's finger cost feeds the recovery window, and the
+// back: the named session's finger cost feeds the recovery window, and the
 // plan ticks the day off with what was actually done, not just "a session".
 //
-// Stored as extra.coach = { followed: 'planned' | 'other', type, exercise }.
+// A list, not one name. An afternoon at the gym is routinely slab, then
+// campus, then 4x4s, and a mobility session is a routine of stretches - it was
+// never true that a session was one library entry. The coach takes the hardest
+// part as the floor rather than summing them (see fingerDose), so naming
+// everything you did makes the recovery window more accurate, not less.
+//
+// Stored as extra.coach = { followed: 'planned' | 'other', type, exercises: [] }.
 export default function CoachPlanField({ form, updateExtra }) {
   const coach = form.extra?.coach || null
   const isToday = form.date === todayISO()
@@ -54,7 +60,22 @@ export default function CoachPlanField({ form, updateExtra }) {
     }
   }, [isToday])
 
+  // Sessions logged before this was a list carry a single `exercise`.
+  const chosen = Array.isArray(coach?.exercises)
+    ? coach.exercises
+    : coach?.exercise
+      ? [coach.exercise]
+      : []
+
   const setCoach = (patch) => updateExtra({ coach: patch })
+
+  const setChosen = (ids) => {
+    if (!coach) {
+      setCoach(ids.length ? { followed: 'other', type: null, exercises: ids } : null)
+      return
+    }
+    setCoach({ ...coach, exercise: undefined, exercises: ids })
+  }
 
   const choose = (followed) => {
     if (!followed) {
@@ -65,26 +86,29 @@ export default function CoachPlanField({ form, updateExtra }) {
       setCoach({
         followed: 'planned',
         type: plan?.key ?? null,
-        exercise: plan?.exercises?.[0]?.id ?? null,
+        // The picked session to start with; add the rest of what you did.
+        exercises: plan?.exercises?.[0] ? [plan.exercises[0].id] : [],
       })
     } else {
-      setCoach({ followed: 'other', type: null, exercise: coach?.exercise ?? null })
+      setCoach({ followed: 'other', type: null, exercises: chosen })
     }
   }
 
   // Back-dated sessions can't be compared to "today's plan" - just ask which
-  // library session it was, which is the part the coach can actually use.
+  // library sessions it was, which is the part the coach can actually use.
   if (!isToday) {
     return (
       <Field
-        label="Which session was it?"
-        hint="Optional. Naming it from the library lets the coach count it correctly — a max hangboard day and easy mileage load the fingers very differently."
+        label="Which sessions were these?"
+        hint="Optional, and you can name more than one — a max hangboard day and easy mileage load the fingers very differently."
         optional
       >
-        <ExerciseSelect
-          value={coach?.exercise ?? ''}
-          onChange={(id) =>
-            setCoach(id ? { followed: 'other', type: null, exercise: id } : null)
+        <ExercisePicker
+          value={chosen}
+          onChange={(ids) =>
+            ids.length
+              ? setCoach({ followed: 'other', type: null, exercises: ids })
+              : setCoach(null)
           }
         />
       </Field>
@@ -111,58 +135,97 @@ export default function CoachPlanField({ form, updateExtra }) {
         />
       </Field>
 
-      {coach?.followed === 'planned' && plan && plan.exercises.length > 0 && (
-        <Field label="Which one?" hint="The plan's suggestions for today.">
-          <select
-            value={coach.exercise ?? ''}
-            onChange={(e) =>
-              setCoach({ ...coach, exercise: e.target.value || null })
-            }
-          >
-            {plan.exercises.map((ex) => (
-              <option key={ex.id} value={ex.id}>
-                {ex.id} · {ex.name}
-              </option>
-            ))}
-            <option value="">Just the session type, no named exercise</option>
-          </select>
-        </Field>
-      )}
-
-      {coach?.followed === 'other' && (
+      {coach && (
         <Field
-          label="What did you do instead?"
-          hint="From the exercise library, so the coach understands what the session was."
+          label={coach.followed === 'planned' ? 'What did it consist of?' : 'What did you do?'}
+          hint={
+            coach.followed === 'planned'
+              ? "Today's suggestions are at the top. Add anything else you did in the same session."
+              : 'From the exercise library, so the coach understands what the session was.'
+          }
         >
-          <ExerciseSelect
-            value={coach.exercise ?? ''}
-            onChange={(id) => setCoach({ ...coach, exercise: id || null })}
+          <ExercisePicker
+            value={chosen}
+            onChange={setChosen}
+            suggested={coach.followed === 'planned' ? plan?.exercises : null}
           />
         </Field>
-      )}
-
-      {coach?.exercise && EXERCISE_MAP[coach.exercise] && (
-        <p className="muted small">
-          {EXERCISE_MAP[coach.exercise].how || 'In the library under ' + coach.exercise + '.'}
-        </p>
       )}
     </div>
   )
 }
 
-function ExerciseSelect({ value, onChange }) {
+// Pick any number of library sessions: chosen ones show as removable rows, and
+// the select below adds another. A 40-entry library is too long for a chip
+// grid, and too long to scan twice - so what you picked stays visible while
+// the list to pick from stays collapsed.
+function ExercisePicker({ value, onChange, suggested }) {
+  const add = (id) => {
+    if (id && !value.includes(id)) onChange([...value, id])
+  }
+  const remove = (id) => onChange(value.filter((x) => x !== id))
+
+  // Today's suggestions as one-tap chips, minus what's already chosen.
+  const quick = (suggested || []).filter((ex) => !value.includes(ex.id))
+
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value)}>
-      <option value="">—</option>
-      {GROUPS.map(([label, list]) => (
-        <optgroup label={label} key={label}>
-          {list.map((ex) => (
-            <option key={ex.id} value={ex.id}>
-              {ex.id} · {ex.name}
-            </option>
+    <div className="stack ex-picker">
+      {value.length > 0 && (
+        <div className="stack">
+          {value.map((id) => {
+            const ex = EXERCISE_MAP[id]
+            return (
+              <div className="picked-row" key={id}>
+                <div className="goal-main">
+                  <span className="goal-title">
+                    {id}
+                    {ex ? ` · ${ex.name}` : ''}
+                  </span>
+                  {ex?.how && <span className="muted small">{ex.how}</span>}
+                </div>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  onClick={() => remove(id)}
+                  aria-label={`Remove ${ex?.name || id}`}
+                >
+                  ✕
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {quick.length > 0 && (
+        <div className="chips">
+          {quick.map((ex) => (
+            <button
+              key={ex.id}
+              type="button"
+              className="chip"
+              onClick={() => add(ex.id)}
+            >
+              + {ex.id} · {ex.name}
+            </button>
           ))}
-        </optgroup>
-      ))}
-    </select>
+        </div>
+      )}
+
+      <select value="" onChange={(e) => add(e.target.value)}>
+        <option value="">{value.length ? '+ Add another…' : 'Choose from the library…'}</option>
+        {GROUPS.map(([label, list]) => (
+          <optgroup label={label} key={label}>
+            {list
+              .filter((ex) => !value.includes(ex.id))
+              .map((ex) => (
+                <option key={ex.id} value={ex.id}>
+                  {ex.id} · {ex.name}
+                </option>
+              ))}
+          </optgroup>
+        ))}
+      </select>
+    </div>
   )
 }

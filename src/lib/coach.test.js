@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { fingerDose, fingerRecovery, buildLimits } from './coach'
+import { sessionExercises } from './exercises'
 import { prescribeHang, maxTotalFor, hasUnreadableHangs } from './fingerLoad'
 import { sessionsToCsv } from './exportData'
 
@@ -148,5 +149,44 @@ describe('csv export', () => {
   it('defuses a leading equals so Excel treats it as text', () => {
     const csv = sessionsToCsv([{ date: '2026-07-01', sport: 'climbing', notes: '=1+1' }])
     expect(csv.split('\n')[1]).toContain("'=1+1")
+  })
+})
+
+describe('naming what a session was made of', () => {
+  const limits = buildLimits([], profile)
+
+  it('reads a session logged before this was a list', () => {
+    const named = sessionExercises({ extra: { coach: { exercise: 'F1' } } })
+    expect(named.map((e) => e.id)).toEqual(['F1'])
+  })
+
+  it('reads a session made of several library sessions', () => {
+    const named = sessionExercises({ extra: { coach: { exercises: ['B6', 'F3', 'B3'] } } })
+    expect(named.map((e) => e.id)).toEqual(['B6', 'F3', 'B3'])
+  })
+
+  it('ignores ids that are no longer in the library', () => {
+    expect(sessionExercises({ extra: { coach: { exercises: ['F1', 'NOPE'] } } })).toHaveLength(1)
+  })
+
+  // Slab + campus + 4x4 is one afternoon, and the fingers recover from the
+  // hardest part of it - not from the sum, which would look like three days.
+  it('takes the hardest part as the floor rather than summing', () => {
+    const combined = {
+      date: '2026-07-25',
+      sport: 'climbing',
+      duration: 120,
+      extra: { coach: { exercises: ['B6', 'F3'] } },
+    }
+    const campusOnly = {
+      date: '2026-07-25',
+      sport: 'climbing',
+      duration: 120,
+      extra: { coach: { exercises: ['F3'] } },
+    }
+    const both = fingerDose(combined, limits, profile, [])
+    const one = fingerDose(campusOnly, limits, profile, [])
+    expect(both.dose).toBe(one.dose)
+    expect(both.tier).toBe(one.tier)
   })
 })

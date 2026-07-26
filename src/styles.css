@@ -2934,6 +2934,23 @@ textarea {
   font-size: 1.05rem;
 }
 
+/* ----- naming the library sessions a logged session was made of ----- */
+.picked-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+}
+/* The library's "how" runs long; two lines is enough to recognise it by. */
+.picked-row .muted {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 /* ----- test battery (coach setup) ----- */
 /* The open log form, set apart from the list of tests behind it. */
 .test-draft {

@@ -1072,6 +1072,17 @@ export const ALL_EXERCISES = [
 
 export const EXERCISE_MAP = Object.fromEntries(ALL_EXERCISES.map((e) => [e.id, e]))
 
+// The library sessions a logged session was made of. A real gym session is
+// often several: slab, then campus, then 4x4s - and a mobility session is a
+// routine of stretches, never one. Sessions logged before this was a list hold
+// a single `exercise`, so both shapes are read here rather than at each of the
+// four call sites.
+export function sessionExercises(session) {
+  const c = session?.extra?.coach
+  const ids = Array.isArray(c?.exercises) ? c.exercises : c?.exercise ? [c.exercise] : []
+  return ids.map((id) => EXERCISE_MAP[id]).filter(Boolean)
+}
+
 export const STRETCH_PROTOCOL =
   'Hold each for 2 minutes with at least 2 minutes rest, twice through.'
 

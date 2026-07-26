@@ -7,6 +7,7 @@ export const CHANGELOG = [
     date: '2026-07-26',
     title: 'Works offline, logs the test battery, exports your data',
     changes: [
+      'A session can now be several sessions. Slab, then campus, then 4×4s is one afternoon — name all of it, and a mobility session can list every stretch instead of just one. The coach counts the hardest part, not the sum, so an afternoon still reads as one day of loading.',
       'Your training is now stored on your phone as well as the server, so the app opens with your diary in it even with no signal — a gym basement, a plane, abroad. It says when you’re looking at a saved copy.',
       'Opening the app is quicker: it used to download your whole history three times over on every launch.',
       'The Norwegian Climbing Federation’s test battery can now be logged — fingers, strength, power and mobility, left and right separately. A test you stop because of pain is recorded as that, and the coach backs off for a few weeks.',

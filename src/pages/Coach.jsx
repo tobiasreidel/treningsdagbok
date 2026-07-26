@@ -16,7 +16,12 @@ import {
   EMPTY_COACH_INPUTS,
 } from '../lib/coachData'
 import { hasLoggedToday, areaLabel } from '../lib/wellness'
-import { pumpLabel, STRETCH_PROTOCOL, EXERCISE_MAP, tierLabel } from '../lib/exercises'
+import {
+  pumpLabel,
+  STRETCH_PROTOCOL,
+  tierLabel,
+  sessionExercises,
+} from '../lib/exercises'
 import { maxTotalFor, prescribeHang } from '../lib/fingerLoad'
 import { isProfileComplete, goalKind } from '../lib/coachProfile'
 import { getCoachModel, setCoachModel, getSessionPick, setSessionPick } from '../lib/prefs'
@@ -629,8 +634,12 @@ function SpecRow({ label, value }) {
 // What a logged session was, in one line: the named plan session when it was
 // tagged at logging time, the sport otherwise.
 function loggedLabel(s) {
-  const named = EXERCISE_MAP[s.extra?.coach?.exercise]
-  if (named) return `${named.id} · ${named.name}`
+  const named = sessionExercises(s)
+  // Two names fit the row; beyond that it's a count, since the point here is
+  // "that day is ticked off", not the full contents.
+  if (named.length === 1) return `${named[0].id} · ${named[0].name}`
+  if (named.length === 2) return named.map((e) => e.id).join(' + ') + ` · ${named[0].name} +1`
+  if (named.length > 2) return `${named.map((e) => e.id).join(' + ')} · ${named.length} sessions`
   const parts = [SPORTS[s.sport]?.label]
   if (s.subtype) parts.push(s.subtype)
   return parts.filter(Boolean).join(' · ')
