@@ -176,12 +176,12 @@ export default function Coach() {
                 // A pain-stopped test says exactly which test it was. "Other"
                 // is what the questionnaire's area vocabulary can offer, and
                 // it isn't what you'd want to read here.
-                title={`⚠️ ${p.fromTest ? `${p.fromTest} — stopped by pain` : areaLabel(p.area)}`}
+                title={`⚠️ ${p.fromTest ? `${p.fromTest}: stopped by pain` : areaLabel(p.area)}`}
                 state={`${p.severity}/100${p.substantial ? ' · substantial' : ''}`}
                 tone={p.substantial ? 'warn' : 'ok'}
                 hint={
                   p.substantial
-                    ? 'You reported a moderate-or-worse effect on training or performance this week. The coach is routing around it — but a problem at this level is worth a professional’s opinion, not an app’s.'
+                    ? 'You reported a moderate-or-worse effect on training or performance this week. The coach is routing around it, but a problem at this level is worth a professional’s opinion, not an app’s.'
                     : 'Reported this week. The coach avoids sessions that load this area.'
                 }
               />
@@ -208,7 +208,7 @@ export default function Coach() {
           )}
           {suggestion.adjusted && (
             <p className="muted small">
-              Your plan called for <strong>{suggestion.plannedLabel}</strong> — swapped
+              Your plan called for <strong>{suggestion.plannedLabel}</strong>, swapped
               because {suggestion.headline.toLowerCase()}.
             </p>
           )}
@@ -224,14 +224,14 @@ export default function Coach() {
           </div>
           {suggestion.tierDrop > 0 && (
             <p className="muted small">
-              Same session, dialled down — you keep the training intent instead of being
+              Same session, dialled down. You keep the training intent instead of being
               swapped onto something unrelated. The grades above already reflect it.
             </p>
           )}
           {suggestion.deloadWeek && (
             <p className="muted small">
-              Deload week: do this session at <strong>about half your usual volume</strong>{' '}
-              — same intensity, fewer sets and attempts, stop while it still feels good.
+              Deload week: do this session at <strong>about half your usual volume</strong>:{' '}
+              same intensity, fewer sets and attempts, stop while it still feels good.
               Cutting volume is what sheds the fatigue; cutting intensity is what makes you
               lose the adaptation you just built.
             </p>
@@ -277,7 +277,7 @@ export default function Coach() {
                 <p className="muted small">
                   {suggestion.pickedByYou
                     ? 'Your choice for today. Tap it again to hand the choice back to the coach.'
-                    : 'Tap another to swap to it — same session type, so the grades and load above still apply.'}
+                    : 'Tap another to swap to it. Same session type, so the grades and load above still apply.'}
                 </p>
               )}
               {/* Only the chosen session is spelled out. The alternatives sit
@@ -324,8 +324,8 @@ export default function Coach() {
               tone={readiness.tone}
               hint={
                 readiness.subjectiveMissing
-                  ? 'Your own normal is 50 — but this is running on objective data only. Daily check-ins carry half the weight when they exist, and they are the part that actually tracks how you feel.'
-                  : "Your own normal is 50. Built from your daily check-ins plus HRV, resting heart rate and form — each measured against your own baseline, not anyone else's."
+                  ? 'Your own normal is 50, but this is running on objective data only. Daily check-ins carry half the weight when they exist, and they are the part that actually tracks how you feel.'
+                  : "Your own normal is 50. Built from your daily check-ins plus HRV, resting heart rate and form, each measured against your own baseline, not anyone else's."
               }
               onPress={() => navigate('/coach/signals/readiness')}
             >
@@ -336,7 +336,7 @@ export default function Coach() {
                     className={`coach-z ${s.z == null ? 'is-off' : s.z >= 0 ? 'is-up' : 'is-down'}`}
                   >
                     {s.label}
-                    {s.z == null ? ' —' : ` ${s.z >= 0 ? '+' : ''}${s.z.toFixed(1)}`}
+                    {s.z == null ? ' -' : ` ${s.z >= 0 ? '+' : ''}${s.z.toFixed(1)}`}
                   </span>
                 ))}
               </div>
@@ -348,7 +348,7 @@ export default function Coach() {
               tone="ok"
               hint={
                 readiness.reason === 'signals'
-                  ? 'You have the history, but nothing to measure against yet. Check in daily — that is what this is built from.'
+                  ? 'You have the history, but nothing to measure against yet. Check in daily; that is what this is built from.'
                   : `Needs about ${readiness.needDays ?? 14} days of history before it means anything. Keep logging.`
               }
               onPress={() => navigate('/coach/signals/readiness')}
@@ -372,7 +372,7 @@ export default function Coach() {
               title="⚖️ Side-to-side"
               state={`${readout.asymmetry[0].pct}% ${readout.asymmetry[0].strong} side`}
               tone="ok"
-              hint={`${readout.asymmetry[0].test}. A gap that persists across retests is worth training out — the coach will favour one-arm variants meanwhile. This is a training observation, not a diagnosis; a persistent gap alongside pain is a reason to see a qualified clinician.`}
+              hint={`${readout.asymmetry[0].test}. A gap that persists across retests is worth training out; the coach will favour one-arm variants meanwhile. This is a training observation, not a diagnosis; a persistent gap alongside pain is a reason to see a qualified clinician.`}
             />
           )}
 
@@ -442,7 +442,7 @@ export default function Coach() {
                   <h3 className="coach-sub">The blocks to {formatDayShort(goalPhase.goal.target_date)}</h3>
                   <BlockTimeline blocks={timeline.blocks} />
                   <p className="muted small">
-                    Deload weeks land at 4-week marks counting back from the date — recover,
+                    Deload weeks land at 4-week marks counting back from the date: recover,
                     then move on. The phase advances by itself as the date gets closer.
                   </p>
                 </>
@@ -454,18 +454,13 @@ export default function Coach() {
                   bouldering taking all the hard days.
                 </p>
               )}
-              <p className="muted small">
-                {goalPhase.weeks === 0
-                  ? 'Under a week out.'
-                  : `${goalPhase.weeks} week${goalPhase.weeks === 1 ? '' : 's'} to go — the phase moves on by itself as the date gets closer.`}
-              </p>
             </>
           ) : (
             <>
               {suggestion.emphasis ? (
                 <p className="muted small">
                   Working toward <strong>{suggestion.emphasis.goal.title}</strong>. With no
-                  date there’s nothing to count back from, so it can’t build a peak — what
+                  date there’s nothing to count back from, so it can’t build a peak. What
                   it does instead is point your hard days at{' '}
                   {suggestion.emphasis.label.toLowerCase()}. Add a date if you want a plan
                   that peaks.
@@ -498,7 +493,7 @@ export default function Coach() {
                   model === 'linear' ? ` · ${suggestion.cycle.block.label} block` : ''
                 } · ${readout.daysPerWeek} sessions a week.`}
             {week.deloadNow &&
-              ' A deload week — planned recovery is the best-supported part of any training cycle.'}
+              ' A deload week: planned recovery is the best-supported part of any training cycle.'}
           </p>
           <p className="muted small">Tap a session to see what it involves.</p>
           <ol className="coach-week">
@@ -524,7 +519,7 @@ export default function Coach() {
           </ol>
           {(week.phaseChange?.deload || week.deloadNow) && (
             <p className="muted small">
-              A deload is <strong>less volume, not less intensity</strong> — it keeps the
+              A deload is <strong>less volume, not less intensity</strong>. It keeps the
               phase’s quality session at about half the usual sets and attempts, gives the
               other days back, and skips any doubles.{' '}
               {goalPhase
@@ -533,24 +528,22 @@ export default function Coach() {
             </p>
           )}
           <p className="muted small">
-            {week.sessions} session{week.sessions === 1 ? '' : 's'} across{' '}
-            {week.trainingDays} day{week.trainingDays === 1 ? '' : 's'} a week
             {week.doubles > 0
-              ? `, including ${week.doubles} double${week.doubles === 1 ? '' : 's'}. Second sessions stay light and come at least ~6 hours after the first.`
-              : '.'}{' '}
-            The plan re-shapes itself as you log sessions and daily check-ins — today’s
+              ? `Including ${week.doubles} double${week.doubles === 1 ? '' : 's'}: second sessions stay light and come at least ~6 hours after the first. `
+              : ''}
+            The plan re-shapes itself as you log sessions and daily check-ins; today’s
             slot always shows what the coach actually suggests today.
           </p>
           {!week.weekdaysKnown && (
             <p className="muted small">
-              Tell the coach which days you train and the plan can land on your real days —
-              right now it spreads your {week.trainingDays} sessions evenly across the week.
+              Tell the coach which days you train and the plan can land on your real days. Right
+              now it spreads your {week.trainingDays} sessions evenly across the week.
             </p>
           )}
           {week.minHardGap != null && week.minHardGap < 2 && (
             <p className="auth-error">
               Your training days put two hard finger days back to back. That is inside the
-              rebuild window — the coach will swap the second one at the time, but spreading
+              rebuild window; the coach will swap the second one at the time, but spreading
               the days out would serve you better.
             </p>
           )}
@@ -582,7 +575,7 @@ export default function Coach() {
             <p className="muted small">
               Under 18: campus and feet-off dynamic board work are off the list, and no more
               than two of the same kind of session land in a week. Controlled finger training
-              is <em>not</em> blocked — the Norwegian Climbing Federation no longer advises
+              is <em>not</em> blocked. The Norwegian Climbing Federation no longer advises
               against dead-hangs for growing climbers, on the reasoning that a controlled hang
               loads the fingers less than finger-heavy bouldering does. Hangs are capped at
               80% and a set shorter. Any finger pain should be assessed by qualified health
@@ -607,7 +600,7 @@ export default function Coach() {
               <p className="muted small">{COACH_MODELS.find((m) => m.key === model)?.desc}</p>
               <p className="muted small">
                 No climbing study shows one model beating another, so pick whichever you’ll
-                actually stick to — that matters more than the choice.
+                actually stick to; that matters more than the choice.
               </p>
             </>
           )}
@@ -633,8 +626,8 @@ export default function Coach() {
           <h2 className="step-q">How much to trust this</h2>
           <p className="muted small">
             The finger-recovery window and the idea of a load baseline are reasonably well
-            established. The exact numbers — how many points a signal moves the score,
-            where a “sharp” ramp begins — are starting points, not findings.
+            established. The exact numbers (how many points a signal moves the score, where a
+            “sharp” ramp begins) are starting points, not findings.
           </p>
           <p className="muted small">
             There is deliberately no injury-risk percentage here. Predicting injury for one
@@ -642,7 +635,7 @@ export default function Coach() {
             make it look like it can.
           </p>
           <p className="muted small">
-            A training-awareness tool, not medical advice. Pain is your real signal — see a
+            A training-awareness tool, not medical advice. Pain is your real signal; see a
             professional for persistent symptoms.
           </p>
         </section>
@@ -668,11 +661,11 @@ export default function Coach() {
 function levelNote(level) {
   const from = level.known
     ? `From your grades${level.years != null ? ` and ${level.years} years climbing` : ''}.`
-    : 'Add your grades and when you started climbing in “About you” — without them the plan is pitched down the middle.'
+    : 'Add your grades and when you started climbing in “About you”. Without them the plan is pitched down the middle.'
   if (!level.known) return from
   return level.hard
     ? `${from} You get the harder weeks: no technique-and-mileage filler, a real finger session in every week that lacks one, and a higher ceiling on hard finger days before the coach starts backing you off.`
-    : `${from} The plan keeps technique and volume days in the week — they build the base that hard sessions are spent from.`
+    : `${from} The plan keeps technique and volume days in the week; they build the base that hard sessions are spent from.`
 }
 
 function SpecRow({ label, value }) {
@@ -812,7 +805,7 @@ function PlanDay({ d, profile, limits, suggestion, goalStyle, tests, onOpenSessi
       {d.adjusted && !logged && (
         <div className="coach-week-second">
           <span className="muted small">
-            Swapped from the template for today — the Today card says why.
+            Swapped from the template for today. The Today card says why.
           </span>
         </div>
       )}
@@ -857,7 +850,7 @@ function PlanDayDetail({ d, profile, limits, suggestion, goalStyle, tests }) {
           label="Volume"
           value={
             d.reduced
-              ? `${d.type.volume} — at about ${Math.round((d.durationMult || 0.5) * 100)}%, ${d.taper ? 'this is the taper' : "it's a deload"}`
+              ? `${d.type.volume}, at about ${Math.round((d.durationMult || 0.5) * 100)}%, ${d.taper ? 'this is the taper' : "it's a deload"}`
               : d.type.volume
           }
         />
@@ -887,10 +880,6 @@ function PlanDayDetail({ d, profile, limits, suggestion, goalStyle, tests }) {
   )
 }
 
-// One prescribed workout. Max hangs turn into real kilos once the athlete has
-// entered a hang max — but only while that test is recent enough to mean
-// anything. A percentage of a number from six months ago is a number nobody
-// knows, so past the staleness cut-off it goes back to describing the effort.
 // An alternative session, one line: enough to choose by, and one tap from
 // becoming the session that's spelled out in full above.
 function AlternativeRow({ ex, onPick }) {
@@ -909,6 +898,10 @@ function AlternativeRow({ ex, onPick }) {
   )
 }
 
+// One prescribed workout. Max hangs turn into real kilos once the athlete has
+// entered a hang max, but only while that test is recent enough to mean
+// anything. A percentage of a number from six months ago is a number nobody
+// knows, so past the staleness cut-off it goes back to describing the effort.
 export function ExerciseCard({
   ex, primary, profile, tests = [], durationMult = 1, onPick = null, youPicked = false,
 }) {
@@ -928,7 +921,7 @@ export function ExerciseCard({
 
   let note = null
   if (max?.stale) {
-    note = `Your max test is ${max.weeks} weeks old — retest before working off percentages.`
+    note = `Your max test is ${max.weeks} weeks old; retest before working off percentages.`
   } else if (max && !max.kg && max.reason === 'needs-bodyweight') {
     note = 'Add a bodyweight in the coach setup and this becomes kilos instead of a percentage.'
   } else if (rx && !rx.addedText) {
@@ -968,7 +961,7 @@ export function ExerciseCard({
       {note && <p className="auth-error small">{note}</p>}
       {rx?.assisted && (
         <p className="muted small">
-          That is below your bodyweight, so it is an assisted hang — pulley, band, or feet
+          That is below your bodyweight, so it is an assisted hang: pulley, band, or feet
           on the floor. This is the normal shape of submaximal finger work.
         </p>
       )}

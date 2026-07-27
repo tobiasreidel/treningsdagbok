@@ -72,7 +72,7 @@ export const TEST_BATTERY = [
     unit: 'kg',
     group: 'finger',
     bilateral: true,
-    how: 'Index, middle and ring on a 20 mm edge, fingers open — no bend at the last knuckle, thumb off. Same protocol: 5 s pull, best of three per hand.',
+    how: 'Index, middle and ring on a 20 mm edge, fingers open, no bend at the last knuckle, thumb off. Same protocol: 5 s pull, best of three per hand.',
     why: 'Open-hand strength carries slopers and pockets, and is the grip that usually lags when everything is trained in a crimp.',
   },
   {
@@ -89,7 +89,7 @@ export const TEST_BATTERY = [
     label: 'Max hang (total load)',
     unit: 'kg',
     group: 'finger',
-    how: 'Two hands, 20 mm edge, half-crimp. Find the load you can hang for exactly 10 seconds — add weight, or take it off with a pulley or feet on the floor. Record bodyweight plus what you added, or minus what you took off.',
+    how: 'Two hands, 20 mm edge, half-crimp. Find the load you can hang for exactly 10 seconds: add weight, or take it off with a pulley or feet on the floor. Record bodyweight plus what you added, or minus what you took off.',
     why: 'This is the number the coach prescribes hangboard sessions from. Everything written as “80–90% of max” means 80–90% of this.',
   },
   {
@@ -97,7 +97,7 @@ export const TEST_BATTERY = [
     label: 'Hang time at bodyweight',
     unit: 's',
     group: 'finger',
-    how: 'Two hands, 20 mm edge, half-crimp, nothing added. Hang until you cannot hold the position — not until you drop off in a worse one.',
+    how: 'Two hands, 20 mm edge, half-crimp, nothing added. Hang until you cannot hold the position, not until you drop off in a worse one.',
     why: 'A way to test at all when you have no way to add or take off weight. Endurance and strength are mixed in here, so read it as a rough second opinion.',
   },
   {
@@ -114,7 +114,7 @@ export const TEST_BATTERY = [
     unit: 's',
     group: 'strength',
     bilateral: true,
-    how: 'One arm on the bar at 90°, the other off. Hold the position — the clock stops when the elbow angle opens. Per arm.',
+    how: 'One arm on the bar at 90°, the other off. Hold the position; the clock stops when the elbow angle opens. Per arm.',
     why: 'The strength that lets you stay still long enough to place a foot or read the next move.',
   },
   {
@@ -122,7 +122,7 @@ export const TEST_BATTERY = [
     label: 'Front lever',
     unit: 's',
     group: 'strength',
-    how: 'Hang from a bar and bring your body to horizontal — straight, feet at head height. Time the hold at the hardest position you can keep flat. Note in the notes field which progression you used (tuck, one leg, straddle, full), or the number means something different every time.',
+    how: 'Hang from a bar and bring your body to horizontal: straight, feet at head height. Time the hold at the hardest position you can keep flat. Note in the notes field which progression you used (tuck, one leg, straddle, full), or the number means something different every time.',
     why: 'Tension through the middle: what stops your feet cutting on steep ground.',
   },
   {
@@ -138,7 +138,7 @@ export const TEST_BATTERY = [
     label: 'Toes to bar',
     unit: 'reps',
     group: 'strength',
-    how: 'Hang, bring both feet to touch the bar, lower under control. Count clean reps in a row — stop at the first swing or bent knee.',
+    how: 'Hang, bring both feet to touch the bar, lower under control. Count clean reps in a row, stopping at the first swing or bent knee.',
     why: 'The same tension as the L-sit, but through a range, which is closer to how you actually use it.',
   },
   {
@@ -155,7 +155,7 @@ export const TEST_BATTERY = [
     unit: 'cm',
     group: 'power',
     normalise: 'height',
-    how: 'Stand side-on to a wall, reach up and mark the highest point you can touch flat-footed. Then jump from standing — no run-up, one dip — and mark again. Record the difference between the two marks, not the height reached.',
+    how: 'Stand side-on to a wall, reach up and mark the highest point you can touch flat-footed. Then jump from standing (no run-up, one dip) and mark again. Record the difference between the two marks, not the height reached.',
     why: 'Leg power, which is what modern competition setting asks for constantly and older training plans ignored.',
   },
   {
@@ -165,7 +165,7 @@ export const TEST_BATTERY = [
     group: 'power',
     normalise: 'height',
     how: 'Both feet behind a line, jump forward, land on both feet without falling back. Measure to the heel closest to the line. Best of three.',
-    why: 'The same power, pushed forward instead of up — closer to a dyno than the vertical jump is.',
+    why: 'The same power, pushed forward instead of up, closer to a dyno than the vertical jump is.',
   },
   {
     id: 'split_to_wall',
@@ -173,7 +173,7 @@ export const TEST_BATTERY = [
     unit: 'cm',
     group: 'mobility',
     normalise: 'height',
-    how: 'Sit with legs in a straddle, feet against a wall, back straight. Measure between the heels. Warm up first — this is a range test, not a stretch to your limit.',
+    how: 'Sit with legs in a straddle, feet against a wall, back straight. Measure between the heels. Warm up first: this is a range test, not a stretch to your limit.',
     why: 'Hip range for high steps and drop knees. Low numbers here show up as blocked positions on the wall long before they hurt.',
   },
   {
@@ -182,7 +182,7 @@ export const TEST_BATTERY = [
     unit: 'cm',
     group: 'mobility',
     normalise: 'height',
-    how: 'Sit with legs straight and feet against a box, reach forward with straight knees and hold. Measure from your fingertips to your toes — past them is a positive number, short of them negative.',
+    how: 'Sit with legs straight and feet against a box, reach forward with straight knees and hold. Measure from your fingertips to your toes, where past them is a positive number, short of them negative.',
     why: 'Hamstring and lower-back range, which is what a high foot actually costs you.',
   },
   {
@@ -191,7 +191,7 @@ export const TEST_BATTERY = [
     unit: 'cm',
     group: 'mobility',
     bilateral: true,
-    how: 'One hand over the shoulder and down your back, the other up from below. Measure the gap between the fingertips — overlapping is a negative number. Record per side by which hand is on top.',
+    how: 'One hand over the shoulder and down your back, the other up from below. Measure the gap between the fingertips, where overlapping is a negative number. Record per side by which hand is on top.',
     why: 'Overhead range. Restriction here is closely tied to the shoulder problems climbers pick up.',
   },
   {

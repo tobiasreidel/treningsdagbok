@@ -1,5 +1,5 @@
 -- ============================================================================
--- Training coach v4 — finger-test model, bodyweight, and the test battery.
+-- Training coach v4: finger-test model, bodyweight, and the test battery.
 --
 -- Run this AFTER supabase/coach.sql. Safe to run more than once.
 --
@@ -85,7 +85,7 @@ create policy "own finger tests" on public.finger_tests
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- ---------------------------------------------------------------------------
--- physical_tests — the wider battery
+-- physical_tests: the wider battery
 -- ---------------------------------------------------------------------------
 -- Strength, power and mobility tests. `side` carries L/R for bilateral items so
 -- an asymmetry can be seen at all; collapsing to one number throws away

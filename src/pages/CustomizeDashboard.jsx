@@ -44,7 +44,7 @@ export default function CustomizeDashboard() {
           <h2 className="step-q">On your dashboard</h2>
           {ids.length === 0 ? (
             <p className="muted small">
-              No widgets yet. Add some from the list below.
+              No widgets yet.
             </p>
           ) : (
             <div className="wm-list">

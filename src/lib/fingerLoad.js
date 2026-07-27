@@ -3,7 +3,7 @@
 //
 // THE CONVENTION
 // --------------
-// All finger intensity is a percentage of TOTAL load — bodyweight included —
+// All finger intensity is a percentage of TOTAL load, bodyweight included,
 // never of added weight.
 //
 // Why this is not a detail. Bodyweight is the dominant term, so a percentage
@@ -14,7 +14,7 @@
 //   "85% of 1RM" read as total load    → 55.3 kg  → 5 kg ASSISTED
 //
 // Two completely different sessions from the same instruction, and the error
-// is largest for exactly the climbers least able to absorb it — anyone whose
+// is largest for exactly the climbers least able to absorb it: anyone whose
 // added weight is a small fraction of bodyweight.
 //
 // MIGRATION STATE
@@ -23,7 +23,7 @@
 // than infer it: supabase/coach.sql documents `hang_max_kg` as "Added kg for a
 // 7-10 s two-hand hang", the setup form labels it "Added weight", and the
 // session logger's own hint said "Weight: added weight". So legacy rows are
-// unambiguous and need no guessing heuristic — they need a bodyweight to be
+// unambiguous and need no guessing heuristic. They need a bodyweight to be
 // converted with, and until one exists the app must say the number is not yet
 // usable rather than quietly prescribing off the wrong denominator.
 import { differenceInCalendarDays } from 'date-fns'
@@ -33,7 +33,7 @@ import { normalizeHang } from './formState'
 const num = (v) => Number(v) || 0
 
 // Two-arm hanging yields somewhat less than the sum of one-arm maxima. Chosen
-// coefficient, not measured — exposed so it can be tuned rather than buried.
+// coefficient, not measured, and exposed so it can be tuned rather than buried.
 export const BILATERAL_FACTOR = 0.93
 
 // Grips the library and the test battery both understand.

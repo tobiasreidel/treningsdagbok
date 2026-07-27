@@ -192,10 +192,10 @@ export default function Dashboard() {
         <button
           className="avatar-btn"
           onClick={() => navigate('/profile')}
-          title={reqCount > 0 ? 'Profile — you have friend requests' : 'Profile'}
+          title={reqCount > 0 ? 'Profile, you have friend requests' : 'Profile'}
           aria-label={
             reqCount > 0
-              ? `Profile — ${reqCount} friend request${reqCount === 1 ? '' : 's'}`
+              ? `Profile, ${reqCount} friend request${reqCount === 1 ? '' : 's'}`
               : 'Profile'
           }
         >
@@ -228,7 +228,7 @@ export default function Dashboard() {
           {softError && (
             <p className="muted small offline-note">
               {softError === 'stored'
-                ? 'Offline — showing your training as of the last time you had a connection.'
+                ? 'Offline. Showing your training as of the last time you had a connection.'
                 : 'Couldn’t reach the server, and there’s no saved copy on this device yet.'}
             </p>
           )}

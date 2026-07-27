@@ -258,7 +258,7 @@ const DOSE_HARD = 15
 // Relative intensity of one hangboard set, 0..1.3.
 //
 // TOTAL load against a TOTAL-load max. Using added-weight on either side makes
-// every percentage a percentage of the wrong denominator — see fingerLoad.js.
+// every percentage a percentage of the wrong denominator - see fingerLoad.js.
 function hangIntensity(set, profile, tests, grip) {
   const maxTotal = usableMaxTotal(profile, tests, grip)
   const bw = num(profile?.bodyweight_kg)
@@ -573,7 +573,7 @@ function dailyLoadWindow(sessions, days, offset = 0) {
 const TREND_LEVELS = [
   {
     min: 1.5, key: 'sharp', tone: 'warn', label: 'Well above your normal',
-    hint: 'A big jump on what you have been doing. Not a verdict — just worth easing in rather than stacking another big week.',
+    hint: 'A big jump on what you have been doing. Not a verdict, just worth easing in rather than stacking another big week.',
   },
   {
     min: 1.3, key: 'up', tone: 'ok', label: 'Above your normal',
@@ -585,7 +585,7 @@ const TREND_LEVELS = [
   },
   {
     min: -Infinity, key: 'easing', tone: 'ok', label: 'Below your normal',
-    hint: 'Lighter than usual — a deload, a break, or life getting in the way.',
+    hint: 'Lighter than usual: a deload, a break, or life getting in the way.',
   },
 ]
 
@@ -881,7 +881,7 @@ export function readiness(sessions, wellnessRows, icuWellness, asOf = new Date()
 export const SESSION_TYPES = {
   limit: {
     key: 'limit', label: 'Limit / performance', emoji: '🎯',
-    goal: 'Max recruitment — projecting', effort: 'At your limit',
+    goal: 'Max recruitment, projecting', effort: 'At your limit',
     volume: '4–8 hard problems, few attempts each', rest: '3–5 min between attempts',
     rpe: '8–10', fingerCost: 'high', grades: [-1, 0],
   },
@@ -894,14 +894,14 @@ export const SESSION_TYPES = {
   },
   fingerStrength: {
     key: 'fingerStrength', label: 'Finger strength', emoji: '🤏',
-    goal: 'Max finger force — hangboard', effort: 'Maximal, but low volume',
+    goal: 'Max finger force on the hangboard', effort: 'Maximal, but low volume',
     volume: '3–5 hangs per grip, 5–10 s each', rest: '3–5 min between hangs',
     rpe: '7–9 local', fingerCost: 'high', grades: null,
   },
   fingerMaintenance: {
     key: 'fingerMaintenance', label: 'Finger maintenance', emoji: '🪝',
     goal: 'Keep the fingers stimulated without a hard day',
-    effort: 'Easy — never near failure',
+    effort: 'Easy, never near failure',
     volume: '6 × 10 s no-hangs, or a light repeater set', rest: '50 s between reps',
     rpe: '4–6 local', fingerCost: 'low', grades: null,
   },
@@ -913,7 +913,7 @@ export const SESSION_TYPES = {
   },
   powerEndurance: {
     key: 'powerEndurance', label: 'Power-endurance', emoji: '🔥',
-    goal: 'Sustain hard moves — circuits, 4×4s', effort: 'Sustained and pumpy',
+    goal: 'Sustain hard moves: circuits, 4×4s', effort: 'Sustained and pumpy',
     volume: 'Linked moves, circuits', rest: 'Roughly 1:1 work to rest',
     rpe: '7–9', fingerCost: 'medium', grades: [-5, -3],
   },
@@ -944,7 +944,7 @@ export const SESSION_TYPES = {
   mobility: {
     key: 'mobility', label: 'Mobility & rehab', emoji: '🧘',
     goal: 'Move, without loading what hurts',
-    effort: 'Easy', volume: 'Stretching and easy movement', rest: '—',
+    effort: 'Easy', volume: 'Stretching and easy movement', rest: '-',
     rpe: '≤3', fingerCost: 'none', grades: null,
   },
   // Zero physical load, real training value. This is what the plan has left to
@@ -953,15 +953,15 @@ export const SESSION_TYPES = {
   mental: {
     key: 'mental', label: 'Mental training', emoji: '🧠',
     goal: 'Train the part that decides competitions',
-    effort: 'None physically', volume: '5–20 min', rest: '—',
-    rpe: '—', fingerCost: 'none', grades: null,
+    effort: 'None physically', volume: '5–20 min', rest: '-',
+    rpe: '-', fingerCost: 'none', grades: null,
   },
   // The easy slot of a deload week - not the whole week. A deload cuts volume
   // and keeps quality; a week of stretching is a week of detraining, and for a
   // strong climber it is simply a wasted week.
   deload: {
     key: 'deload', label: 'Easy movement', emoji: '🌱',
-    goal: 'Move well, add no fatigue', effort: 'Easy throughout — never near failure',
+    goal: 'Move well, add no fatigue', effort: 'Easy throughout, never near failure',
     volume: 'Short: ~30–40 min on the wall, plus mobility', rest: 'As needed',
     rpe: '≤4', fingerCost: 'low', grades: [-6, -4],
   },
@@ -1053,8 +1053,8 @@ export const GOAL_PHASES = [
     key: 'base', label: 'Base', minWeeks: 12,
     hard: 'volume', easy: 'technique',
     rope: { hard: 'volume', easy: 'aerobic' },
-    note: 'Far out — build capacity and work on weaknesses.',
-    ropeNote: 'Far out — build mileage and aerobic capacity on the wall.',
+    note: 'Far out: build capacity and work on weaknesses.',
+    ropeNote: 'Far out: build mileage and aerobic capacity on the wall.',
   },
   {
     key: 'strength', label: 'Strength', minWeeks: 8,
@@ -1069,7 +1069,7 @@ export const GOAL_PHASES = [
     rope: { hard: 'powerEndurance', easy: 'volume' },
     comp: { easy: 'compSim' },
     note: 'Convert strength into power and sustained hard moves.',
-    ropeNote: 'Convert strength into staying power — linked hard moves and pump tolerance.',
+    ropeNote: 'Convert strength into staying power: linked hard moves and pump tolerance.',
     compNote: 'Convert strength into power, and start rehearsing it under competition conditions.',
   },
   {
@@ -1079,8 +1079,8 @@ export const GOAL_PHASES = [
     // week. Keep the easy day specific and sharp instead.
     rope: { hard: 'limit', easy: 'powerEndurance' },
     comp: { hard: 'compSim' },
-    note: 'Performance work — climb at your limit, keep the volume down.',
-    ropeNote: 'Route performance — onsight and redpoint near your limit, keep the volume down.',
+    note: 'Performance work: climb at your limit, keep the volume down.',
+    ropeNote: 'Route performance: onsight and redpoint near your limit, keep the volume down.',
     compNote: 'Rehearse competing, not climbing: unseen problems, on the clock, first go. Keep the volume down.',
   },
   {
@@ -1865,7 +1865,7 @@ export function suggestSession(sessions, ctx) {
   const varietyCapped = youth && categoryOverused(sessions, plan.key, plan.discipline)
   if (varietyCapped) {
     key = 'technique'
-    reasons.push('Under 18 — varying the stimulus (max 2 of a kind per week)')
+    reasons.push('Under 18: varying the stimulus (max 2 of a kind per week)')
   }
 
   const cost = SESSION_TYPES[key].fingerCost
@@ -1878,8 +1878,8 @@ export function suggestSession(sessions, ctx) {
     // it becomes a declared injury.
     key = 'mobility'
     tone = 'caution'
-    headline = 'Back off — something is brewing'
-    reasons.push(`${substantial.map((p) => p.area).join(', ')} — substantial problem this week`)
+    headline = 'Back off, something is brewing'
+    reasons.push(`${substantial.map((p) => p.area).join(', ')}: substantial problem this week`)
   } else if (openInjuries.length) {
     // Mobility, not antagonist work: antagonist is largely shoulder and push,
     // which is the worst possible answer to a shoulder injury.
@@ -1887,7 +1887,7 @@ export function suggestSession(sessions, ctx) {
     tone = 'caution'
     headline = 'Rehab or easy day'
     const regions = openInjuries.map((i) => i.region).filter(Boolean)
-    reasons.push(regions.length ? `Open injury — ${regions.join(', ')}` : 'Open injury in your log')
+    reasons.push(regions.length ? `Open injury: ${regions.join(', ')}` : 'Open injury in your log')
   } else if (recovery.key === 'unknown' && costly) {
     key = 'fingerMaintenance'
     tone = 'moderate'
@@ -1971,7 +1971,7 @@ export function suggestSession(sessions, ctx) {
   }
 
   if (monotony?.enough && monotony.flag && key !== 'deload') {
-    reasons.push('Monotony high — vary the stimulus')
+    reasons.push('Monotony high, so vary the stimulus')
   }
 
   const discipline = plan.discipline || plan.emphasis?.goal?.discipline || null

@@ -32,7 +32,7 @@ export default function Changelog() {
             </ul>
           </section>
         ))}
-        <p className="muted small settings-autosave">That’s everything — you’re all caught up. 🎉</p>
+        <p className="muted small settings-autosave">That’s everything, you’re all caught up. 🎉</p>
       </main>
     </div>
   )

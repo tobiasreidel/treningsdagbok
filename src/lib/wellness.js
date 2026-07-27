@@ -31,7 +31,7 @@ export const HOOPER_ITEMS = [
   {
     key: 'soreness', label: 'Soreness', invert: true,
     low: 'None', high: 'Very sore',
-    hint: 'Muscle soreness — separate from tiredness.',
+    hint: 'Muscle soreness, separate from tiredness.',
   },
   {
     key: 'stress', label: 'Stress', invert: true,

@@ -178,4 +178,4 @@ function Leaderboard({ data }) {
 }
 
 // Coach management (your coaches, athletes you coach, invites) now lives on the
-// profile, alongside friends — see PeopleCard in pages/Profile.jsx.
+// profile, alongside friends - see PeopleCard in pages/Profile.jsx.

@@ -72,7 +72,7 @@ export function emptyExercise() {
 // load, hang time (seconds) and edge size (mm); new sets default to the first
 // set's values but can be changed individually.
 //
-// LOAD IS STORED AS TOTAL KG — bodyweight included — matching the finger test
+// LOAD IS STORED AS TOTAL KG, bodyweight included, matching the finger test
 // it gets compared against (see fingerLoad.js for why the denominator decides
 // whether "85% of max" is a near-maximal hang or an assisted one).
 //

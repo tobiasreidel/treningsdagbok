@@ -43,7 +43,7 @@ export default function CheckInSheet({ onClose, onSaved }) {
           </button>
         </div>
         <p className="muted small checkin-sheet-intro">
-          Ten seconds, rest days included — that’s what readiness is built from. You can
+          Ten seconds, rest days included, and that’s what readiness is built from. You can
           change today’s answers later under Check in.
         </p>
 

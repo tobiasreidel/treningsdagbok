@@ -168,7 +168,6 @@ export default function Logbook() {
         ) : sessions.length === 0 ? (
           <div className="card empty-state">
             <p>Your logbook is empty.</p>
-            <p className="muted small">Sessions you register will show up here.</p>
           </div>
         ) : (
           <>

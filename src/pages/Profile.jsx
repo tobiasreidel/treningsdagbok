@@ -852,7 +852,7 @@ function GearSportBlock({ sport, items, events, sessions, ready, busy, act }) {
 
       {ready && items.length === 0 && (
         <p className="muted small">
-          Add your {noun} first — then log maintenance on it and see the wear
+          Add your {noun} first, then log maintenance on it and see the wear
           since. Sessions count toward your main {noun} unless a session says
           otherwise.
         </p>
@@ -971,7 +971,7 @@ function GearSportBlock({ sport, items, events, sessions, ready, busy, act }) {
           )}
           {ready && rows.length === 0 && (
             <p className="muted small">
-              Nothing logged for {selected.name} yet — log when something was
+              Nothing logged for {selected.name} yet. Log when something was
               last replaced or serviced, and the wear since shows here.
             </p>
           )}
@@ -1122,7 +1122,7 @@ function HrZonesCard({ onSaved }) {
 
       {useIcu ? (
         <p className="muted small">
-          “Time in zones” shows the zones exactly as set up on intervals.icu —
+          “Time in zones” shows the zones exactly as set up on intervals.icu:
           5 or 7, whatever you use there. Turn this off to define your own
           zones instead.
         </p>
@@ -1188,7 +1188,7 @@ function HrZonesCard({ onSaved }) {
         </div>
       ) : (
         <p className="muted small">
-          Set your max heart rate to get the standard zones ({pcts}) — then
+          Set your max heart rate to get the standard zones ({pcts}), then
           adjust any boundary.
         </p>
       )}
@@ -1356,7 +1356,7 @@ function InjuriesCard() {
             placeholder="e.g. A2 pulley, right ring finger"
           />
           {/* Region lets the training coach route around the affected
-              structure instead of guessing — prescribing antagonist work,
+              structure instead of guessing: prescribing antagonist work,
               which is mostly shoulder and push, is the worst possible answer
               to a shoulder injury. */}
           <select value={region} onChange={(e) => setRegion(e.target.value)}>

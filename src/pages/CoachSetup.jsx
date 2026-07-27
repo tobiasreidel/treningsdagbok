@@ -112,13 +112,13 @@ export default function CoachSetup() {
       <main className="wizard-body stack">
         {missingTable && (
           <p className="auth-error">
-            The coach tables aren’t set up yet — run <code>supabase/coach.sql</code> in the
+            The coach tables aren’t set up yet. Run <code>supabase/coach.sql</code> in the
             Supabase SQL editor. Nothing here will save until you do.
           </p>
         )}
         {oldSchema && !missingTable && (
           <p className="auth-error">
-            Your coach tables are from an earlier version and are missing some fields —
+            Your coach tables are from an earlier version and are missing some fields, so
             re-run <code>supabase/coach.sql</code>. It’s safe to run again and won’t touch
             what you’ve already saved.
           </p>
@@ -133,7 +133,7 @@ export default function CoachSetup() {
         <section className="card settings-card stack">
           <h2 className="step-q">Bouldering grades</h2>
           <p className="muted small">
-            Fill in whichever you know — you don’t need all three. Board grades run
+            Fill in whichever you know; you don’t need all three. Board grades run
             stiffer than plastic, and outdoor is its own thing again, so the coach quotes
             grades in the context of whatever session it just suggested rather than
             pretending they’re the same scale.
@@ -145,7 +145,7 @@ export default function CoachSetup() {
               onChange={(v) => commit({ max_boulder_outdoor: v })}
             />
           </Field>
-          <Field label="Indoor — set boulders" optional>
+          <Field label="Indoor (set boulders)" optional>
             <GradeSelect
               grades={BOULDER_GRADES}
               value={form.max_boulder_indoor}
@@ -165,7 +165,7 @@ export default function CoachSetup() {
                 value={form.board_type || ''}
                 onChange={(e) => commit({ board_type: e.target.value || null })}
               >
-                <option value="">—</option>
+                <option value="">-</option>
                 <option value="kilter">Kilter</option>
                 <option value="moon">Moonboard</option>
                 <option value="tension">Tension</option>
@@ -227,7 +227,7 @@ export default function CoachSetup() {
         {/* ---- schedule + age ---- */}
         <section className="card settings-card stack">
           <h2 className="step-q">You</h2>
-          <Field label="Sessions per week" hint="How often you realistically train.">
+          <Field label="Sessions per week">
             <Segmented
               options={[2, 3, 4, 5, 6, 7, 8].map((n) => ({ key: String(n), label: String(n) }))}
               value={String(form.sessions_week || 3)}
@@ -241,7 +241,7 @@ export default function CoachSetup() {
 
           <Field
             label="Which days do you train?"
-            hint="Without this the plan can order your sessions but not space them — and hard/easy alternation means nothing if you train three days in a row."
+            hint="Without this the plan can order your sessions but not space them, and hard/easy alternation means nothing if you train three days in a row."
             optional
           >
             <div className="chips">
@@ -290,7 +290,7 @@ export default function CoachSetup() {
         <section className="card settings-card stack">
           <h2 className="step-q">What you have access to</h2>
           <p className="muted small">
-            The coach only suggests sessions you can actually do — no spray wall, no
+            The coach only suggests sessions you can actually do. No spray wall, no
             circuits.
           </p>
           <div className="toggle-list">
@@ -323,7 +323,7 @@ export default function CoachSetup() {
         <section className="card settings-card stack">
           <h2 className="step-q">Bodyweight</h2>
           <p className="muted small">
-            Only used to turn a percentage into kilos — “85% of max” is a number you can
+            Only used to turn a percentage into kilos. “85% of max” is a number you can
             set up on a board, and whether that means adding weight or taking it off
             depends on this. Nothing else reads it.
           </p>
@@ -344,7 +344,7 @@ export default function CoachSetup() {
             weight chart: climbing has a well-documented problem with disordered eating,
             and a weight trend sitting next to performance numbers is a known part of it.
             If you would rather not enter it at all, test on the minimum-edge protocol
-            below instead — that one needs no bodyweight.
+            below instead; that one needs no bodyweight.
           </p>
         </section>
 
@@ -368,7 +368,7 @@ export default function CoachSetup() {
         <section className="card settings-card stack">
           <h2 className="step-q">Injury history</h2>
           <p className="muted small">
-            Anything that flares up — old pulley injuries, elbows, shoulders. Previous
+            Anything that flares up: old pulley injuries, elbows, shoulders. Previous
             injury is one of the few risk factors that holds up consistently, so the coach
             stays more conservative when there’s history here.
           </p>
@@ -378,7 +378,7 @@ export default function CoachSetup() {
             value={form.injury_history ?? ''}
             onChange={(e) => setForm({ ...form, injury_history: e.target.value })}
             onBlur={() => commit({ injury_history: form.injury_history?.trim() || null })}
-            placeholder="e.g. A2 pulley, right ring finger, 2023 — still tweaky on small crimps"
+            placeholder="e.g. A2 pulley, right ring finger, 2023, still tweaky on small crimps"
           />
         </section>
 
@@ -402,7 +402,7 @@ function sessionsNote(n) {
   if (!doubles) {
     return `${days} training day${days === 1 ? '' : 's'} and ${rest} rest day${rest === 1 ? '' : 's'}.`
   }
-  return `${days} training days with ${doubles} double${doubles === 1 ? '' : 's'}, and ${rest} full rest day${rest === 1 ? '' : 's'}. Second sessions are kept light and at least ~6 hours after the first — two hard sessions in a day is how people get hurt.`
+  return `${days} training days with ${doubles} double${doubles === 1 ? '' : 's'}, and ${rest} full rest day${rest === 1 ? '' : 's'}. Second sessions are kept light and at least ~6 hours after the first, since two hard sessions in a day is how people get hurt.`
 }
 
 const WEEKDAYS = [
@@ -433,7 +433,7 @@ function emptyProfile() {
 function GradeSelect({ grades, value, onChange }) {
   return (
     <select value={value || ''} onChange={(e) => onChange(e.target.value || null)}>
-      <option value="">—</option>
+      <option value="">-</option>
       {grades.map((g) => (
         <option key={g} value={g}>{g}</option>
       ))}
@@ -497,7 +497,7 @@ function GoalsSection({ goals, onChanged }) {
       <h2 className="step-q">Goals</h2>
       <p className="muted small">
         What you’re working toward. A goal with a date is what turns the weekly rhythm
-        into a plan that peaks on time — the coach counts back from the soonest one.
+        into a plan that peaks on time, counting back from the soonest one.
       </p>
 
       {goals.length === 0 && !adding && (
@@ -580,10 +580,10 @@ function GoalsSection({ goals, onChanged }) {
           </Field>
           <p className="muted small">
             {draft.discipline === 'rope'
-              ? 'The countdown will build toward sustained hard climbing and pump tolerance — circuits, linked moves, routes.'
+              ? 'The countdown will build toward sustained hard climbing and pump tolerance: circuits, linked moves, routes.'
               : draft.discipline === 'boulder'
-                ? 'The countdown will build toward max recruitment and power — limit boulders, campus, hard moves.'
-                : 'No specialisation — the countdown keeps both going.'}
+                ? 'The countdown will build toward max recruitment and power: limit boulders, campus, hard moves.'
+                : 'No specialisation, so the countdown keeps both going.'}
           </p>
 
           <Field label="Style">
@@ -602,7 +602,7 @@ function GoalsSection({ goals, onChanged }) {
 
           <Field
             label="Date"
-            hint={kindDated ? 'The plan will peak for this.' : 'Optional — add one to peak for it.'}
+            hint={kindDated ? 'The plan will peak for this.' : 'Add one and the plan peaks for it.'}
             optional={!kindDated}
           >
             <input

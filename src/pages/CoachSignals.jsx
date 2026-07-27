@@ -107,7 +107,7 @@ export default function CoachSignals() {
         {signal === 'monotony' && <MonotonyDetail readout={readout} sessions={sessions} />}
 
         <p className="muted coach-disclaimer">
-          A training-awareness tool, not medical advice. Pain is your real signal — see a
+          A training-awareness tool, not medical advice. Pain is your real signal; see a
           professional for persistent symptoms.
         </p>
       </main>
@@ -164,7 +164,7 @@ function FingerDetail({ readout, sessions, profile, tests }) {
 
       <ChartCard
         title="Finger dose, last 28 days"
-        note="Each bar is one day's total finger load, computed from your hangboard sets, campus work and near-limit attempts. Red = maximal, orange = hard, green = light. The dose numbers are arbitrary units — the pattern is what matters."
+        note="Each bar is one day's total finger load, computed from your hangboard sets, campus work and near-limit attempts. Red = maximal, orange = hard, green = light. The dose numbers are arbitrary units; the pattern is what matters."
       >
         <Bars data={bars} />
       </ChartCard>
@@ -211,14 +211,14 @@ function FingerDetail({ readout, sessions, profile, tests }) {
         )}
         {recovery.rampFlag && (
           <p className="auth-error">
-            More hard finger days this week than your recent normal — a ramp, not a
+            More hard finger days this week than your recent normal: a ramp, not a
             routine. Worth easing in.
           </p>
         )}
         {recovery.chronicLevel !== 'ok' && (
           <p className="auth-error">
             {recovery.days28} hard finger days in 28 days is a{' '}
-            {recovery.chronicLevel === 'very-high' ? 'very high' : 'high'} chronic level —
+            {recovery.chronicLevel === 'very-high' ? 'very high' : 'high'} chronic level, and
             connective tissue adapts slower than muscle.
           </p>
         )}
@@ -226,7 +226,7 @@ function FingerDetail({ readout, sessions, profile, tests }) {
           Crimping strains pulleys and finger tendons, and the tissue rebuilds over days:
           net loss for roughly the first 24–36 h, net synthesis at ~36–72 h. A maximal
           session wants ~72 h before the next one, a hard session ~48 h. Pump is
-          deliberately not counted — it is metabolic and clears in hours.
+          deliberately not counted: it is metabolic and clears in hours.
         </p>
       </section>
     </>
@@ -254,9 +254,9 @@ function ReadinessDetail({ readout, sessions, wellness, icu, onCheckIn }) {
         tone={readiness.enough ? readiness.tone : 'ok'}
         hint={
           readiness.enough
-            ? 'Your own normal is 50. Each input is scored against your own baseline — how far this week sits from a typical week of yours — then weighted together.'
+            ? 'Your own normal is 50. Each input is scored against your own baseline (how far this week sits from a typical week of yours), then weighted together.'
             : readiness.reason === 'signals'
-              ? 'You have the history, but nothing to measure against yet. Check in daily — that is what this is built from.'
+              ? 'You have the history, but nothing to measure against yet. Check in daily; that is what this is built from.'
               : `Needs about ${readiness.needDays ?? 21} days of history before it means anything. Keep logging.`
         }
       />
@@ -274,14 +274,14 @@ function ReadinessDetail({ readout, sessions, wellness, icu, onCheckIn }) {
 
       <ChartCard
         title="Readiness, last 42 days"
-        value={readiness.enough ? String(readiness.index) : '—'}
+        value={readiness.enough ? String(readiness.index) : '-'}
         note="50 is your own normal, not anyone else's. Gaps are days the baseline wasn't good enough to score. Re-computed from what the data said on each day."
       >
         {hasHistory ? (
           <Line data={line} fromZero={false} color="var(--primary)" />
         ) : (
           <p className="muted small">
-            Nothing to chart yet — the score needs ~3 weeks of history before it starts.
+            Nothing to chart yet; the score needs ~3 weeks of history before it starts.
           </p>
         )}
       </ChartCard>
@@ -311,7 +311,7 @@ function ReadinessDetail({ readout, sessions, wellness, icu, onCheckIn }) {
           </p>
           {readiness.subjectiveMissing && (
             <p className="auth-error">
-              Running on objective data only — you haven't checked in enough this week
+              Running on objective data only, as you haven't checked in enough this week
               (needs 4 of the last 7 days). The subjective half is the part that actually
               tracks how you feel.
             </p>
@@ -347,8 +347,8 @@ function LoadDetail({ readout, sessions }) {
 
       <ChartCard
         title="This week vs your normal"
-        value={trend.enough ? trend.pctLabel : '—'}
-        note="100% = this week matches the average of the four weeks before it. The two windows never overlap, so the comparison is honest. Gaps are stretches without enough baseline. Deliberately not an 'injury risk zone' — that framework hasn't held up."
+        value={trend.enough ? trend.pctLabel : '-'}
+        note="100% = this week matches the average of the four weeks before it. The two windows never overlap, so the comparison is honest. Gaps are stretches without enough baseline. Deliberately not an 'injury risk zone'; that framework hasn't held up."
       >
         {hasRatio ? (
           <Line data={line} fromZero={false} color="var(--primary)" fmt={(v) => `${v}%`} />
@@ -359,7 +359,7 @@ function LoadDetail({ readout, sessions }) {
 
       <ChartCard
         title="Daily training load, last 28 days"
-        note="All sports count — your tendons don't care which sport the load came from. From imported TSS when available, otherwise estimated from duration × intensity."
+        note="All sports count, and your tendons don't care which sport the load came from. From imported TSS when available, otherwise estimated from duration × intensity."
       >
         <Bars data={bars} color="var(--primary)" />
       </ChartCard>
@@ -417,8 +417,8 @@ function MonotonyDetail({ readout, sessions }) {
 
       <ChartCard
         title="Monotony, last 42 days"
-        value={monotony.enough && monotony.monotony != null ? monotony.monotony.toFixed(1) : '—'}
-        note="Foster's monotony: the week's average daily load divided by its day-to-day spread. Above ~2 for weeks on end is the pattern linked with overtraining symptoms — same total load, worse outcome. Gaps are weeks with under 3 training days."
+        value={monotony.enough && monotony.monotony != null ? monotony.monotony.toFixed(1) : '-'}
+        note="Foster's monotony: the week's average daily load divided by its day-to-day spread. Above ~2 for weeks on end is the pattern linked with overtraining symptoms: same total load, worse outcome. Gaps are weeks with under 3 training days."
       >
         {hasHistory ? (
           <Line data={line} fromZero={false} color="var(--primary)" />
@@ -429,7 +429,7 @@ function MonotonyDetail({ readout, sessions }) {
 
       <ChartCard
         title="This week, day by day"
-        note="Monotony is low when this picture is spiky — hard days clearly harder than easy days — and high when it is flat."
+        note="Monotony is low when this picture is spiky, hard days clearly harder than easy days, and high when it is flat."
       >
         <Bars data={weekBars} color="var(--primary)" />
       </ChartCard>

@@ -23,7 +23,7 @@ function schemaError(err) {
   }
   if (isMissingColumn(err)) {
     const e = new Error(
-      'Your coach tables are missing newer fields — re-run supabase/coach.sql (it’s safe to run again).',
+      'Your coach tables are missing newer fields. Re-run supabase/coach.sql (it’s safe to run again).',
     )
     e.code = 'old-schema'
     return e

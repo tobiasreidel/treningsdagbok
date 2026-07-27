@@ -154,7 +154,7 @@ function SessionMenu() {
   return (
     <>
       <p className="muted small">
-        Pick the kind of session, then read across the tiers — easy at the top, hard at the
+        Pick the kind of session, then read across the tiers: easy at the top, hard at the
         bottom.
       </p>
       <PillRow

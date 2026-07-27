@@ -376,7 +376,7 @@ function HangEditor({ hang, index, onChange, onRemove, bodyweight }) {
         ))}
       </div>
       <span className="field-hint">
-        <strong>Load is total kilos — your bodyweight included.</strong> Hanging at
+        <strong>Load is total kilos, your bodyweight included.</strong> Hanging at
         bodyweight with 10 kg on the harness
         {bodyweight ? ` is ${Math.round(bodyweight) + 10} kg` : ' is bodyweight + 10'}; hanging
         with 10 kg taken off by a pulley

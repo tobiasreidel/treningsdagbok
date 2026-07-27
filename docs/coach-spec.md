@@ -1,7 +1,7 @@
-# Training Coach — full specification (v3)
+# Training Coach: full specification (v3)
 
 A feature in a personal climbing/training diary (React PWA + Supabase, single
-user plus a handful of friends). **Every rule below is deterministic** — no
+user plus a handful of friends). **Every rule below is deterministic**: no
 model, no learning, no inference. Arithmetic over logged data plus lookup
 tables. There is no server component: all of this runs client-side in the
 browser from rows fetched out of Supabase.
@@ -9,7 +9,7 @@ browser from rows fetched out of Supabase.
 **Document lineage.** v2 incorporated an external review; its fixes are marked
 **[R]** with the issue they fixed, so a reviewer can check the fix rather than
 re-derive the bug. v3 additions and changes are marked **[v3]**. Where a v3
-change replaced a v2 behaviour, both are stated — the old behaviour is usually
+change replaced a v2 behaviour, both are stated; the old behaviour is usually
 the more obvious design, and why it was wrong is the useful part.
 
 **What a reviewer is most usefully sceptical about:** §4.1 dose constants, §7
@@ -40,7 +40,7 @@ versus what is a chosen number. Review questions are in §18.
    A number the user cannot interrogate is a number they cannot calibrate
    trust in.
 7. **[v3] Degrade, never block.** Missing Supabase tables, missing profile,
-   missing intervals.icu connection, offline — each removes capability without
+   missing intervals.icu connection, offline. Each removes capability without
    breaking the page.
 
 ---
@@ -53,31 +53,31 @@ by hand by the user. Each table is created, indexed and RLS-locked in one
 contiguous block, so a failed statement can never leave a table created but
 unprotected.
 
-### 1.1 `sessions` — the training log (pre-existing table)
+### 1.1 `sessions`: the training log (pre-existing table)
 `date`, `sport`, `subtype`, `location` (indoor/outdoor), `rpe` 1–10,
 `duration` (minutes), `feeling` 1–5, `extra` jsonb, `routes[]` (`grade`,
 `send_type`, `attempts`).
 
 `extra` fields the coach reads:
-- `rpe_finger` 1–10 — **finger/crimp intensity**, anchored in the UI
+- `rpe_finger` 1–10, **finger/crimp intensity**, anchored in the UI
   ("8 = failing ON holds, not on moves") **[R: unanchored scales drift]**
-- `pump` 1–5 — forearm pump (§8.1)
-- `finger.hangboard[]` — `{hands, reps, rest, sets:[{weight, time, edge}]}`
-- `finger.campus` — `'' | 'board' | 'spray'`
-- `finger.pockets` — boolean, two-finger/pocket work **[R]**
-- `training_load` — imported TSS (from intervals.icu)
-- **[v3]** `coach` — `{followed: 'planned'|'other', type, exercise}` (§13)
+- `pump` 1–5, forearm pump (§8.1)
+- `finger.hangboard[]`: `{hands, reps, rest, sets:[{weight, time, edge}]}`
+- `finger.campus`: `'' | 'board' | 'spray'`
+- `finger.pockets`: boolean, two-finger/pocket work **[R]**
+- `training_load`: imported TSS (from intervals.icu)
+- **[v3]** `coach`: `{followed: 'planned'|'other', type, exercise}` (§13)
 
 **Finger load and pump are separate axes and must stay that way.** Crimping
 strains pulleys and tendons (collagen turns over across days); pump is metabolic
 and clears in hours. Only finger load feeds recovery. Conflating them was a real
 bug: a two-hour pumpy jug circuit would block finger work for three days.
 
-### 1.2 `wellness_days` — one row per calendar day **[R: survivorship bias]**
+### 1.2 `wellness_days`: one row per calendar day **[R: survivorship bias]**
 `sleep`, `fatigue`, `soreness`, `stress` (each 1–5; Hooper index).
 
 v1 read `feeling` off the session row. That is sampled only on days you trained,
-and climbers skip sessions when they feel wrecked — so the weeks readiness
+and climbers skip sessions when they feel wrecked, so the weeks readiness
 should crash were the weeks with fewest and most favourably-selected data, at
 0.50 weight. Wellness is now logged independently of training, and the
 subjective signals require **≥4 entries in the last 7 days** to count at all.
@@ -87,7 +87,7 @@ Soreness is its own item rather than folded into one "feeling" score **[R]**.
 is precisely the data this table must not contain; the UI enforces it and says
 why. See §14.3 for the capture mechanism.
 
-### 1.3 `ostrc_reports` — weekly OSTRC-O **[R: no pain/symptom input]**
+### 1.3 `ostrc_reports`: weekly OSTRC-O **[R: no pain/symptom input]**
 The validated 4-item Overuse Injury Questionnaire (Oslo Sports Trauma Research
 Centre), per body area, scored with the instrument's own response options
 (0/8/17/25 and 0/6/13/25) summing to 0–100 severity. "Substantial" =
@@ -115,13 +115,13 @@ one grade.
 `style` (comp/outdoor), `grade`, `achieved`, **`created_at` (used by [v3]
 §9.3)**. Speed is **not** modelled.
 
-### 1.6 `injuries` — gains `region` **[R]**
+### 1.6 `injuries`: gains `region` **[R]**
 `fingers|elbow|shoulder|wrist|knee|back|other`. Without it the coach cannot
 route around the affected structure.
 
 ### 1.7 External: intervals.icu
 Optional. Supplies daily `hrv`, `restingHR`, and its own ctl/atl. Absence is
-normal, not an error — readiness simply runs on the signals available.
+normal, not an error; readiness simply runs on the signals available.
 
 ---
 
@@ -169,7 +169,7 @@ functions over the arrays fetched in step 1.
 is a library of pure functions over `(sessions, profile, goals, wellness,
 ostrc, injuries)`. Everything time-dependent reads `new Date()` directly, which
 is the one impurity and the reason `readiness()` gained an explicit `asOf`
-parameter **[v3]** — see §12.
+parameter **[v3]**, see §12.
 
 ---
 
@@ -196,7 +196,7 @@ gradeRange(typeKey, limits, exercise):
    [lo,hi] = SESSION_TYPES[typeKey].grades
 ```
 **[R]** When *both* ends clamp to the floor of the scale the app prints "well
-below your limit" rather than a nonsense grade — "8 grades below your limit" is
+below your limit" rather than a nonsense grade, since "8 grades below your limit" is
 not a grade for a 6A climber. Board contexts are named by board type
 ("on the Kilter", "on the Moonboard").
 
@@ -205,7 +205,7 @@ not a grade for a 6A climber. Board contexts are named by board type
 ## 4. Finger dose and recovery
 
 ### 4.1 Continuous dose **[R: binary flag discarded dose]**
-v1 asked "was this maximal?" — one token limit attempt scored the same as forty
+v1 asked "was this maximal?", so one token limit attempt scored the same as forty
 near-limit attempts. Now `fingerDose(session, limits, profile)` returns a
 continuous `dose`, a `tier`, and `why[]` (human-readable contributors).
 
@@ -257,11 +257,11 @@ Only `hard`/`maximal` sessions set `last`; `light` days do not reset the clock.
 **Basis:** net collagen loss over ~24–36 h, net synthesis ~36–72 h
 (Magnusson/Kjaer). Timing is the supported part; bucket edges are a reading.
 
-**Known limitation:** days are *calendar* days — the session row stores no time.
+**Known limitation:** days are *calendar* days, as the session row stores no time.
 Monday 21:00 → Wednesday 07:00 is 34 h but counts as two days. Fixing this is a
 schema change.
 
-### 4.3 Chronic exposure — three separate checks
+### 4.3 Chronic exposure: three separate checks
 ```
 ramp        acute   = hard finger days, days 0–6
             chronic = hard finger days, days 7–34        ← disjoint [R]
@@ -284,7 +284,7 @@ under load (§7):
 
 v2 pinned these at 9/12 for everyone. That is the beginner's figure, and for a
 fourteen-year climber it meant the coach constantly flagged its own
-prescriptions — the plan would prescribe three quality finger days and the
+prescriptions: the plan would prescribe three quality finger days and the
 guard would immediately swap one out, every week. The guard itself is
 unchanged and non-negotiable; only the number of days it means has moved.
 
@@ -298,7 +298,7 @@ the run counter reports 20 weeks and the coach prescribes an easy finger week.
 
 ## 5. Whole-body load
 
-### 5.1 Session load — a TSS-analogue heuristic, **not Foster** **[R]**
+### 5.1 Session load: a TSS-analogue heuristic, **not Foster** **[R]**
 ```
 load = imported_TSS  |  (minutes/60) × (rpe/10)² × 100
 ```
@@ -311,14 +311,14 @@ Fitness/fatigue/form use the app's own unified series across all sports:
 `ctl += (load − ctl)/42`, `atl += (load − atl)/7`, `form = ctl − atl`, seeded
 from history before the window so lines don't ramp from zero.
 
-### 5.2 Load trend — this week vs your recent normal
+### 5.2 Load trend: this week vs your recent normal
 ```
 acute   = mean(daily load, days 0–6)
 chronic = mean(daily load, days 7–34)     ← disjoint
 ratio   = acute / chronic
 ```
 **[R] Both sides are arithmetic means.** v1 mixed an EWMA numerator with an
-arithmetic denominator and seeded the EWMA from `chronic` — at λ=0.25 the seed
+arithmetic denominator and seeded the EWMA from `chronic`: at λ=0.25 the seed
 still carried ~13% weight after 7 days, so 13% of "acute" was literally the
 chronic value, blunting real spikes.
 
@@ -332,7 +332,7 @@ described as "this week vs your recent normal". Identical arithmetic, none of
 the borrowed authority from a framework whose predictive value has not held up.
 The UI states this explicitly.
 
-### 5.3 Monotony & strain (Foster — correctly attributed)
+### 5.3 Monotony & strain (Foster, correctly attributed)
 `monotony = mean(7d) / SD(7d)`, `strain = weekly load × monotony`, flag > 2.0.
 Gate: ≥3 active days in the last 7. SD = 0 (a perfectly flat week) yields
 `monotony: null`, displayed as "Very high" rather than as a division error.
@@ -349,7 +349,7 @@ z = (mean(last 7 days) − mean(baseline 7-day rolling means)) / SD(those means)
 
 **[R] Two statistical fixes.** (a) The baseline excluded the recent window.
 (b) The recent value is a 7-day *mean*, so it is judged against the spread of
-7-day means, not of single days — using the daily SD inflates z several-fold.
+7-day means, not of single days; using the daily SD inflates z several-fold.
 An intermediate attempt (3-day smoothing) made this *worse*, because smoothing
 shrinks SD; it was removed.
 
@@ -369,7 +369,7 @@ weeks must not turn a normal week into z = 12).
 
 Weights renormalise over available signals. Subjective items need **≥4 entries
 in the last 7 days**. When none qualify, `subjectiveMissing` is set and the UI
-says the score is running on objective data only — with the reason.
+says the score is running on objective data only, with the reason.
 
 ```
 index = clamp(50 + 10 × composite, 0, 100)
@@ -428,7 +428,7 @@ Unknown on both sides yields a middle-of-the-road plan rather than a guess in
 either direction, and the UI says so and points at the setup form.
 
 **What `level.hard` changes:**
-1. Undulating week table (§10.1) — `UNDULATING_WEEK_HARD`.
+1. Undulating week table (§10.1): `UNDULATING_WEEK_HARD`.
 2. Filler upgrade `HARDER_EASY`: `technique → volume`, `aerobic → powerEndurance`.
    Technique drills and easy mileage build a base you do not yet have; they are
    not what makes an already-strong climber stronger.
@@ -447,11 +447,11 @@ user cannot see is a level they cannot correct.
 ### 8.1 Pump scale
 1 No pump · 2 Slight · 3 Moderate · 4 Very pumped · 5 Completely pumped.
 (1–3 endurance, 4 endurance/PE, 5 strength/PE.) Deliberately a separate axis
-from finger load — see §1.1.
+from finger load, see §1.1.
 
 ### 8.2 Session types
 
-`effort` is a **subjective description**, not a percentage **[R]** — v1 carried
+`effort` is a **subjective description**, not a percentage **[R]**. v1 carried
 both a "%max" column and grade offsets, and for an 8A boulderer they
 contradicted each other (aerobic at −8 steps ≈ 6C, nowhere near "30–50%").
 
@@ -459,15 +459,15 @@ contradicted each other (aerobic at −8 steps ≈ 6C, nowhere near "30–50%").
 |---|---|---|---|---|
 | `limit` | Limit / performance | At your limit | high | −1…0 |
 | `compSim` | Competition simulation | Near your limit | high | −2…0 |
-| `fingerStrength` | Finger strength | Maximal, low volume | high | — |
-| `fingerMaintenance` | Finger maintenance **[R]** | Easy, never near failure | low | — |
+| `fingerStrength` | Finger strength | Maximal, low volume | high | - |
+| `fingerMaintenance` | Finger maintenance **[R]** | Easy, never near failure | low | - |
 | `power` | Power | Hard, fast, fresh | high | −3…−1 |
 | `powerEndurance` | Power-endurance | Sustained and pumpy | medium | −5…−3 |
 | `volume` | Volume / capacity | Comfortably hard | medium | −6…−4 |
 | `aerobic` | Aerobic / ARC | Easy, continuous | low | −8…−6 |
 | `technique` | Technique | Easy on body, hard on brain | low | −6…−4 |
-| `antagonist` | Antagonist & prehab | Light | none | — |
-| `mobility` | Mobility & rehab **[R]** | Easy | none | — |
+| `antagonist` | Antagonist & prehab | Light | none | - |
+| `mobility` | Mobility & rehab **[R]** | Easy | none | - |
 | `deload` **[v3 redefined]** | **Easy movement** | Easy throughout | **low** | **−6…−4** |
 
 **[v3] `deload` was "Deload / rest", finger cost `none`, no grades, and its
@@ -508,7 +508,7 @@ pickExercises(typeKey, profile, rotate, discipline, style, {age, injuredRegions}
     → take 3
   exception: typeKey 'mobility' returns the whole routine, unsliced
 ```
-**[v3]** `deload` no longer takes that exception — it is a real session now and
+**[v3]** `deload` no longer takes that exception: it is a real session now and
 gets the normal top-3 treatment.
 
 ---
@@ -517,7 +517,7 @@ gets the normal top-3 treatment.
 
 ### 9.1 Without a dated goal
 Undulating (weekly pattern) or Linear (Capacity → Strength → Power → Deload),
-**with no claim either is superior** — the UI says to pick whichever you'll
+**with no claim either is superior**. The UI says to pick whichever you'll
 stick to. The 4:1 rhythm counts from the first logged session
 (`cyclePosition`). Undated goals only bias hard-day quality (`goalEmphasis`:
 strength → fingerStrength, grade → limit).
@@ -530,11 +530,11 @@ weeks = floor(days_until / 7)
 
 | Phase | Boulder | Rope | Comp override |
 |---|---|---|---|
-| Base | volume / technique | volume / aerobic | — |
-| Strength | fingerStrength / volume | fingerStrength / powerEndurance | — |
+| Base | volume / technique | volume / aerobic | - |
+| Strength | fingerStrength / volume | fingerStrength / powerEndurance | - |
 | Power | power / powerEndurance | powerEndurance / volume | easy → compSim |
 | Peak | limit / technique | limit / **powerEndurance [R]** | hard → compSim |
-| Taper | technique / deload | technique / deload | — |
+| Taper | technique / deload | technique / deload | - |
 
 **Combined (Boulder & Lead).** `discipline: 'both'` is a real value, not a
 missing one. Disciplines alternate in two-session blocks while hard/easy
@@ -544,14 +544,14 @@ rather than bouldering taking all the hard days.
 **Goals are date arithmetic, not AI.** weeks-until → phase lookup. If asked to
 make goals "smarter", say what it actually does rather than implying inference.
 
-### 9.3 Deloads **[v3 — changed twice, both changes matter]**
+### 9.3 Deloads **[v3, changed twice, both changes matter]**
 
-**Change A — a deload is a reduction, not a week off.**
+**Change A: a deload is a reduction, not a week off.**
 
 v2 filled every training slot of a deload week with the `deload` type, whose
 exercise list was five stretches. The result was a whole week of stretching. For
 a strong climber that is not recovery, it is a week of detraining and a wasted
-week — and the athlete said exactly that.
+week, and the athlete said exactly that.
 
 ```
 deloadKeys(hardKey, trainingDays):
@@ -568,7 +568,7 @@ the linear model, **the block that just finished** (`LINEAR_BLOCK[blockWeek−1]
 rather than the deload block itself; otherwise `limit`.
 
 Days holding a kept session are marked `reduced: true`, and the UI renders the
-volume row as "…— at about half, it's a deload" plus an explanation that cutting
+volume row as "…, at about half, it's a deload" plus an explanation that cutting
 volume sheds fatigue while cutting intensity loses the adaptation.
 
 **Note the honest seam:** the app never sees your set count, so "half the
@@ -576,7 +576,7 @@ volume" is an *instruction to the athlete*, not arithmetic the app performs.
 Only the day count (0.6) is computed. This is called out in the code comment
 so nobody later mistakes the copy for a calculation.
 
-**Change B — a deload has to be earned.**
+**Change B: a deload has to be earned.**
 
 ```
 isGoalDeloadWeek(goal, weeksOut):
@@ -613,7 +613,7 @@ coming", which the 7-day window structurally cannot.
 - **Cycle mode:** the repeating four weeks with real dates, current week marked.
 
 **A bug worth recording:** the first implementation anchored blocks to the goal
-date (`target − weeks×7`), which put block boundaries mid-week — the timeline
+date (`target − weeks×7`), which put block boundaries mid-week; the timeline
 said "deload from Sunday" while the plan trained that Sunday. Any countdown
 view must walk calendar weeks with the plan's own arithmetic.
 
@@ -622,7 +622,7 @@ Any non-taper week containing no `fingerStrength` and no `fingerMaintenance`
 gets one injected into the first non-high-cost slot. Base can otherwise run 12+
 weeks with zero finger stimulus, and it vanishes again through Power and Peak.
 **[v3]** For `level.hard` the injected session is `fingerStrength`, not
-`fingerMaintenance` — an experienced climber maintaining is an experienced
+`fingerMaintenance`: an experienced climber maintaining is an experienced
 climber detraining.
 
 ---
@@ -683,7 +683,7 @@ for each of the 7 days:
   spread evenly across the week so the plan still lands on real dates. The UI
   says which case it is in.
 - `blockLabel` = `'Deload'` when the week is a deload, else `phaseLabel`. The
-  divider compares `blockLabel`, **not** `phaseLabel` — a deload week keeps its
+  divider compares `blockLabel`, **not** `phaseLabel`, so a deload week keeps its
   phase label ("Power"), so comparing labels alone let a deload week appear with
   no divider and no explanation at all. That was the reported bug.
 - `next` marks the first unlogged training day.
@@ -701,7 +701,7 @@ used in prose describing the normal week.
 
 ---
 
-## 11. Daily decision tree (in order — most limiting wins)
+## 11. Daily decision tree (in order, most limiting wins)
 
 ```
 0. age < 18 and planned ∈ {fingerStrength, power, limit} → volume
@@ -727,17 +727,17 @@ used in prose describing the normal week.
 **[v3] Rule 8 changed meaning.** It was `planned == deload → deload`, i.e. the
 week's own type. Now the deload week resolves to a real session (§9.3) and rule
 8 only relabels it, with tone `moderate` rather than `easy`. Rule 7 (readiness
-collapse) still overrides it and still yields the genuinely easy `deload` type —
+collapse) still overrides it and still yields the genuinely easy `deload` type,
 that ordering is deliberate: a bad-readiness day inside a deload week should be
 easy, not merely reduced.
 
 **[R] Rules 1–2 prescribe `mobility`, not `antagonist`.** Antagonist work is
-largely shoulder and push — the worst available fallback for a shoulder injury.
+largely shoulder and push, the worst available fallback for a shoulder injury.
 Region-aware filtering then removes anything loading the affected structure.
 
 **[R] Rule 0 gates on exercise properties, not just session type**, because
 campus work (F3, B10) can surface under several type keys. 18–20 is flagged as a
-soft watch band, not a restriction — 18 is a chronological proxy for skeletal
+soft watch band, not a restriction: 18 is a chronological proxy for skeletal
 maturity and late maturers can still have open growth plates.
 
 ---
@@ -747,7 +747,7 @@ maturity and late maturers can still have open growth plates.
 Every signal shown as a number is a button opening `/coach/signals/:key` with a
 history chart and a "why it says this" breakdown. Series functions apply **the
 same gates as the live signals**, emitting `null` (a gap) rather than a zero
-when a gate fails — otherwise the chart would confidently plot exactly the
+when a gate fails, since otherwise the chart would confidently plot exactly the
 noise the gates exist to suppress.
 
 | Signal | Series | Window | Explanation shown |
@@ -758,7 +758,7 @@ noise the gates exist to suppress.
 | Monotony | `monotonySeries` | 42 d | this week day-by-day; weekly load, monotony, strain |
 
 `monotonySeries` caps at 4 and reports a flat week (SD = 0) at the cap rather
-than as a gap — "off the scale" is the finding, not missing data.
+than as a gap: "off the scale" is the finding, not missing data.
 
 The same four blocks are embedded in **Stats › Climbing** (own stats only, never
 an athlete viewed as a coach), so the numbers are reachable where the training
@@ -766,7 +766,7 @@ is being reviewed rather than only on the coach page.
 
 ---
 
-## 13. Session tagging — the log→coach feedback path **[v3, new]**
+## 13. Session tagging: the log→coach feedback path **[v3, new]**
 
 When the coach is enabled and the sport is climbing/finger/strength, the logging
 wizard gains a step: *"Did you do the planned session?"* → **As planned ·
@@ -785,7 +785,7 @@ past suggestion to compare against), so the step degrades to a single "which
 session was it?" picker.
 
 This is the only feedback path from the log back into the coach beyond raw
-session fields. **It does not adapt the plan's future content** — nothing here
+session fields. **It does not adapt the plan's future content**: nothing here
 learns.
 
 ---
@@ -814,7 +814,7 @@ forever.
 ### 14.3 Daily check-in capture **[v3]**
 A bottom sheet on the Dashboard, once per day, when the coach is on and today
 is unlogged. `pref.checkinPromptDay` records that the prompt was *shown*, not
-that it was saved — dismissing must not re-nag an hour later. Unlike the
+that it was saved, and dismissing must not re-nag an hour later. Unlike the
 check-in page (which autosaves per tap) the sheet saves on an explicit button
 and closes, because an interruption needs a clear exit. The History tab charts
 30 days per Hooper item plus days-logged and streak.
@@ -828,7 +828,7 @@ and closes, because an interruption needs a clear exit. The History tab charts
 | `supabase/coach.sql` not run | Every read returns `[]`/`null`; setup page states which file to run; nothing crashes |
 | Older `coach.sql` | `hasOldSchema()` detects missing newer columns and says "re-run it, it's safe" |
 | No profile | No facility filtering at all (**not** "answered no to everything"); level = middle |
-| `{missingTable:true}` | Normalised to `null` before reaching the generator — a real past bug |
+| `{missingTable:true}` | Normalised to `null` before reaching the generator, a real past bug |
 | No intervals.icu | HRV/RHR drop out; readiness renormalises over remaining weights |
 | Thin history | Signals report "building baseline" with the specific requirement |
 | Offline | Sessions queue in the outbox; coach runs on cached rows |
@@ -852,7 +852,7 @@ to run it again. Postgres's own `42P01`/`42703` are checked alongside.
 - OSTRC-O as a validated overuse instrument
 - Low external-rotation strength as a shoulder-injury association
 - **[v3]** Reduced *volume* with maintained *intensity* as the form of a taper
-  or deload that preserves performance — better supported than the scheduling
+  or deload that preserves performance, better supported than the scheduling
   of deloads itself (see below)
 
 **Moved out of "supported" [R]**
@@ -882,7 +882,7 @@ fraction (0.6) and the 3-week earned-deload rule.
 
 ## 17. Known limitations
 
-- Calendar days, not hours — no session time stored (schema change)
+- Calendar days, not hours, as no session time is stored (schema change)
 - Comp formats are modelled as boulder, rope, or combined. Not modelled: comp
   *rounds* (qualification / semi / final have different densities), and speed,
   which is out of scope by design
@@ -890,7 +890,7 @@ fraction (0.6) and the 3-week earned-deload rule.
 - One board type per athlete
 - Squared load term under-weights bouldering and easy volume (§5.1)
 - **Nothing adapts from outcomes.** §13 tells the coach what you *did*, never
-  whether it went well. There is no feedback loop, by design — but it means a
+  whether it went well. There is no feedback loop, by design, but it means a
   plan that is systematically too hard or too easy self-corrects only through
   the recovery guards, not through performance.
 - OSTRC severity gates the decision tree but is not trended over time
@@ -900,7 +900,7 @@ fraction (0.6) and the 3-week earned-deload rule.
   or verified arithmetic (§9.3)
 - **[v3]** `UNDULATING_WEEK_HARD` at 5–6 days prescribes three high-finger-cost
   days per week. That is defensible for an elite climber but sits close to the
-  chronic ceiling, so the §11 guards will periodically trim it — visible to the
+  chronic ceiling, so the §11 guards will periodically trim it, visible to the
   user as the plan changing its mind
 - The plan does not know which *plan slot* a logged session was meant to fill
   when sessions are logged out of order; it matches by date only
@@ -937,13 +937,13 @@ New in v3:
 9. **Is the earned-deload rule sound?** It uses the goal's `created_at` as a
    proxy for "how long you have been building toward this". A user who has
    trained consistently for months and only *records* the goal late gets no
-   deload. Is there a better proxy — e.g. actual logged load in the preceding
-   weeks — and is 3 weeks the right threshold?
+   deload. Is there a better proxy, e.g. actual logged load in the preceding
+   weeks, and is 3 weeks the right threshold?
 10. **Is a deload that keeps one full-intensity session at ~half volume, drops
-    to ~60% of training days, and removes doubles, an actual deload** — or has
+    to ~60% of training days, and removes doubles, an actual deload**, or has
     the reduction been made so mild that it no longer sheds fatigue?
 11. **Does `UNDULATING_WEEK_HARD` overshoot?** Three high-finger-cost sessions
-    per week for an elite climber, given the guards will trim it — is prescribing
+    per week for an elite climber, given the guards will trim it, is prescribing
     ambitiously and trimming reactively better or worse than prescribing
     conservatively?
 12. **Is replaying readiness through `asOf` legitimate**, given the underlying

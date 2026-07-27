@@ -1,17 +1,17 @@
 // A local copy of your own session history, so the app has something to show
-// when the network doesn't answer — and so one app launch doesn't download the
+// when the network doesn't answer, and so one app launch doesn't download the
 // whole diary three times over.
 //
 // Two layers, both keyed to the signed-in user:
-//   • memory — collapses the burst of callers at boot (the dashboard, the
+//   • memory: collapses the burst of callers at boot (the dashboard, the
 //     intervals.icu auto-import and the friend-share pass all want the same
 //     list within a few hundred ms) into one request.
-//   • IndexedDB — survives a reload, and is what turns "installable PWA" into
+//   • IndexedDB: survives a reload, and is what turns "installable PWA" into
 //     an app that still shows your training in a basement gym.
 //
 // Deliberately not a general cache: sessions are the one read every screen
 // makes, they are yours alone (no sharing worries), and they change only
-// through writes this app makes — which call invalidate().
+// through writes this app makes, which call invalidate().
 import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval'
 
 const KEY_PREFIX = 'sessions:v1:'
@@ -73,7 +73,7 @@ export async function fetchThroughCache(userId, fetcher) {
   return inflight
 }
 
-// After any write. Drops both layers so the next read goes to the server —
+// After any write. Drops both layers so the next read goes to the server:
 // the stale list is worse than a round-trip here, because the user is looking
 // at a change they just made.
 export function invalidate() {

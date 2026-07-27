@@ -37,7 +37,7 @@ export default defineConfig({
       },
       workbox: {
         // App shell precaching. Supabase API calls are intentionally NOT
-        // cached here — freshness matters and the offline outbox handles writes.
+        // cached here: freshness matters and the offline outbox handles writes.
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api/],

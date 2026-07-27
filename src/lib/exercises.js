@@ -41,8 +41,8 @@ export const TIERS = [
 ]
 
 export const SESSION_CATEGORIES = [
-  { key: 'hardBoulder', label: 'Hard moves — bouldering', discipline: 'boulder' },
-  { key: 'hardRope', label: 'Hard moves — rope', discipline: 'rope' },
+  { key: 'hardBoulder', label: 'Hard moves: bouldering', discipline: 'boulder' },
+  { key: 'hardRope', label: 'Hard moves: rope', discipline: 'rope' },
   { key: 'pump', label: 'Pump / power-endurance', discipline: 'both' },
   { key: 'volumeBoulder', label: 'Bouldering volume', discipline: 'boulder' },
   { key: 'volumeRope', label: 'Rope volume', discipline: 'rope' },
@@ -85,7 +85,7 @@ export const WARMUP_PROTOCOLS = {
     id: 'WU1',
     name: 'General warm-up',
     name_no: 'Generell oppvarming',
-    how: '5–10 minutes of easy movement — pulse up, shoulders and hips through their range, no loading anything hard.',
+    how: '5–10 minutes of easy movement: pulse up, shoulders and hips through their range, no loading anything hard.',
   },
   finger_full: {
     id: 'WU2',
@@ -97,7 +97,7 @@ export const WARMUP_PROTOCOLS = {
     id: 'WU3',
     name: 'Shoulder & elbow warm-up',
     name_no: 'Skulder- og albueoppvarming',
-    how: 'Band external rotations, scapular pull-ups and easy presses — 2 sets each, light. Before any hard pulling.',
+    how: 'Band external rotations, scapular pull-ups and easy presses, 2 sets each, light. Before any hard pulling.',
   },
 }
 
@@ -171,9 +171,9 @@ export const FINGER_EXERCISES = build(
       rest: '6 min',
       load: '80–90% of max total load',
       edge: '20 mm',
-      how: 'Hang 10 seconds at 80–90% of your max total load, half-crimp. Full rest between sets — a rushed strength session is just fatigue.',
+      how: 'Hang 10 seconds at 80–90% of your max total load, half-crimp. Full rest between sets; a rushed strength session is just fatigue.',
       margin:
-        'Every hang must end with 2–3 seconds still in reserve. A set taken to failure means the load was too high — drop 5% for the rest of the session.',
+        'Every hang must end with 2–3 seconds still in reserve. A set taken to failure means the load was too high, so drop 5% for the rest of the session.',
       progression:
         'When all 4 sets hit target with the margin intact on two sessions running, add 2–3% of max total load. Retest every 8 weeks.',
       regression: 'F1 at 70–75% for 3 sets, then F4.',
@@ -204,7 +204,7 @@ export const FINGER_EXERCISES = build(
       rest: '3 min between sets',
       load: '55–65% of max total load',
       edge: '20 mm',
-      how: 'Repeaters: 7 seconds on, 3 off. Pick a load you could hold continuously for about 30 seconds — roughly 80% of what you would use for a single 7 s effort. The last rep of the last set should be hard, not failed.',
+      how: 'Repeaters: 7 seconds on, 3 off. Pick a load you could hold continuously for about 30 seconds, roughly 80% of what you would use for a single 7 s effort. The last rep of the last set should be hard, not failed.',
       progression:
         'Add a rep per set (6 → 10) before adding load. Then add 2–3% and reset to 6 reps.',
       regression: 'Drop to 5 reps per set, then F4.',
@@ -236,7 +236,7 @@ export const FINGER_EXERCISES = build(
       rest: '3–4 min',
       load: 'Bodyweight, feet off',
       edge: 'Medium to large rungs',
-      how: 'A rep is one ladder — 1-3-5 matched, 1-4-7 bumped, or max reach, up only, controlled down or drop to the mat. Two ladders per set, medium-to-large rungs, long rests. Specify which ladder before you start; "2 reps" is not a session.',
+      how: 'A rep is one ladder: 1-3-5 matched, 1-4-7 bumped, or max reach, up only, controlled down or drop to the mat. Two ladders per set, medium-to-large rungs, long rests. Specify which ladder before you start; "2 reps" is not a session.',
       progression: 'Progress the ladder (1-3-5 → 1-4-7 → max reach), never the set count.',
       regression: 'B10 campus bouldering, then B12 coordination.',
       termination:
@@ -264,9 +264,9 @@ export const FINGER_EXERCISES = build(
       reps: '6',
       sets: '1–2',
       rest: '≥6 h between sets',
-      load: '~70–80% of a hard pull — never near failure',
+      load: '~70–80% of a hard pull, never near failure',
       edge: '20 mm or larger',
-      how: 'Feet on the floor, pulling up into an edge rather than hanging from it, at around 70–80% of what you could pull. Ten seconds on, fifty off, six reps — about ten minutes. Most days, and twice a day if the two are ≥6 h apart. It should never feel hard.',
+      how: 'Feet on the floor, pulling up into an edge rather than hanging from it, at around 70–80% of what you could pull. Ten seconds on, fifty off, six reps, about ten minutes. Most days, and twice a day if the two are ≥6 h apart. It should never feel hard.',
       progression: 'Frequency first, then a slightly smaller edge. Never to failure.',
       regression: 'Fewer reps; it is already the lowest tier in the library.',
       termination: 'Any finger pain, any day.',
@@ -296,7 +296,7 @@ export const FINGER_EXERCISES = build(
       rest: '60–90 s',
       load: '40% → 50% → 60% → 70% → 75% of max total load',
       edge: '20 mm',
-      how: 'Five ascending 10-second hangs after 5 minutes of general movement and ten easy pulls on jugs. This is the mandatory warm-up before any maximal finger session — not an optional extra.',
+      how: 'Five ascending 10-second hangs after 5 minutes of general movement and ten easy pulls on jugs. This is the mandatory warm-up before any maximal finger session, not an optional extra.',
       termination: 'If 75% feels heavy today, the max session is not on. Do F4 instead.',
     },
     {
@@ -386,7 +386,7 @@ export const ROPE_EXERCISES = build(
       minYearsClimbing: 1,
       warmup: 'finger_full',
       rest: '≥15 min between burns',
-      how: 'Project 2–4 routes with real rest — at least 15 minutes between attempts. The rest is the point: you are training hard moves, not endurance.',
+      how: 'Project 2–4 routes with real rest: at least 15 minutes between attempts. The rest is the point: you are training hard moves, not endurance.',
       termination: 'When attempts stop getting better, the session is over.',
       note: 'The ≥15 min rest is the most-violated instruction in projecting sessions. Time it.',
     },
@@ -405,7 +405,7 @@ export const ROPE_EXERCISES = build(
       expectedDose: 18,
       fingerCost: 'medium',
       needs: ['rope'],
-      how: 'Stay on the wall for 10 minutes without coming near the ground — up and down until the time is up — then 10 minutes rest. Repeat 3–4 times, on autobelay or toprope. You should not get badly pumped.',
+      how: 'Stay on the wall for 10 minutes without coming near the ground, up and down until the time is up, then 10 minutes rest. Repeat 3–4 times, on autobelay or toprope. You should not get badly pumped.',
     },
     {
       id: 'K3',
@@ -423,7 +423,7 @@ export const ROPE_EXERCISES = build(
       fingerCost: 'medium',
       needs: ['rope'],
       rest: '5 min between sets',
-      how: 'A hard and an easy route on the same line or close together. Climb the hard route, then straight onto the easy one with no rest — the easy route is where you try to climb the pump out. Repeat 5 times.',
+      how: 'A hard and an easy route on the same line or close together. Climb the hard route, then straight onto the easy one with no rest; the easy route is where you try to climb the pump out. Repeat 5 times.',
     },
     {
       id: 'K4',
@@ -515,7 +515,7 @@ export const ROPE_EXERCISES = build(
       needs: ['rope'],
       minYearsClimbing: 0,
       youth: 'allowed',
-      how: 'Progressive falls with a trusted belayer: clipped at the waist, then just above the bolt, then committing falls. Stop while it is still controlled — the point is recalibrating what a fall feels like, not enduring it.',
+      how: 'Progressive falls with a trusted belayer: clipped at the waist, then just above the bolt, then committing falls. Stop while it is still controlled; the point is recalibrating what a fall feels like, not enduring it.',
       note: 'Fear of falling is a trainable skill and one of the most common limiters on overhanging terrain. Zero finger cost, so it fits on a day when everything else is contraindicated.',
     },
   ],
@@ -530,7 +530,7 @@ export const BOULDER_EXERCISES = build(
   [
     {
       id: 'B1',
-      name: 'Circuit — short',
+      name: 'Circuit: short',
       name_no: 'Sirkling 1',
       sessionCat: 'pump',
       tier: 4,
@@ -544,11 +544,11 @@ export const BOULDER_EXERCISES = build(
       fingerCost: 'medium',
       needs: ['spraywall'],
       loads: ['fingers'],
-      how: 'Set a circuit of 25–30 moves on a training wall and climb it 4–6 times, resting about 10 minutes or until recovered. Prescribed in moves, not grades — a home-set spray wall has no meaningful grade.',
+      how: 'Set a circuit of 25–30 moves on a training wall and climb it 4–6 times, resting about 10 minutes or until recovered. Prescribed in moves, not grades; a home-set spray wall has no meaningful grade.',
     },
     {
       id: 'B2',
-      name: 'Circuit — long',
+      name: 'Circuit: long',
       name_no: 'Sirkling 2',
       sessionCat: 'pump',
       tier: 3,
@@ -562,7 +562,7 @@ export const BOULDER_EXERCISES = build(
       fingerCost: 'medium',
       needs: ['spraywall'],
       loads: ['fingers'],
-      how: 'Set a circuit of 40–50 moves and climb it 4–6 times. Rest about 10 minutes — you do not need to be fully recovered.',
+      how: 'Set a circuit of 40–50 moves and climb it 4–6 times. Rest about 10 minutes; you do not need to be fully recovered.',
     },
     {
       id: 'B3',
@@ -579,7 +579,7 @@ export const BOULDER_EXERCISES = build(
       expectedDose: 40,
       fingerCost: 'high',
       rest: '7–10 min between blocks',
-      how: 'Four hard boulders, each climbed 4 times in a row with a minute per attempt — if the climb takes 30 seconds you get 30 seconds rest. After the fourth go, rest 7–10 minutes.',
+      how: 'Four hard boulders, each climbed 4 times in a row with a minute per attempt: if the climb takes 30 seconds you get 30 seconds rest. After the fourth go, rest 7–10 minutes.',
       regression: 'B4 10×3.',
     },
     {
@@ -597,7 +597,7 @@ export const BOULDER_EXERCISES = build(
       expectedDose: 32,
       fingerCost: 'medium',
       rest: 'Climbing time equals rest time',
-      how: 'Ten medium-to-hard boulders, each climbed 3 times in a row with no rest; climbing time equals rest time, so keep a watch. Adjust the grade to your form — all 3 goes should ideally go, and at least 2 must.',
+      how: 'Ten medium-to-hard boulders, each climbed 3 times in a row with no rest; climbing time equals rest time, so keep a watch. Adjust the grade to your form: all 3 goes should ideally go, and at least 2 must.',
     },
     {
       id: 'B5',
@@ -620,7 +620,7 @@ export const BOULDER_EXERCISES = build(
       minYearsClimbing: 2,
       warmup: 'finger_full',
       rest: '3–5 min between attempts',
-      how: 'On the training board. Start on a boulder and give it a few goes — at most 4 attempts in 15 minutes — then move on. You should send it or be close after a few tries. These should be finger-heavy.',
+      how: 'On the training board. Start on a boulder and give it a few goes, at most 4 attempts in 15 minutes, then move on. You should send it or be close after a few tries. These should be finger-heavy.',
       regression: 'B9 normal bouldering.',
       termination: 'When you stop making progress on a problem, move on or stop.',
     },
@@ -656,7 +656,7 @@ export const BOULDER_EXERCISES = build(
       fingerCost: 'low',
       style: 'comp',
       rest: 'As needed',
-      how: 'A relatively easy session on set boulders or ones you make up to challenge your technique. Good holds — you should not get tired, but it should still be hard. Slab and coordination boulders.',
+      how: 'A relatively easy session on set boulders or ones you make up to challenge your technique. Good holds: you should not get tired, but it should still be hard. Slab and coordination boulders.',
     },
     {
       id: 'B8',
@@ -737,7 +737,7 @@ export const BOULDER_EXERCISES = build(
       expectedDose: 20,
       fingerCost: 'medium',
       rest: 'Free',
-      how: 'Bring paper and a pencil and climb at least 50 boulders — warm-ups count. Cover every style: crimps, jugs, slopers.',
+      how: 'Bring paper and a pencil and climb at least 50 boulders; warm-ups count. Cover every style: crimps, jugs, slopers.',
     },
     {
       id: 'B12',
@@ -755,7 +755,7 @@ export const BOULDER_EXERCISES = build(
       loads: ['shoulder'],
       style: 'comp',
       youth: 'allowed',
-      how: 'Dynos, run-and-jumps, paddle moves, double-clutches. High skill, low finger load — and the exact content modern competition setting is full of. Stop when the landings stop being controlled.',
+      how: 'Dynos, run-and-jumps, paddle moves, double-clutches. High skill, low finger load, and the exact content modern competition setting is full of. Stop when the landings stop being controlled.',
       termination: 'Stop when you start landing badly; this is a coordination session, not a power one.',
     },
     {
@@ -788,12 +788,12 @@ export const BOULDER_EXERCISES = build(
       expectedDose: 12,
       fingerCost: 'low',
       loads: ['shoulder'],
-      how: 'Topouts, mantles, compression and pressing. Trains a weakness nothing else in the library touches — climbers are overwhelmingly pull-trained, and comp setting punishes it.',
+      how: 'Topouts, mantles, compression and pressing. Trains a weakness nothing else in the library touches: climbers are overwhelmingly pull-trained, and comp setting punishes it.',
     },
     {
       id: 'C1',
-      name: 'Competition simulation — boulder qualification',
-      name_no: 'Konkurransesimulering — kvalifisering',
+      name: 'Competition simulation: boulder qualification',
+      name_no: 'Konkurransesimulering: kvalifisering',
       sessionCat: 'hardBoulder',
       tier: 5,
       gradeContext: 'indoor',
@@ -811,7 +811,7 @@ export const BOULDER_EXERCISES = build(
       sets: '5 unseen boulders',
       time: '5 min on',
       rest: '5 min between',
-      how: 'Five boulders you have not seen or watched. Five minutes on each, then the same rest, in order. No beta, no second visit — when the clock goes you move on whether or not you topped it. Self-judge tops and zones.',
+      how: 'Five boulders you have not seen or watched. Five minutes on each, then the same rest, in order. No beta, no second visit; when the clock goes you move on whether or not you topped it. Self-judge tops and zones.',
     },
     {
       id: 'C2',
@@ -827,12 +827,12 @@ export const BOULDER_EXERCISES = build(
       expectedDose: 30,
       fingerCost: 'medium',
       style: 'comp',
-      how: 'Pick 8–12 boulders you have never tried, around your flash grade. One attempt each — send it or not, you move on. Read every one from the ground before you touch it. The skill is choosing the right beta first time, not trying hard.',
+      how: 'Pick 8–12 boulders you have never tried, around your flash grade. One attempt each: send it or not, you move on. Read every one from the ground before you touch it. The skill is choosing the right beta first time, not trying hard.',
     },
     {
       id: 'C4',
-      name: 'Competition simulation — boulder final',
-      name_no: 'Konkurransesimulering — finale',
+      name: 'Competition simulation: boulder final',
+      name_no: 'Konkurransesimulering: finale',
       sessionCat: 'hardBoulder',
       tier: 5,
       gradeContext: 'indoor',
@@ -850,7 +850,7 @@ export const BOULDER_EXERCISES = build(
       sets: '4 unseen boulders',
       time: '8 min collective observation, then 4–5 min on',
       rest: '4–5 min between',
-      how: 'Four unseen boulders. First an 8-minute collective observation of all four from the ground — no touching — then 4–5 minutes on each with equal rest. Reading four problems cold in eight minutes is a distinct skill and nothing else in the library trains it.',
+      how: 'Four unseen boulders. First an 8-minute collective observation of all four from the ground, no touching, then 4–5 minutes on each with equal rest. Reading four problems cold in eight minutes is a distinct skill and nothing else in the library trains it.',
       note: 'Models the current World Climbing (IFSC) final format.',
     },
     {
@@ -871,7 +871,7 @@ export const BOULDER_EXERCISES = build(
       style: 'comp',
       warmup: 'finger_full',
       rest: 'Long and deliberately uncomfortable',
-      how: 'One or two attempts at your limit after a long, deliberately uncomfortable rest — 30+ minutes of sitting around, then perform cold. The single cold burn decides finals and no ordinary session rehearses it.',
+      how: 'One or two attempts at your limit after a long, deliberately uncomfortable rest: 30+ minutes of sitting around, then perform cold. The single cold burn decides finals and no ordinary session rehearses it.',
     },
     {
       id: 'C6',
@@ -891,7 +891,7 @@ export const BOULDER_EXERCISES = build(
       style: 'comp',
       warmup: 'finger_full',
       rest: '45–90 min of genuine downtime',
-      how: 'A hard effort, then 45–90 minutes of real downtime — sit down, eat, get cold — then another hard effort. Rehearses the qualification-to-semi gap, which is where competitions are quietly lost.',
+      how: 'A hard effort, then 45–90 minutes of real downtime (sit down, eat, get cold), then another hard effort. Rehearses the qualification-to-semi gap, which is where competitions are quietly lost.',
     },
     {
       id: 'W1',
@@ -907,8 +907,8 @@ export const BOULDER_EXERCISES = build(
       expectedDose: 10,
       fingerCost: 'low',
       needs: ['spraywall'],
-      how: 'Set at least 5 good warm-up boulders — at least one per wall. Use these every session from now on: over time they become your daily-form gauge, because you learn how they should feel. If you have energy left, set a few projects too.',
-      note: 'The warm-up boulders are a free daily readiness probe — see the "how did the warm-up feel" rating at the start of a session.',
+      how: 'Set at least 5 good warm-up boulders, at least one per wall. Use these every session from now on: over time they become your daily-form gauge, because you learn how they should feel. If you have energy left, set a few projects too.',
+      note: 'The warm-up boulders are a free daily readiness probe; see the "how did the warm-up feel" rating at the start of a session.',
     },
   ],
   { category: 'boulder' },
@@ -921,8 +921,8 @@ ROPE_EXERCISES.push(
     [
       {
         id: 'C3',
-        name: 'Competition simulation — lead',
-        name_no: 'Konkurransesimulering — led',
+        name: 'Competition simulation: lead',
+        name_no: 'Konkurransesimulering: led',
         sessionCat: 'hardRope',
         tier: 5,
         gradeContext: 'indoor',
@@ -939,7 +939,7 @@ ROPE_EXERCISES.push(
         time: '6 min',
         sets: '1–2 routes',
         rest: 'Full rest between',
-        how: 'One route you have not seen and have not watched anyone on. Six minutes of observation from the ground, then one attempt under onsight rules — a fall ends it. What you are training is reading and pacing under pressure, not fitness.',
+        how: 'One route you have not seen and have not watched anyone on. Six minutes of observation from the ground, then one attempt under onsight rules: a fall ends it. What you are training is reading and pacing under pressure, not fitness.',
       },
     ],
     { category: 'rope' },
@@ -956,7 +956,7 @@ export const GYM_EXERCISES = build(
     { id: 'S2', name: 'Lock-off', loads: ['shoulder', 'elbow'], reps: '5–10 s', sets: '3–4', load: '−10 kg assist', rest: '3–6 min', tier: 3, expectedDose: 5, fingerCost: 'low' },
     { id: 'S3', name: 'One-arm pull on rings', loads: ['shoulder', 'elbow'], reps: '4–8', sets: '3–5', rest: '3–6 min', tier: 5, expectedDose: 8, fingerCost: 'low', youth: 'blocked', minYearsClimbing: 4 },
     { id: 'S4', name: 'Row', loads: ['shoulder', 'elbow'], reps: '3–5', sets: '3–5', load: 'Test yourself', rest: '3–6 min', tier: 3, expectedDose: 3 },
-    { id: 'S5', name: 'Kettlebell shoulder press', loads: ['shoulder'], reps: '5–8', sets: '3–4', load: 'Test yourself', rest: '3–6 min', tier: 3, expectedDose: 2, how: 'Bottoms-up — the heavy end pointing upward.' },
+    { id: 'S5', name: 'Kettlebell shoulder press', loads: ['shoulder'], reps: '5–8', sets: '3–4', load: 'Test yourself', rest: '3–6 min', tier: 3, expectedDose: 2, how: 'Bottoms-up, the heavy end pointing upward.' },
     { id: 'S6', name: 'Flies in slings', loads: ['shoulder'], reps: '5–8', sets: '3–5', rest: '3–6 min', tier: 3, expectedDose: 2 },
     { id: 'S7', name: 'Squats', reps: '3–5', sets: '3–5', load: 'Test yourself', rest: '3–6 min', tier: 3, expectedDose: 1 },
     { id: 'S8', name: 'Deadlift', reps: '3–5', sets: '3–5', load: 'Test yourself', rest: '2–5 min', tier: 4, expectedDose: 1 },
@@ -966,7 +966,7 @@ export const GYM_EXERCISES = build(
     { id: 'S11', name: 'Worm in slings', loads: ['back'], reps: '8–12', sets: '3–5', rest: '2–4 min', tier: 3, expectedDose: 2 },
     {
       id: 'S12', name: 'Shoulder external rotations', reps: '5–10', sets: '3–5',
-      load: 'Light — this is prehab, not a lift', rest: '2–3 min',
+      load: 'Light: this is prehab, not a lift', rest: '2–3 min',
       rehabFor: ['shoulder'], tier: 1, expectedDose: 0, youth: 'allowed',
       how: 'Climbing is overwhelmingly pull-dominant, and low external-rotation strength relative to internal is one of the more consistent shoulder-injury associations. Worth keeping in year-round.',
     },
@@ -974,15 +974,15 @@ export const GYM_EXERCISES = build(
       id: 'S15', name: 'Wrist extensor & flexor eccentrics', reps: '10–15', sets: '3',
       load: 'Light dumbbell or a rubber bar', rest: '2 min',
       rehabFor: ['elbow', 'wrist'], tier: 1, expectedDose: 0, youth: 'allowed',
-      how: 'Forearm supported, lower the weight slowly (3–4 s) and help it back up with the other hand. Extensors for lateral elbow pain, flexors for medial "climber\'s elbow". Slow and light — the eccentric is the point, load is not.',
+      how: 'Forearm supported, lower the weight slowly (3–4 s) and help it back up with the other hand. Extensors for lateral elbow pain, flexors for medial "climber\'s elbow". Slow and light; the eccentric is the point, load is not.',
     },
     {
       id: 'S13', name: 'Circuit', reps: '10–20', sets: '5', rest: 'Max 2 min', tier: 3, expectedDose: 3,
-      how: 'Pull-ups, sit-ups, jumping squats, push-ups. As many reps as you can with as little rest as possible — closer to an endurance session than pure strength.',
+      how: 'Pull-ups, sit-ups, jumping squats, push-ups. As many reps as you can with as little rest as possible, closer to an endurance session than pure strength.',
     },
     {
       id: 'S14', name: 'Pyramid', sets: '1 pyramid', rest: 'Minimal', tier: 3, expectedDose: 3,
-      how: 'Pull-ups, sit-ups, jumping squats, push-ups. Set 1 is one rep of each, set 2 is two, up to ten, then back down — 100 reps of each. Finish as fast as you can.',
+      how: 'Pull-ups, sit-ups, jumping squats, push-ups. Set 1 is one rep of each, set 2 is two, up to ten, then back down, 100 reps of each. Finish as fast as you can.',
     },
   ],
   {
@@ -1031,7 +1031,7 @@ export const MENTAL_EXERCISES = build(
   [
     {
       id: 'M1', name: 'Visualisation', name_no: 'Visualisering', durationTarget_min: 15,
-      how: 'Rehearse a route or boulder move by move with your eyes closed, in real time — not fast-forwarded. Include the parts you usually fall on, and rehearse doing them well.',
+      how: 'Rehearse a route or boulder move by move with your eyes closed, in real time, not fast-forwarded. Include the parts you usually fall on, and rehearse doing them well.',
     },
     {
       id: 'M2', name: 'Competition-day routine', name_no: 'Konkurransedag-rutine', durationTarget_min: 20,
@@ -1039,7 +1039,7 @@ export const MENTAL_EXERCISES = build(
     },
     {
       id: 'M3', name: 'Process goals before a session', name_no: 'Prosessmål før økt', durationTarget_min: 5,
-      how: 'Before the session, write down two things you control — foot precision, resting on the route, committing to the first attempt. Review them afterwards instead of the result.',
+      how: 'Before the session, write down two things you control: foot precision, resting on the route, committing to the first attempt. Review them afterwards instead of the result.',
     },
     {
       id: 'M4', name: 'Wind-down / mindfulness', name_no: 'Nedtrapping / mindfulness', durationTarget_min: 15,
@@ -1120,8 +1120,8 @@ export function availableExercises(list, profile, discipline) {
 export const MATRIX_COLUMNS = [
   { key: 'pump', label: 'Pump' },
   { key: 'ropeVolume', label: 'Rope volume' },
-  { key: 'ropeHard', label: 'Hard moves — rope' },
-  { key: 'boulderHard', label: 'Hard moves — bouldering' },
+  { key: 'ropeHard', label: 'Hard moves: rope' },
+  { key: 'boulderHard', label: 'Hard moves: bouldering' },
   { key: 'boulderLow', label: 'Low-intensity bouldering' },
   { key: 'boulderVolume', label: 'Bouldering volume' },
 ]
@@ -1133,7 +1133,7 @@ export const MATRIX_ROWS = [
       pump: { text: 'Hard–Easy', ex: 'K3', pump: [4, 5] },
       ropeVolume: { text: 'Pyramid', pump: [2, 3] },
       ropeHard: { text: 'Attempts on rope. 2–3 goes at or above your max. If you fall you may try once more. Good rest between goes.', ex: 'K1' },
-      boulderHard: { text: 'Hard commercial boulders — work the moves and look for projects. 4–8 boulders.' },
+      boulderHard: { text: 'Hard commercial boulders: work the moves and look for projects. 4–8 boulders.' },
       boulderLow: { text: 'Lots of easy boulders.', ex: 'B6' },
       boulderVolume: { text: '4×4', ex: 'B3' },
     },
@@ -1144,7 +1144,7 @@ export const MATRIX_ROWS = [
       pump: { text: 'Hard–Hard', ex: 'K4', pump: [5, 5] },
       ropeVolume: { text: '2 in a row', ex: 'K6', pump: [2, 3] },
       ropeHard: { text: 'Projecting on rope. Find 2–3 routes, climb as high as you get, then work it to the top. Go again and work the crux. Good rest between routes.', ex: 'K1' },
-      boulderHard: { text: 'Training board — 3 attempts before moving on. 6–8 boulders.', ex: 'B5' },
+      boulderHard: { text: 'Training board: 3 attempts before moving on. 6–8 boulders.', ex: 'B5' },
       boulderLow: { text: 'Drilling moves.' },
       boulderVolume: { text: '10×3', ex: 'B4' },
     },
@@ -1177,7 +1177,7 @@ export const MATRIX_ROWS = [
       pump: { text: '4 min on, 4 min off on the spray wall', ex: 'B1', pump: [4, 5] },
       ropeVolume: { text: '10 routes in one session, little rest between them.', ex: 'K7' },
       ropeHard: { text: 'Onsight near your max. Find 4–6 routes and try to onsight them. If you fall, you’re down.' },
-      boulderHard: { text: 'Drill competition-style moves. Find commercial ones, set your own, or reuse moves from training. Decide up front how long you’ll give it — 20 minutes, say.' },
+      boulderHard: { text: 'Drill competition-style moves. Find commercial ones, set your own, or reuse moves from training. Decide up front how long you’ll give it: 20 minutes, say.' },
       boulderLow: { text: 'Footwork.', ex: 'B13' },
       boulderVolume: { text: 'Drilling moves.' },
     },

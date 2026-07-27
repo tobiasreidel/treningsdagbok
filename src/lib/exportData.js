@@ -3,8 +3,8 @@
 // before it's needed, not after.
 //
 // Two shapes, because they answer different questions:
-//   • JSON — everything, as stored, for keeping.
-//   • CSV  — one row per session, for a spreadsheet.
+//   • JSON: everything, as stored, for keeping.
+//   • CSV:  one row per session, for a spreadsheet.
 import { supabase, currentUserId } from './supabase'
 import { fetchSessions } from './sessions'
 import { todayISO } from './format'

@@ -100,7 +100,7 @@ export default function CoachPlanField({ form, updateExtra }) {
     return (
       <Field
         label="Which sessions were these?"
-        hint="Optional, and you can name more than one — a max hangboard day and easy mileage load the fingers very differently."
+        hint="You can name more than one. A max hangboard day and easy mileage load the fingers very differently."
         optional
       >
         <ExercisePicker

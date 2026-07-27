@@ -168,7 +168,7 @@ export default function Settings() {
       setBackfill({
         running: false,
         msg: err?.code === 'no-table'
-          ? 'Sharing isn’t set up yet — run supabase/session_streams.sql.'
+          ? 'Sharing isn’t set up yet. Run supabase/session_streams.sql.'
           : err.message || 'Could not share activities.',
       })
     }
@@ -331,16 +331,14 @@ export default function Settings() {
 
         <section className="card settings-card stack">
           <h2 className="step-q">Appearance</h2>
-          <p className="muted small">Pick a colour theme. Applies instantly.</p>
           <ThemePicker value={theme} onChange={chooseTheme} />
         </section>
 
         <section className="card settings-card stack">
           <h2 className="step-q">Sports</h2>
           <p className="muted small">
-            Choose which sports you track. Turning one off hides it from logging,
-            cards and stats. Your past sessions are kept and still show in the
-            calendar.
+            Turning one off hides it from logging, cards and stats. Your past
+            sessions are kept and still show in the calendar.
           </p>
           <div className="toggle-list">
             {ALL_SPORTS.map((key) => {
@@ -412,7 +410,7 @@ export default function Settings() {
             Adds a card to your dashboard: a finger-tissue recovery status (days
             since your last hard finger session, from the ~48–72 h collagen
             rebuild window), a readiness score, a load trend and a suggested
-            session — all read from what you already log.
+            session, all read from what you already log.
           </p>
           <p className="muted small">
             Still beta: the thresholds are educated starting points, not settled
@@ -444,7 +442,7 @@ export default function Settings() {
         <section className="card settings-card stack">
           <h2 className="step-q">Gear</h2>
           <p className="muted small">
-            Track wear and maintenance — new tires, chain oiling, shoe resoles.
+            Track wear and maintenance: new tires, chain oiling, shoe resoles.
             Turn it on per sport; logging lives on your profile.
           </p>
           <div className="toggle-list">
@@ -499,7 +497,7 @@ export default function Settings() {
               )}
               <p className="muted small">
                 Friends can’t read your activities from intervals.icu, so a copy
-                of each activity’s charts is shared for them — automatically,
+                of each activity’s charts is shared for them, automatically,
                 while this is on. Your route is never shared, only the charts,
                 zones and laps.
               </p>
@@ -607,7 +605,7 @@ export default function Settings() {
         <section className="card settings-card stack">
           <h2 className="step-q">Your data</h2>
           <p className="muted small">
-            Everything you have logged, in a file you keep. Worth doing now and then —
+            Everything you have logged, in a file you keep. Worth doing now and then, since
             this app is the only place your training lives.
           </p>
           <button
@@ -629,7 +627,7 @@ export default function Settings() {
           {exportNote && <p className="muted small">{exportNote}</p>}
           <p className="muted small">
             The JSON holds your sessions, health log, check-ins, coach profile, goals,
-            tests and gear. Photos aren’t included — they stay in storage. Your
+            tests and gear. Photos aren’t included; they stay in storage. Your
             intervals.icu key is left out on purpose.
           </p>
         </section>

@@ -91,7 +91,7 @@ export default function CoachTests({ tests, fingerTests, profile, onProfilePatch
         <p className="muted small">
           A test is only worth anything next to the last one, so run them the way the
           instructions describe and change nothing between rounds. Every few months is
-          plenty — testing is a hard session in itself, and it belongs on a fresh day, not
+          plenty: testing is a hard session in itself, and it belongs on a fresh day, not
           at the end of a tiring week.
         </p>
         {!session && (
@@ -125,7 +125,7 @@ export default function CoachTests({ tests, fingerTests, profile, onProfilePatch
           </div>
           <p className="muted small">
             Fill in only what you actually tested. It saves as a session in your diary too,
-            so a testing day isn’t a hole in your training log — and a maximal finger test
+            so a testing day isn’t a hole in your training log, and a maximal finger test
             counts as the hard finger day it is.
           </p>
           {err && <p className="auth-error">{err}</p>}
@@ -252,7 +252,7 @@ export default function CoachTests({ tests, fingerTests, profile, onProfilePatch
                 </span>
                 <span className="muted small">
                   {t.aborted_reason
-                    ? `Stopped — ${t.aborted_reason}`
+                    ? `Stopped: ${t.aborted_reason}`
                     : `${t.value} ${t.unit || testMeta(t.test_id).unit}`}{' '}
                   · {formatDayShort(t.tested_on)}
                   {t.notes ? ` · ${t.notes}` : ''}
@@ -334,7 +334,7 @@ function FingerTestsSection({ profile, tests, onChanged, onMigrate }) {
     <section className="card settings-card stack">
       <h2 className="step-q">Finger tests</h2>
       <p className="muted small">
-        Recorded as <strong>total load — bodyweight included</strong>. Hangs are prescribed
+        Recorded as <strong>total load, bodyweight included</strong>. Hangs are prescribed
         as a percentage of this, and the percentage only means anything if both sides use
         the same number: 85% of your <em>added</em> weight is about 99% of what your fingers
         actually hold.
@@ -351,7 +351,7 @@ function FingerTestsSection({ profile, tests, onChanged, onMigrate }) {
               <>
                 That was recorded as <em>added</em> weight, which is {legacyAdded + bw} kg in
                 total at your current bodyweight. Save it as a test to keep using it, or
-                retest — a max recorded at a different bodyweight isn’t really comparable.
+                retest: a max recorded at a different bodyweight isn’t really comparable.
               </>
             ) : (
               <>
@@ -394,10 +394,10 @@ function FingerTestsSection({ profile, tests, onChanged, onMigrate }) {
             <div className="goal-main">
               <span className="goal-title">
                 {t.aborted_reason
-                  ? `Stopped — ${t.aborted_reason}`
+                  ? `Stopped: ${t.aborted_reason}`
                   : t.protocol === 'min_edge'
                     ? `${t.value} mm minimum edge`
-                    : `${t.value} kg total${t.hands === 'one' ? ` / ${t.value_left ?? '—'} kg left` : ''}`}
+                    : `${t.value} kg total${t.hands === 'one' ? ` / ${t.value_left ?? '-'} kg left` : ''}`}
               </span>
               <span className="muted small">
                 {gripLabel(t.grip)}
@@ -422,9 +422,9 @@ function FingerTestsSection({ profile, tests, onChanged, onMigrate }) {
           Prescribing from <strong>{Math.round(resolved.kg)} kg total</strong>
           {resolved.derived ? ' (converted)' : ''}
           {resolved.stale
-            ? ` — but that test is ${resolved.weeks} weeks old, so kilos aren’t quoted until you retest.`
+            ? `, but that test is ${resolved.weeks} weeks old, so kilos aren’t quoted until you retest.`
             : resolved.warn
-              ? ` — tested ${resolved.weeks} weeks ago, worth retesting soon.`
+              ? `, tested ${resolved.weeks} weeks ago, worth retesting soon.`
               : '.'}
         </p>
       ) : (
@@ -491,7 +491,7 @@ function FingerTestsSection({ profile, tests, onChanged, onMigrate }) {
                 <NumberField
                   value={draft.value_left}
                   onChange={(v) => setDraft({ ...draft, value_left: v })}
-                  placeholder="—"
+                  placeholder="-"
                   unit={draft.protocol === 'min_edge' ? 'mm' : 'kg'}
                 />
               </Field>
@@ -518,7 +518,7 @@ function FingerTestsSection({ profile, tests, onChanged, onMigrate }) {
 
           <Field
             label="Stopped early?"
-            hint="A test you stopped because it hurt is the most useful thing the battery can record — it must never be left blank."
+            hint="A test you stopped because it hurt is the most useful thing the battery can record, so it must never be left blank."
             optional
           >
             <Segmented

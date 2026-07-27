@@ -126,7 +126,7 @@ export default function CoachCard({ sessions, injuries }) {
       )}
 
       <p className="muted coach-disclaimer">
-        Awareness, not medical advice — pain is your real signal.
+        Awareness, not medical advice. Pain is your real signal.
       </p>
     </div>
   )

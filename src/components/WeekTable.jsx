@@ -22,7 +22,6 @@ export default function WeekTable({ sessions, onSelect, periodSet }) {
     return (
       <div className="card empty-state">
         <p>No sessions in the last 7 days.</p>
-        <p className="muted small">Tap &ldquo;Register session&rdquo; to log one.</p>
       </div>
     )
   }

@@ -2314,7 +2314,7 @@ textarea {
   opacity: 0.85;
 }
 
-/* "beta" marker — this feature's numbers are starting points, and the label
+/* "beta" marker - this feature's numbers are starting points, and the label
    should say so wherever the feature is named. */
 .beta-tag {
   display: inline-block;

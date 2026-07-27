@@ -88,7 +88,7 @@ const PHOTO_BUCKET = 'session-photos'
 // Storage list is paginated; a long-running diary can hold hundreds of photos.
 const PAGE = 100
 
-// Every object under `<userId>/` — session photos and the avatar both live
+// Every object under `<userId>/`: session photos and the avatar both live
 // there (see the storage policies in supabase/schema.sql, which key access on
 // the first path segment). Returns the number removed, or null if the bucket
 // wouldn't answer.

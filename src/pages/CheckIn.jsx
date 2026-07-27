@@ -111,9 +111,9 @@ export default function CheckIn() {
           <section className="card settings-card stack">
             <h2 className="step-q">How are you today?</h2>
             <p className="muted small">
-              Ten seconds, every day — including rest days. That’s the point: if this
+              Ten seconds, every day, including rest days. That’s the point: if this
               only got filled in on training days it would only ever see you on the days
-              you felt good enough to train. Only today is editable — backfilling from
+              you felt good enough to train. Only today is editable, because backfilling from
               memory is exactly the data this must not contain.
             </p>
             {HOOPER_ITEMS.map((item) => (
@@ -173,7 +173,7 @@ function WellnessHistory({ rows, onReadiness }) {
       <div className="card empty-state">
         <p>No check-ins yet.</p>
         <p className="muted small">
-          Fill in the Today tab — after a few days there’s a trend to see here.
+          Fill in the Today tab, and after a few days there’s a trend to see here.
         </p>
       </div>
     )
@@ -265,7 +265,7 @@ function OstrcSection({ rows, onSaved }) {
         <h2 className="step-q">Weekly overuse check</h2>
         <p className="muted small">
           Four questions about the last seven days, from the OSTRC Overuse Injury
-          Questionnaire — a validated instrument built at the Oslo Sports Trauma Research
+          Questionnaire, a validated instrument built at the Oslo Sports Trauma Research
           Centre, precisely because counting only injuries that stop you training misses
           most overuse problems. Answering it lets the coach react to something building,
           instead of waiting until you call it an injury.
