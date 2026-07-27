@@ -15,6 +15,7 @@ import { getLogPeriod } from '../lib/prefs'
 import { embeddedStrengthMinutes, embeddedFingerMinutes } from '../lib/stats'
 import { normalizeHang } from '../lib/formState'
 import { hasUnreadableHangs } from '../lib/fingerLoad'
+import { testMeta } from '../lib/fingerTests'
 import { getBodyweight } from '../lib/prefs'
 import { pumpLabel } from '../lib/exercises'
 // Leaflet and the charts are the heaviest thing the app bundles, and only a
@@ -223,6 +224,7 @@ export default function SessionDetail() {
   const hangs = finger.hangboard || []
   const hasFinger = finger.campus || hangs.length > 0
   const unreadableHangs = hasFinger && hasUnreadableHangs(session, getBodyweight())
+  const testIds = e.test_session?.ids || []
   const warmupMin = Number(e.warmup_minutes) || 0
   const warmupNote = (e.warmup_note || '').trim()
   const rehabMin = Number(e.rehab_minutes) || 0
@@ -425,6 +427,24 @@ export default function SessionDetail() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Logged from the coach's Tests tab. Without this the diary entry is an
+          unexplained 45-minute finger session. */}
+      {testIds.length > 0 && (
+        <div className="detail-block">
+          <h2 className="section-title">Testing session</h2>
+          <div className="stack">
+            {[...new Set(testIds)].map((id) => (
+              <div className="route-line" key={id}>
+                <span className="route-line-name">{testMeta(id).label}</span>
+              </div>
+            ))}
+          </div>
+          <p className="muted small">
+            Results are on the coach&rsquo;s Tests tab.
+          </p>
         </div>
       )}
 

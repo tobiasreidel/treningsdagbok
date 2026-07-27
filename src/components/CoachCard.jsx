@@ -86,12 +86,7 @@ export default function CoachCard({ sessions, injuries }) {
         title="🤏 Finger tissue"
         state={recovery.label}
         tone={recovery.tone}
-        hint={
-          <>
-            {recovery.hint}{' '}
-            <span className="coach-nowrap">Last hard load: {sinceLabel}.</span>
-          </>
-        }
+        hint={<span className="coach-nowrap">Last hard load: {sinceLabel}.</span>}
         onPress={() => navigate('/coach/signals/finger')}
       />
 
@@ -120,7 +115,7 @@ export default function CoachCard({ sessions, injuries }) {
         className={`btn ${setUp ? 'btn-secondary' : 'btn-primary'} btn-block settings-link-row`}
         onClick={() => navigate(setUp ? '/coach' : '/coach/setup')}
       >
-        <span>{setUp ? 'See the plan & why' : 'Set up the coach →'}</span>
+        <span>{setUp ? 'See the full session' : 'Set up the coach'}</span>
         <span className="settings-link-arrow">›</span>
       </button>
       {!setUp && (
@@ -131,8 +126,7 @@ export default function CoachCard({ sessions, injuries }) {
       )}
 
       <p className="muted coach-disclaimer">
-        A training-awareness tool, not medical advice. Pain is your real signal — see a
-        professional for persistent symptoms.
+        Awareness, not medical advice — pain is your real signal.
       </p>
     </div>
   )

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Field, Segmented, useBack } from '../components/ui'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { Field, PillRow, Segmented, useBack } from '../components/ui'
+import CoachTests from '../components/CoachTests'
 import {
   rollingPlan,
   phaseTimeline,
@@ -23,7 +24,7 @@ import {
   sessionExercises,
 } from '../lib/exercises'
 import { maxTotalFor, prescribeHang } from '../lib/fingerLoad'
-import { isProfileComplete, goalKind } from '../lib/coachProfile'
+import { isProfileComplete, goalKind, saveCoachProfile } from '../lib/coachProfile'
 import { getCoachModel, setCoachModel, getSessionPick, setSessionPick } from '../lib/prefs'
 import { formatDayShort, asDate, todayISO } from '../lib/format'
 import { format } from 'date-fns'
@@ -33,9 +34,22 @@ import SignalBlock from '../components/SignalBlock'
 // The full training-coach view: today's prescription with a real workout
 // attached, the signals behind it, the goal it's building toward, and this
 // week's shape. The dashboard card is the summary; this is the detail.
+// Three tabs rather than one nine-section scroll. Today is what you came for
+// on a training day; the plan and the tests are things you look at now and
+// then, and having them all in one column meant the answer to "what do I do
+// today" was five screens from the bottom of the page.
+const TABS = [
+  { key: 'today', label: 'Today' },
+  { key: 'plan', label: 'The plan' },
+  { key: 'tests', label: 'Tests' },
+]
+
 export default function Coach() {
   const navigate = useNavigate()
   const back = useBack('/')
+  const { pathname } = useLocation()
+  const tabParam = pathname.split('/')[2]
+  const tab = TABS.some((t) => t.key === tabParam) ? tabParam : 'today'
   const [inputs, setInputs] = useState(EMPTY_COACH_INPUTS)
   const [loading, setLoading] = useState(true)
   const [model, setModelState] = useState(getCoachModel)
@@ -65,6 +79,13 @@ export default function Coach() {
     () => phaseTimeline(goals, sessions, model),
     [goals, sessions, model],
   )
+
+  // The one profile write the tests tab makes: converting a legacy
+  // added-weight max into a total-load test clears the old field.
+  const saveProfilePatch = async (patch) => {
+    await saveCoachProfile(patch).catch(() => {})
+    load()
+  }
 
   const chooseModel = (k) => {
     setModelState(k)
@@ -109,6 +130,13 @@ export default function Coach() {
       </header>
 
       <main className="wizard-body stack">
+        <PillRow
+          options={TABS}
+          value={tab}
+          onChange={(k) => navigate(k === 'today' ? '/coach' : `/coach/${k}`, { replace: true })}
+          wide
+        />
+
         {!setUp && (
           <section className="card settings-card stack">
             <h2 className="step-q">Tell the coach about you</h2>
@@ -126,6 +154,8 @@ export default function Coach() {
           </section>
         )}
 
+        {tab === 'today' && (
+        <>
         {!hasLoggedToday(inputs.wellness) && (
           <button
             type="button"
@@ -139,7 +169,7 @@ export default function Coach() {
 
         {problems.length > 0 && (
           <section className="card settings-card stack">
-            <h2 className="step-q">Reported problems</h2>
+            <h2 className="step-q">Something to work around</h2>
             {problems.map((p) => (
               <SignalBlock
                 key={p.fromTest || p.area}
@@ -239,125 +269,45 @@ export default function Coach() {
           {suggestion.exercises.length > 0 && (
             <>
               <h3 className="coach-sub">
-                {suggestion.key === 'mobility' ? 'Mobility routine' : 'Sessions that fit'}
+                {suggestion.key === 'mobility' ? 'The routine' : 'What to do'}
               </h3>
               {suggestion.key === 'mobility' ? (
                 <p className="muted small">{STRETCH_PROTOCOL}</p>
               ) : (
                 <p className="muted small">
                   {suggestion.pickedByYou
-                    ? 'Your pick for today. Tap it again to hand the choice back to the coach.'
-                    : 'The coach picked the first one. Tap another to do that instead — same session type, so the grades and load above still apply.'}
+                    ? 'Your choice for today. Tap it again to hand the choice back to the coach.'
+                    : 'Tap another to swap to it — same session type, so the grades and load above still apply.'}
                 </p>
               )}
+              {/* Only the chosen session is spelled out. The alternatives sit
+                  as one line each: three full cards was most of the page, and
+                  the choice is easier to make when you can see all of it. */}
               <div className="stack">
-                {suggestion.exercises.map((ex, i) => (
-                  <ExerciseCard
-                    key={ex.id}
-                    ex={ex}
-                    primary={i === 0 && suggestion.key !== 'mobility'}
-                    youPicked={i === 0 && suggestion.pickedByYou}
-                    onPick={suggestion.key === 'mobility' ? null : () => choosePick(ex.id)}
-                    profile={profile}
-                    tests={fingerTests}
-                  />
-                ))}
+                {suggestion.exercises.map((ex, i) =>
+                  i === 0 || suggestion.key === 'mobility' ? (
+                    <ExerciseCard
+                      key={ex.id}
+                      ex={ex}
+                      primary={i === 0 && suggestion.key !== 'mobility'}
+                      youPicked={i === 0 && suggestion.pickedByYou}
+                      onPick={suggestion.key === 'mobility' ? null : () => choosePick(ex.id)}
+                      profile={profile}
+                      tests={fingerTests}
+                    />
+                  ) : (
+                    <AlternativeRow key={ex.id} ex={ex} onPick={() => choosePick(ex.id)} />
+                  ),
+                )}
               </div>
-            </>
-          )}
-        </section>
-
-        {/* ---- goal ---- */}
-        <section className="card settings-card stack">
-          <h2 className="step-q">Goal</h2>
-          {goalPhase ? (
-            <>
-              <div className="coach-goal-head">
-                <span className="goal-emoji">{goalKind(goalPhase.goal.kind).emoji}</span>
-                <div className="goal-main">
-                  <span className="goal-title">{goalPhase.goal.title}</span>
-                  <span className="muted small">
-                    {goalPhase.discipline
-                      ? `${
-                          goalPhase.combined
-                            ? 'Boulder & Lead'
-                            : goalPhase.discipline === 'rope'
-                              ? 'Rope'
-                              : 'Bouldering'
-                        } · `
-                      : ''}
-                    {goalPhase.style
-                      ? `${goalPhase.style === 'comp' ? 'Comp' : 'Outdoor'} · `
-                      : ''}
-                    {formatDayShort(goalPhase.goal.target_date)} ·{' '}
-                    {goalPhase.days === 0
-                      ? 'today'
-                      : `${goalPhase.days} day${goalPhase.days === 1 ? '' : 's'} away`}
-                  </span>
-                </div>
-              </div>
-              <div className={`coach-finger coach-finger-${goalPhase.phase.key === 'taper' ? 'ok' : 'good'}`}>
-                <div className="coach-finger-row">
-                  <span className="coach-finger-label">Phase</span>
-                  <span className="coach-finger-state">{goalPhase.phase.label}</span>
-                </div>
-                <p className="muted small coach-finger-hint">{goalPhase.plan.note}</p>
-              </div>
-              {timeline.mode === 'goal' && (
-                <>
-                  <h3 className="coach-sub">The blocks to {formatDayShort(goalPhase.goal.target_date)}</h3>
-                  <BlockTimeline blocks={timeline.blocks} />
-                  <p className="muted small">
-                    Deload weeks land at 4-week marks counting back from the date — recover,
-                    then move on. The phase advances by itself as the date gets closer.
-                  </p>
-                </>
-              )}
-              {goalPhase.combined && (
-                <p className="muted small">
-                  A combined event, so the week alternates: two bouldering sessions, then
-                  two on rope. Each discipline gets a hard day and an easy one rather than
-                  bouldering taking all the hard days.
-                </p>
-              )}
-              <p className="muted small">
-                {goalPhase.weeks === 0
-                  ? 'Under a week out.'
-                  : `${goalPhase.weeks} week${goalPhase.weeks === 1 ? '' : 's'} to go — the phase moves on by itself as the date gets closer.`}
-              </p>
-            </>
-          ) : (
-            <>
-              {suggestion.emphasis ? (
-                <p className="muted small">
-                  Working toward <strong>{suggestion.emphasis.goal.title}</strong>. With no
-                  date there’s nothing to count back from, so it can’t build a peak — what
-                  it does instead is point your hard days at{' '}
-                  {suggestion.emphasis.label.toLowerCase()}. Add a date if you want a plan
-                  that peaks.
-                </p>
-              ) : (
-                <p className="muted small">
-                  No goal yet. Add a competition or a trip and the plan stops being a loop
-                  and starts counting down to it.
-                </p>
-              )}
-              <button
-                type="button"
-                className="btn btn-secondary btn-block settings-link-row"
-                onClick={() => navigate('/coach/setup')}
-              >
-                <span>Add a goal</span>
-                <span className="settings-link-arrow">›</span>
-              </button>
             </>
           )}
         </section>
 
         {/* ---- signals ---- */}
         <section className="card settings-card stack">
-          <h2 className="step-q">Signals</h2>
-          <p className="muted small">Tap a signal for its history and what feeds it.</p>
+          <h2 className="step-q">Where you’re at</h2>
+          <p className="muted small">What the coach read to land on today’s session. Tap any of them for the history behind it.</p>
 
           <SignalBlock
             title="🤏 Finger tissue"
@@ -446,10 +396,101 @@ export default function Coach() {
             onPress={() => navigate('/coach/signals/monotony')}
           />
         </section>
+        </>
+        )}
+
+        {tab === 'plan' && (
+        <>
+        {/* ---- goal ---- */}
+        <section className="card settings-card stack">
+          <h2 className="step-q">Goal</h2>
+          {goalPhase ? (
+            <>
+              <div className="coach-goal-head">
+                <span className="goal-emoji">{goalKind(goalPhase.goal.kind).emoji}</span>
+                <div className="goal-main">
+                  <span className="goal-title">{goalPhase.goal.title}</span>
+                  <span className="muted small">
+                    {goalPhase.discipline
+                      ? `${
+                          goalPhase.combined
+                            ? 'Boulder & Lead'
+                            : goalPhase.discipline === 'rope'
+                              ? 'Rope'
+                              : 'Bouldering'
+                        } · `
+                      : ''}
+                    {goalPhase.style
+                      ? `${goalPhase.style === 'comp' ? 'Comp' : 'Outdoor'} · `
+                      : ''}
+                    {formatDayShort(goalPhase.goal.target_date)} ·{' '}
+                    {goalPhase.days === 0
+                      ? 'today'
+                      : `${goalPhase.days} day${goalPhase.days === 1 ? '' : 's'} away`}
+                  </span>
+                </div>
+              </div>
+              <div className={`coach-finger coach-finger-${goalPhase.phase.key === 'taper' ? 'ok' : 'good'}`}>
+                <div className="coach-finger-row">
+                  <span className="coach-finger-label">Phase</span>
+                  <span className="coach-finger-state">{goalPhase.phase.label}</span>
+                </div>
+                <p className="muted small coach-finger-hint">{goalPhase.plan.note}</p>
+              </div>
+              {timeline.mode === 'goal' && (
+                <>
+                  <h3 className="coach-sub">The blocks to {formatDayShort(goalPhase.goal.target_date)}</h3>
+                  <BlockTimeline blocks={timeline.blocks} />
+                  <p className="muted small">
+                    Deload weeks land at 4-week marks counting back from the date — recover,
+                    then move on. The phase advances by itself as the date gets closer.
+                  </p>
+                </>
+              )}
+              {goalPhase.combined && (
+                <p className="muted small">
+                  A combined event, so the week alternates: two bouldering sessions, then
+                  two on rope. Each discipline gets a hard day and an easy one rather than
+                  bouldering taking all the hard days.
+                </p>
+              )}
+              <p className="muted small">
+                {goalPhase.weeks === 0
+                  ? 'Under a week out.'
+                  : `${goalPhase.weeks} week${goalPhase.weeks === 1 ? '' : 's'} to go — the phase moves on by itself as the date gets closer.`}
+              </p>
+            </>
+          ) : (
+            <>
+              {suggestion.emphasis ? (
+                <p className="muted small">
+                  Working toward <strong>{suggestion.emphasis.goal.title}</strong>. With no
+                  date there’s nothing to count back from, so it can’t build a peak — what
+                  it does instead is point your hard days at{' '}
+                  {suggestion.emphasis.label.toLowerCase()}. Add a date if you want a plan
+                  that peaks.
+                </p>
+              ) : (
+                <p className="muted small">
+                  No goal yet. Add a competition or a trip and the plan stops being a loop
+                  and starts counting down to it.
+                </p>
+              )}
+              <button
+                type="button"
+                className="btn btn-secondary btn-block settings-link-row"
+                onClick={() => navigate('/coach/setup')}
+              >
+                <span>Add a goal</span>
+                <span className="settings-link-arrow">›</span>
+              </button>
+            </>
+          )}
+        </section>
 
         {/* ---- the plan ---- */}
         <section className="card settings-card stack">
-          <h2 className="step-q">Next 7 days</h2>
+          <h2 className="step-q">Your week</h2>
           <p className="muted small">
             {goalPhase
               ? `${goalPhase.phase.label} phase · ${readout.daysPerWeek} sessions a week.`
@@ -530,7 +571,7 @@ export default function Coach() {
 
         {/* ---- settings ---- */}
         <section className="card settings-card stack">
-          <h2 className="step-q">Plan</h2>
+          <h2 className="step-q">How the plan is built</h2>
           <SignalBlock
             title="🎚 Level"
             state={readout.level.label}
@@ -605,6 +646,18 @@ export default function Coach() {
             professional for persistent symptoms.
           </p>
         </section>
+        </>
+        )}
+
+        {tab === 'tests' && (
+          <CoachTests
+            tests={inputs.physicalTests}
+            fingerTests={fingerTests}
+            profile={profile}
+            onProfilePatch={saveProfilePatch}
+            onChanged={load}
+          />
+        )}
       </main>
     </div>
   )
@@ -838,6 +891,24 @@ function PlanDayDetail({ d, profile, limits, suggestion, goalStyle, tests }) {
 // entered a hang max — but only while that test is recent enough to mean
 // anything. A percentage of a number from six months ago is a number nobody
 // knows, so past the staleness cut-off it goes back to describing the effort.
+// An alternative session, one line: enough to choose by, and one tap from
+// becoming the session that's spelled out in full above.
+function AlternativeRow({ ex, onPick }) {
+  const meta = [ex.minutes ? `~${ex.minutes} min` : null, ex.pump ? `pump ${ex.pump[0]}` : null]
+    .filter(Boolean)
+    .join(' · ')
+  return (
+    <button type="button" className="alt-row" onClick={onPick}>
+      <span className="ex-id">{ex.id}</span>
+      <span className="alt-row-main">
+        <span className="alt-row-name">{ex.name}</span>
+        {meta && <span className="muted small">{meta}</span>}
+      </span>
+      <span className="alt-row-swap">Swap</span>
+    </button>
+  )
+}
+
 export function ExerciseCard({
   ex, primary, profile, tests = [], durationMult = 1, onPick = null, youPicked = false,
 }) {

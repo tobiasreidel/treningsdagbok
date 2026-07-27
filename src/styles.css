@@ -2951,6 +2951,104 @@ textarea {
   overflow: hidden;
 }
 
+/* An alternative session, collapsed to a row. */
+.alt-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  background: var(--surface-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.alt-row:active {
+  transform: scale(0.99);
+}
+.alt-row:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.alt-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+.alt-row-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.alt-row-swap {
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+/* ----- test battery ----- */
+.test-item {
+  border-bottom: 1px solid var(--border);
+  padding: 4px 0;
+}
+.test-item:last-child {
+  border-bottom: none;
+}
+.test-item-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 8px 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.test-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.test-item-chevron {
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+.test-item-body {
+  padding: 2px 0 10px;
+}
+.test-entry {
+  padding-bottom: 10px;
+}
+.test-entry-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.test-entry-row .num-field,
+.test-entry-row input {
+  flex: 1;
+  min-width: 0;
+}
+.test-side {
+  flex: 0 0 22px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
 /* ----- test battery (coach setup) ----- */
 /* The open log form, set apart from the list of tests behind it. */
 .test-draft {

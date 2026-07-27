@@ -104,6 +104,8 @@ export default function App() {
           <Route path="/friends" element={<Friends />} />
           <Route path="/changelog" element={<Changelog />} />
           <Route path="/coach" element={<Coach />} />
+          <Route path="/coach/plan" element={<Coach />} />
+          <Route path="/coach/tests" element={<Coach />} />
           <Route path="/coach/setup" element={<CoachSetup />} />
           <Route path="/coach/library" element={<CoachLibrary />} />
           <Route path="/coach/signals" element={<CoachSignals />} />

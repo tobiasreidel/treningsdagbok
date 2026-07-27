@@ -4,6 +4,17 @@
 // Add a new entry at the top whenever something ships that people would notice.
 export const CHANGELOG = [
   {
+    date: '2026-07-27',
+    title: 'The coach, rearranged — and testing has its own place',
+    changes: [
+      'The Coach page is three tabs instead of one long scroll: Today, The plan, Tests. Today is what to do now and why, and it went from five screens of scrolling to about two.',
+      'Under “What to do”, only the session you’re doing is spelled out in full — the alternatives sit as one line each with a Swap button, so you can see all your options at once.',
+      'The test battery moved out of the setup form onto its own tab, and every test now tells you how to run it and what the number is for. Tap any test to read it.',
+      '“Start a testing session”: fill in what you tested, and it saves the results and puts the session in your diary — a testing day is training, and a maximal finger test counts as the hard finger day it is.',
+      'Better names throughout: the dashboard button now says “See the full session”, and “Signals” is “Where you’re at”.',
+    ],
+  },
+  {
     date: '2026-07-26',
     title: 'Works offline, logs the test battery, exports your data',
     changes: [
