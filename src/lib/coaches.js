@@ -1,5 +1,5 @@
 // Coaches: an athlete grants a coach read-only access to their whole account.
-// All access is RLS-guarded server-side (see supabase/coaches.sql). The athlete
+// All access is RLS-guarded server-side (see supabase/migrations/20260101000900_coaches.sql). The athlete
 // sends the request; the coach accepts. Once accepted the coach can view - but
 // never change - the athlete's sessions, calendar and stats.
 import { supabase, currentUserId } from './supabase'
@@ -34,6 +34,10 @@ export async function loadCoachLinks() {
     status: l.status,
     otherId: other(l),
     profile: profById[other(l)] || {},
+    // Athlete-granted access to derived signals and OSTRC, separate from the
+    // session access the link itself carries. Absent on an install that has not
+    // run supabase/migrations/20260728000000_coach_squad.sql, which reads as "not shared".
+    sharesSignals: !!l.shares_signals,
   })
 
   return {

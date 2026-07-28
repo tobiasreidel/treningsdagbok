@@ -132,7 +132,7 @@ export default function Dashboard() {
   const injurySet = useMemo(() => injuryDays(injuries), [injuries])
 
   // Optimistic toggle from the day sheet; reverted (with a hint) on failure -
-  // e.g. when supabase/health.sql hasn't been run yet.
+  // e.g. when supabase/migrations/20260101000500_health.sql hasn't been run yet.
   const togglePeriod = async (date) => {
     const on = !periodSet.has(date)
     setPeriodDays((prev) => (on ? [...prev, date].sort() : prev.filter((d) => d !== date)))
@@ -140,7 +140,7 @@ export default function Dashboard() {
       await setPeriodDay(date, on)
     } catch {
       setPeriodDays((prev) => (on ? prev.filter((d) => d !== date) : [...prev, date].sort()))
-      setToast("Couldn't save the period day. Has supabase/health.sql been run?")
+      setToast("Couldn't save the period day. Have the migrations been applied?")
     }
   }
 

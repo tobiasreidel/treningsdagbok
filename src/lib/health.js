@@ -1,4 +1,4 @@
-// Period tracking + injury log (see supabase/health.sql). Both are strictly
+// Period tracking + injury log (see supabase/migrations/20260101000500_health.sql). Both are strictly
 // private to the owner - no friend/coach policy touches these tables.
 //
 // Cycle prediction is deliberately simple: average the recent start-to-start

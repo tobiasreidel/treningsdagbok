@@ -46,9 +46,13 @@ export default function CoachCard({ sessions, injuries }) {
 
   // The readiness block below already shows the number - repeating it as a
   // reason chip said the same thing twice on one card.
-  const reasons = readiness.enough
-    ? suggestion.reasons.filter((r) => !/^Readiness \d+$/.test(r))
-    : suggestion.reasons
+  const reasons = (readiness.enough
+    ? suggestion.reasons.filter((r) => !/^Readiness \d+$/.test(r.text))
+    : suggestion.reasons)
+  // One line, not a chip cloud: the reason the session changed is the single
+  // most useful thing on this card, and five equal-weight chips bury it.
+  const primary = reasons.find((r) => r.changed) || reasons[0] || null
+  const rest = reasons.filter((r) => r !== primary)
 
   return (
     <div className="card coach-card">
@@ -63,8 +67,8 @@ export default function CoachCard({ sessions, injuries }) {
         {suggestion.type.emoji} {suggestion.type.label}
       </strong>
       <p className="muted small coach-detail">
-        {suggestion.exercises[0] && suggestion.key !== 'deload'
-          ? `${suggestion.exercises[0].id} · ${suggestion.exercises[0].name}`
+        {suggestion.chosen && suggestion.key !== 'deload'
+          ? `${suggestion.chosen.id} · ${suggestion.chosen.name}`
           : suggestion.type.goal}
         {suggestion.grades ? ` · around ${suggestion.grades.text}` : ''}
       </p>
@@ -74,10 +78,13 @@ export default function CoachCard({ sessions, injuries }) {
           {goalPhase.days === 1 ? '' : 's'}
         </p>
       )}
-      {reasons.length > 0 && (
+      {primary && (
+        <p className={`coach-why ${primary.changed ? 'is-changed' : ''}`}>{primary.text}</p>
+      )}
+      {rest.length > 0 && (
         <div className="coach-reasons">
-          {reasons.map((r) => (
-            <span className="coach-reason" key={r}>{r}</span>
+          {rest.map((r) => (
+            <span className="coach-reason" key={r.text}>{r.text}</span>
           ))}
         </div>
       )}

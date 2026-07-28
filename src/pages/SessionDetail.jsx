@@ -347,7 +347,7 @@ export default function SessionDetail() {
 
       {/* Your own charts come from intervals.icu; a friend's come from the
           copy stored when they opened the activity themselves (never their
-          route - see supabase/session_streams.sql). */}
+          route - see the session_streams migration). */}
       {isEndurance && myId && (
         <Suspense fallback={<div className="analysis-placeholder" />}>
           <ActivityAnalysis

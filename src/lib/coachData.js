@@ -102,20 +102,90 @@ const SPORT_FOR_CATEGORY = {
 // "write down what I did" aren't two unrelated acts. Returns null for the
 // categories the diary has no sport for (the mental exercises) - the caller
 // hides the button rather than opening a form that can't be saved.
+//
+// A hangboard session also arrives with its sets already laid out at the
+// prescribed kilos: the card has already resolved "80-90% of max" into a real
+// number, and asking the user to retype it into four rows is asking them to do
+// arithmetic the app just did.
 export function sessionFromSuggestion(suggestion) {
-  const ex = suggestion?.exercises?.[0]
+  // The session you chose, which is not necessarily the first in the list: the
+  // list keeps the coach's order and the selection moves within it.
+  const ex = suggestion?.chosen ?? suggestion?.exercises?.[0]
   const map = ex && SPORT_FOR_CATEGORY[ex.category]
   if (!map) return null
+  const extra = {
+    // Pre-answers "was this the planned session?" - it is, by construction.
+    // A list, so anything else done in the same session can be added to it.
+    coach: { followed: 'planned', type: suggestion.key, exercises: [ex.id] },
+  }
+  const hang = seededHangboard(ex, suggestion.hang)
+  if (hang) extra.finger = hang
   return {
     sport: map.sport,
     subtype: map.subtype ?? null,
     // Indoor is a guess for board and gym work, and the wrong guess to force -
     // left blank so the wizard still asks.
     duration: ex.minutes ? String(ex.minutes) : '',
-    extra: {
-      // Pre-answers "was this the planned session?" - it is, by construction.
-      // A list, so anything else done in the same session can be added to it.
-      coach: { followed: 'planned', type: suggestion.key, exercises: [ex.id] },
-    },
+    extra,
+  }
+}
+
+// The library entry's own sets, seeded at the resolved load. Only when the
+// prescription actually resolved to kilos: seeding a percentage would write a
+// number that means nothing.
+function seededHangboard(ex, hang) {
+  if (ex?.category !== 'finger' || !ex.intensity || ex.intensity.anchor !== 'pctMaxTotal') return null
+  if (!hang || hang.blocked || !(hang.loTotal > 0)) return null
+  const v = ex.volume || {}
+  const sets = Math.max(1, Number(v.sets) || 1)
+  const reps = Math.max(1, Number(v.reps) || 1)
+  const seconds = Number(v.work_s) || null
+  // The midpoint of the prescribed range, rounded to the nearest kilo: a range
+  // is not something a set row can hold.
+  const kg = Math.round((hang.loTotal + hang.hiTotal) / 2)
+  return {
+    hangboard: [
+      {
+        hands: 'two',
+        grip: ex.intensity.grip && ex.intensity.grip !== 'rotating' ? ex.intensity.grip : 'halfcrimp',
+        reps: String(reps),
+        rest: v.rest_s ? String(v.rest_s) : '',
+        sets: Array.from({ length: sets }, () => ({
+          load_total_kg: String(kg),
+          time: seconds ? String(seconds) : '',
+          edge: ex.intensity.edge_mm ? String(ex.intensity.edge_mm) : '',
+        })),
+      },
+    ],
+  }
+}
+
+// Everything needed to log the same session again: the most recent one of a
+// sport (and subtype), re-dated to today, opened for editing rather than saved
+// silently. A hangboard protocol is nearly identical week to week, and retyping
+// it is the single biggest reason a session goes unlogged.
+export function repeatSessionForm(sessions, { sport, subtype = null } = {}) {
+  const match = (sessions || [])
+    .filter((s) => (sport ? s.sport === sport : true) && (subtype ? s.subtype === subtype : true))
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)))[0]
+  if (!match) return null
+  const { schema_version, ...extra } = match.extra || {}
+  return {
+    date: todayISO(),
+    sport: match.sport,
+    subtype: match.subtype ?? null,
+    location: match.location ?? null,
+    feeling: match.feeling ?? null,
+    rpe: match.rpe ?? null,
+    duration: match.duration == null ? '' : String(match.duration),
+    // Notes and the photo belong to that day, not this one.
+    notes: '',
+    extra,
+    routes: (match.routes || []).map((r) => ({
+      name: r.name ?? '',
+      grade: r.grade ?? null,
+      send_type: r.send_type ?? null,
+    })),
+    repeatedFrom: match.date,
   }
 }

@@ -2239,26 +2239,169 @@ textarea {
   border-radius: 999px;
   background: var(--tone, var(--text-muted));
 }
-/* Tone -> colour, shared by the suggestion dot and the finger-status box. */
+/* Tone -> colour, shared by the suggestion dot and the finger-status box.
+   Amber means "the coach changed something or noticed something", and nothing
+   else, or it stops being worth reading: a planned easy day is not a deviation,
+   so it gets the neutral tone rather than the same amber as "above your
+   normal". `--tone-ink` is a darker cast of the same hue for text and small
+   marks, because #f59e0b on surface-2 is about 2.2:1 and fine only as a 3 px
+   border. */
 .coach-dot-go,
 .coach-finger-good {
   --tone: #22c55e;
+  --tone-ink: #15803d;
 }
 .coach-dot-moderate,
-.coach-finger-ok {
+.coach-finger-ok,
+.coach-finger-warn {
   --tone: #f59e0b;
+  --tone-ink: #b45309;
 }
 .coach-dot-easy {
   --tone: #38bdf8;
+  --tone-ink: #0369a1;
 }
 .coach-dot-caution {
   --tone: var(--danger);
+  --tone-ink: #b91c1c;
 }
-.coach-finger-warn {
-  --tone: #f59e0b;
+.coach-dot-planned,
+.coach-finger-planned {
+  --tone: var(--text-muted);
+  --tone-ink: var(--text-muted);
+}
+[data-theme='dark'] .coach-finger-good,
+[data-theme='midnight'] .coach-finger-good,
+[data-theme='forest'] .coach-finger-good,
+[data-theme='sunset'] .coach-finger-good {
+  --tone-ink: #4ade80;
+}
+[data-theme='dark'] .coach-finger-ok,
+[data-theme='dark'] .coach-finger-warn,
+[data-theme='midnight'] .coach-finger-ok,
+[data-theme='midnight'] .coach-finger-warn,
+[data-theme='forest'] .coach-finger-ok,
+[data-theme='forest'] .coach-finger-warn,
+[data-theme='sunset'] .coach-finger-ok,
+[data-theme='sunset'] .coach-finger-warn {
+  --tone-ink: #fbbf24;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .coach-finger-good,
+  [data-theme='system'] .coach-finger-good {
+    --tone-ink: #4ade80;
+  }
+  :root:not([data-theme]) .coach-finger-ok,
+  :root:not([data-theme]) .coach-finger-warn,
+  [data-theme='system'] .coach-finger-ok,
+  [data-theme='system'] .coach-finger-warn {
+    --tone-ink: #fbbf24;
+  }
+}
+/* The tone as a shape, so it survives greyscale and colour blindness. */
+.coach-tone-icon {
+  display: inline-block;
+  min-width: 1em;
+  margin-right: 4px;
+  font-weight: 800;
+  color: var(--tone-ink, var(--text-muted));
 }
 .coach-suggest-title {
   font-size: 1.05rem;
+}
+/* The one line that explains today. A chip cloud renders five reasons at the
+   same weight; this is the one that changed the session. */
+.coach-why {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.coach-why.is-changed {
+  color: var(--text);
+  font-weight: 600;
+}
+/* "Where you're at" as a single row until you ask for more. */
+.coach-signals-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+/* Squad roll-up: athletes down the side, body areas across. Scrolls inside its
+   own box so the page never scrolls sideways. */
+.squad-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.squad-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.8rem;
+}
+.squad-table th,
+.squad-table td {
+  padding: 6px 4px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+}
+.squad-table th[scope='row'] {
+  text-align: left;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.squad-name {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--primary);
+  cursor: pointer;
+}
+.squad-cell {
+  min-width: 34px;
+  font-weight: 700;
+}
+.squad-cell.is-some {
+  background: color-mix(in srgb, #f59e0b 18%, transparent);
+  color: var(--text);
+}
+.squad-cell.is-substantial {
+  background: color-mix(in srgb, var(--danger) 22%, transparent);
+  color: var(--text);
+}
+.person-row-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.coach-signals-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
 }
 .coach-detail {
   margin: 0;

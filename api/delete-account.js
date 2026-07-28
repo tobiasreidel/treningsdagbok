@@ -89,7 +89,7 @@ const PHOTO_BUCKET = 'session-photos'
 const PAGE = 100
 
 // Every object under `<userId>/`: session photos and the avatar both live
-// there (see the storage policies in supabase/schema.sql, which key access on
+// there (see the storage policies in supabase/migrations/20260101000000_schema.sql, which key access on
 // the first path segment). Returns the number removed, or null if the bucket
 // wouldn't answer.
 async function deletePhotos(userId) {

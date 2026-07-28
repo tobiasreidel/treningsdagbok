@@ -52,12 +52,18 @@ export function Segmented({ options, value, onChange, columns = 2 }) {
 }
 
 // 1..max numeric scale (feeling, RPE). Renders tappable pills.
+//
+// Anything longer than six steps wraps onto two rows. Ten buttons in a row
+// inside a 375 px card leaves about 26 px each, which is a little over half the
+// 44 px practical touch-target minimum, on the control that gets touched most
+// often, with chalky fingers, in a gym. Two rows of five gives roughly 60 px.
 export function Scale({ min = 1, max = 5, value, onChange, lowLabel, highLabel }) {
   const nums = []
   for (let i = min; i <= max; i += 1) nums.push(i)
+  const cols = nums.length <= 6 ? nums.length : Math.ceil(nums.length / 2)
   return (
     <div className="scale-wrap">
-      <div className="scale" style={{ '--n': nums.length }}>
+      <div className="scale" style={{ '--n': cols }}>
         {nums.map((n) => (
           <button
             key={n}

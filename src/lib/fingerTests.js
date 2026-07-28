@@ -1,4 +1,4 @@
-// Finger tests and the wider physical test battery (see supabase/coach_v4.sql).
+// Finger tests and the wider physical test battery (see supabase/migrations/20260727000000_coach_v4.sql).
 //
 // Both degrade to [] when the migration hasn't been run, like every other coach
 // table, so the app keeps working and the setup screen says what to run.
@@ -25,7 +25,7 @@ export async function addFingerTest(row) {
   const { error } = await supabase.from('finger_tests').insert({ ...row, user_id: userId })
   if (error) {
     if (isMissingTable(error)) {
-      const e = new Error('Run supabase/coach_v4.sql to enable finger tests.')
+      const e = new Error('Finger tests need the v4 coach tables. Apply the migrations (npx supabase db push).')
       e.code = 'no-table'
       throw e
     }
@@ -237,7 +237,7 @@ export async function addPhysicalTest(row) {
   const { error } = await supabase.from('physical_tests').insert({ ...row, user_id: userId })
   if (error) {
     if (isMissingTable(error)) {
-      const e = new Error('Run supabase/coach_v4.sql to enable the test battery.')
+      const e = new Error('The test battery needs the v4 coach tables. Apply the migrations (npx supabase db push).')
       e.code = 'no-table'
       throw e
     }

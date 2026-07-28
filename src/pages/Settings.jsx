@@ -168,7 +168,7 @@ export default function Settings() {
       setBackfill({
         running: false,
         msg: err?.code === 'no-table'
-          ? 'Sharing isn’t set up yet. Run supabase/session_streams.sql.'
+          ? 'Sharing isn’t set up yet. Apply the migrations (npx supabase db push).'
           : err.message || 'Could not share activities.',
       })
     }

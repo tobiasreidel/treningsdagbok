@@ -1,9 +1,9 @@
-// Coach profile + goals (see supabase/coach.sql). The profile is what lets the
+// Coach profile + goals (see supabase/migrations/20260725000000_coach.sql). The profile is what lets the
 // generator prescribe real numbers; the goals are what turn a weekly rhythm
 // into a plan that peaks on a date.
 //
 // Every read degrades to "not set up yet" when the tables are missing, so the
-// app still runs before supabase/coach.sql has been applied.
+// app still runs before supabase/migrations/20260725000000_coach.sql has been applied.
 import { supabase, currentUserId, isMissingTable } from './supabase'
 import { differenceInCalendarDays } from 'date-fns'
 import { asDate, todayISO } from './format'
@@ -17,13 +17,13 @@ function isMissingColumn(err) {
 
 function schemaError(err) {
   if (isMissingTable(err)) {
-    const e = new Error('Run supabase/coach.sql in the Supabase SQL editor to set up the coach.')
+    const e = new Error('The coach tables are not set up yet. Apply the migrations (npx supabase db push).')
     e.code = 'no-table'
     return e
   }
   if (isMissingColumn(err)) {
     const e = new Error(
-      'Your coach tables are missing newer fields. Re-run supabase/coach.sql (it’s safe to run again).',
+      'Your coach tables are missing newer fields. Apply the migrations (npx supabase db push).',
     )
     e.code = 'old-schema'
     return e
@@ -38,7 +38,7 @@ export function notifyCoachChanged() {
 // ---- profile ---------------------------------------------------------------
 
 // Returns the row, null when nothing is saved yet, or { missingTable: true }
-// when supabase/coach.sql hasn't been run.
+// when supabase/migrations/20260725000000_coach.sql hasn't been run.
 export async function fetchCoachProfile() {
   const { data, error } = await supabase.from('coach_profile').select('*').maybeSingle()
   if (error) {

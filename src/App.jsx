@@ -33,6 +33,10 @@ const Coach = lazy(() => import('./pages/Coach'))
 const CoachSetup = lazy(() => import('./pages/CoachSetup'))
 const CoachLibrary = lazy(() => import('./pages/CoachLibrary'))
 const CoachSignals = lazy(() => import('./pages/CoachSignals'))
+// A dev bench for the engine, reachable by typing the route and linked from
+// nowhere. Lazy like everything else, so it costs a normal user nothing.
+const CoachSimulator = lazy(() => import('./pages/CoachSimulator'))
+const Squad = lazy(() => import('./pages/Squad'))
 const CheckIn = lazy(() => import('./pages/CheckIn'))
 
 export default function App() {
@@ -110,6 +114,8 @@ export default function App() {
           <Route path="/coach/library" element={<CoachLibrary />} />
           <Route path="/coach/signals" element={<CoachSignals />} />
           <Route path="/coach/signals/:key" element={<CoachSignals />} />
+          <Route path="/coach/simulator" element={<CoachSimulator />} />
+          <Route path="/squad" element={<Squad />} />
           <Route path="/checkin" element={<CheckIn />} />
           <Route path="/athlete/:id" element={<AthleteView />} />
           <Route path="/athlete/:id/stats" element={<Stats />} />

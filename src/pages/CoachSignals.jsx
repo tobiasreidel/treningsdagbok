@@ -216,17 +216,37 @@ function FingerDetail({ readout, sessions, profile, tests }) {
           </p>
         )}
         {recovery.chronicLevel !== 'ok' && (
-          <p className="auth-error">
-            {recovery.days28} hard finger days in 28 days is a{' '}
-            {recovery.chronicLevel === 'very-high' ? 'very high' : 'high'} chronic level, and
-            connective tissue adapts slower than muscle.
-          </p>
+          <>
+            <p className={recovery.chronicLevel === 'elevated' ? 'muted small' : 'auth-error'}>
+              {recovery.days28} hard finger days in 28 days is{' '}
+              {recovery.chronicLevel === 'very-high'
+                ? 'a very high'
+                : recovery.chronicLevel === 'high'
+                  ? 'a high'
+                  : 'an elevated'}{' '}
+              chronic level, and connective tissue adapts slower than muscle.
+            </p>
+            {/* The mechanism above is well supported. The number it is being
+                compared against is not, and saying so next to it is more
+                trustworthy than a disclaimer three taps away. */}
+            <p className="muted small">
+              The line it is measured against ({recovery.chronicCeiling?.high} high,{' '}
+              {recovery.chronicCeiling?.veryHigh} very high, scaled to your years climbing) is a
+              starting point, not a finding. It was chosen so the model behaves, and it may not
+              fit you.
+            </p>
+          </>
         )}
         <p className="muted small">
           Crimping strains pulleys and finger tendons, and the tissue rebuilds over days:
           net loss for roughly the first 24–36 h, net synthesis at ~36–72 h. A maximal
           session wants ~72 h before the next one, a hard session ~48 h. Pump is
           deliberately not counted: it is metabolic and clears in hours.
+        </p>
+        <p className="muted small">
+          The rebuild window above is the well-supported part. The dose numbers, the tier cuts
+          and the day counts are chosen so the model behaves sensibly, and they are the parts
+          most likely to be wrong for you.
         </p>
       </section>
     </>
@@ -311,11 +331,32 @@ function ReadinessDetail({ readout, sessions, wellness, icu, onCheckIn }) {
           </p>
           {readiness.subjectiveMissing && (
             <p className="auth-error">
-              Running on objective data only, as you haven't checked in enough this week
-              (needs 4 of the last 7 days). The subjective half is the part that actually
-              tracks how you feel.
+              Running on objective data only, as you haven't checked in this week. The
+              subjective half is the part that actually tracks how you feel.
             </p>
           )}
+          {readiness.subjectiveThin && (
+            <p className="muted small">
+              Running on thin subjective data: {readiness.recentWellness} check-in
+              {readiness.recentWellness === 1 ? '' : 's'} in the last 7 days. It still counts,
+              and it says so here rather than switching itself on and off around a threshold,
+              which made the score jump for reasons you could not see.
+            </p>
+          )}
+          {/* The z-score cannot see a baseline that has been bad for weeks, by
+              construction. The absolute check is the counterpart. */}
+          {readiness.sustained.map((s) => (
+            <p className="auth-error" key={s.key}>
+              Your {s.label.toLowerCase()} has been poor {s.days} of the last {s.of} days.
+              Readiness compares you against your own recent normal, and your recent normal has
+              been low, so the score can read fine while you do not.
+            </p>
+          ))}
+          <p className="muted small">
+            50 as your normal, 10 points per standard deviation, and the weights above are all
+            chosen numbers rather than findings. The construction (7-day means against the
+            spread of 7-day means, windows that never overlap) is the part worth trusting.
+          </p>
         </section>
       )}
     </>
@@ -400,25 +441,29 @@ function MonotonyDetail({ readout, sessions }) {
         title="🔁 Monotony"
         state={
           !monotony.enough
-            ? 'Quiet week'
+            ? monotony.reason === 'frequency'
+              ? 'Not meaningful yet'
+              : 'Quiet week'
             : monotony.monotony == null
               ? 'Very high'
               : monotony.monotony.toFixed(1)
         }
-        tone={!monotony.enough ? 'ok' : monotony.flag ? 'warn' : 'good'}
+        tone={!monotony.enough ? 'planned' : monotony.flag ? 'warn' : 'good'}
         hint={
           !monotony.enough
-            ? 'Too few training days this week to judge the spread.'
+            ? monotony.reason === 'frequency'
+              ? `Judged over the days you train, and ${monotony.activeDays} is too few to tell a varied week from a flat one.`
+              : 'Nothing logged this week yet.'
             : monotony.flag
-              ? 'Your days look much the same. Making hard days harder and easy days easier tends to beat a flat week.'
-              : 'Good spread between your hard and easy days.'
+              ? 'Your sessions look much the same. Making hard days harder and easy days easier tends to beat a flat week.'
+              : 'Good spread between your hard and easy sessions.'
         }
       />
 
       <ChartCard
         title="Monotony, last 42 days"
         value={monotony.enough && monotony.monotony != null ? monotony.monotony.toFixed(1) : '-'}
-        note="Foster's monotony: the week's average daily load divided by its day-to-day spread. Above ~2 for weeks on end is the pattern linked with overtraining symptoms: same total load, worse outcome. Gaps are weeks with under 3 training days."
+        note={`The spread of your sessions: average load across the days you trained, divided by how much they differ. Above ${monotony.threshold ?? 4} means they are nearly all the same session. Gaps are weeks with under 5 training days.`}
       >
         {hasHistory ? (
           <Line data={line} fromZero={false} color="var(--primary)" />
@@ -439,6 +484,7 @@ function MonotonyDetail({ readout, sessions }) {
           <h2 className="step-q">The arithmetic</h2>
           <div className="coach-spec">
             <WhyRow label="Weekly load" value={`${Math.round(monotony.weeklyLoad)} AU`} />
+            <WhyRow label="Days trained" value={monotony.activeDays} />
             <WhyRow
               label="Monotony"
               value={monotony.monotony == null ? 'Off the scale (a flat week)' : monotony.monotony.toFixed(2)}
@@ -449,6 +495,27 @@ function MonotonyDetail({ readout, sessions }) {
           </div>
         </section>
       )}
+
+      {/* This is not Foster's monotony and should not claim to be. Foster
+          divides by the spread of all seven days, rest days included as zeros,
+          which for anyone who takes rest days can only ever produce "steady":
+          three sessions a week lands near 0.87 against a threshold of 2. */}
+      <section className="card settings-card stack">
+        <h2 className="step-q">Why this is not Foster's number</h2>
+        <p className="muted small">
+          Foster's monotony divides by the spread of all seven days, counting rest days as
+          zeros. Done that way, a three-session week scores about 0.9 and a four-session week
+          about 1.2, so the usual threshold of 2 can only ever be reached by someone training
+          six or seven days a week: the signal would read “steady” forever no matter what you
+          did. This version uses only the days you trained, which measures whether your
+          sessions differ from each other rather than whether you train every day.
+        </p>
+        <p className="muted small">
+          The threshold moved with it, because the denominator changed: over training days a
+          week with real hard/easy contrast sits around 2 to 3.5, and only near-identical
+          sessions pass {monotony.threshold ?? 4}. That number is chosen, like the old one was.
+        </p>
+      </section>
     </>
   )
 }

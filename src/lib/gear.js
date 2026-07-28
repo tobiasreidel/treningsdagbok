@@ -6,7 +6,7 @@
 // the wear table shows what's been done since each latest event: km for
 // cycling/running, session count for climbing. Logging the same label again
 // resets its counter.
-// Data lives in gear_items + gear_events (owner-only RLS, supabase/gear.sql).
+// Data lives in gear_items + gear_events (owner-only RLS, supabase/migrations/20260723000000_gear.sql).
 import { supabase } from './supabase'
 import { todayISO } from './format'
 

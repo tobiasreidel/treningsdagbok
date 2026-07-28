@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Training coach v4: finger-test model, bodyweight, and the test battery.
 --
--- Run this AFTER supabase/coach.sql. Safe to run more than once.
+-- Run this AFTER supabase/migrations/20260725000000_coach.sql. Safe to run more than once.
 --
 -- WHY THIS EXISTS
 -- ---------------

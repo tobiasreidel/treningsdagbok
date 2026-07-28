@@ -11,7 +11,7 @@ export default function SetupNeeded() {
             Create a free project at <code>supabase.com</code>.
           </li>
           <li>
-            Run <code>supabase/schema.sql</code> in the SQL editor.
+            Apply the migrations with <code>npx supabase db push</code>.
           </li>
           <li>
             Copy <code>.env.example</code> to <code>.env</code> and fill in your

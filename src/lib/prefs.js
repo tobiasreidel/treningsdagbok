@@ -25,7 +25,7 @@ const KEYS = {
 // a server round-trip on every keystroke; the profile row remains the source
 // of truth for anything the coach computes.
 //
-// One value, no history, deliberately: see supabase/coach_v4.sql for why a
+// One value, no history, deliberately: see supabase/migrations/20260727000000_coach_v4.sql for why a
 // bodyweight *trend* is a feature this app does not build.
 export function getBodyweight() {
   try {

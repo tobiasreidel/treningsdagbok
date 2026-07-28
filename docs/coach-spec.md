@@ -1,5 +1,10 @@
 # Training Coach: full specification (v3)
 
+> **Superseded in places.** Written for v3. The dose arithmetic, the chronic
+> ceilings, the finger-RPE tier cuts, the monotony definition and the readiness
+> gates have all changed since. `docs/climbing-handoff.md` is the current
+> description; where the two disagree, that one is right and this one is history.
+
 A feature in a personal climbing/training diary (React PWA + Supabase, single
 user plus a handful of friends). **Every rule below is deterministic**: no
 model, no learning, no inference. Arithmetic over logged data plus lookup

@@ -8,6 +8,7 @@ import NotesPhoto from '../components/form/NotesPhoto'
 import NotesField from '../components/form/NotesField'
 import CoachPlanField, { COACH_SPORTS } from '../components/form/CoachPlanField'
 import { emptyForm, isOutdoorClimbing } from '../lib/formState'
+import { formatDayShort } from '../lib/format'
 import { SPORTS, SUBTYPES, LOCATIONS } from '../lib/constants'
 import { getEnabledSports, getCoachEnabled } from '../lib/prefs'
 import { createSession, notifySessionsChanged } from '../lib/sessions'
@@ -68,6 +69,16 @@ export default function RegisterSession() {
 
   const current = steps[Math.min(step, steps.length - 1)]
   const isLast = step >= steps.length - 1
+  // The wizard is right for session one and wrong for session two hundred. Five
+  // steps, four scales and a set editor is a lot of interaction for something
+  // logged 150 times a year, and the coach leans hardest on three of those
+  // fields. Quick mode collapses the details step to duration, RPE and finger
+  // RPE with one button to open the rest.
+  const [quick, setQuick] = useState(true)
+  // Not for outdoor climbing: there the route log is the point of the session,
+  // and hiding it behind a button would lose the grades the coach reads.
+  const quickMode = quick && !isOutdoorClimbing(form)
+  const canQuickSave = quickMode && current === 'details' && Number(form.duration) > 0
 
   const selectSport = (sport) => {
     // Reset sport-specific bits when (re)choosing a sport, keep the date.
@@ -175,9 +186,30 @@ export default function RegisterSession() {
           <section className="stack">
             <div>
               <h2 className="step-q">Details</h2>
-              <DetailsFields form={form} update={update} updateExtra={updateExtra} />
+              {form.repeatedFrom && (
+                <p className="muted small">
+                  Copied from your session on {formatDayShort(form.repeatedFrom)}, dated today.
+                  Change whatever was different.
+                </p>
+              )}
+              <DetailsFields
+                form={form}
+                update={update}
+                updateExtra={updateExtra}
+                compact={quickMode}
+              />
             </div>
-            <NotesField form={form} update={update} />
+            {quickMode ? (
+              <button
+                type="button"
+                className="btn btn-secondary btn-block"
+                onClick={() => setQuick(false)}
+              >
+                Add detail
+              </button>
+            ) : (
+              <NotesField form={form} update={update} />
+            )}
           </section>
         )}
 
@@ -209,7 +241,7 @@ export default function RegisterSession() {
       </main>
 
       <footer className="wizard-foot">
-        {!isLast ? (
+        {!isLast && !canQuickSave ? (
           <button
             className="btn btn-primary btn-block"
             onClick={next}

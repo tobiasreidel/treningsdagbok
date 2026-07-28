@@ -112,15 +112,15 @@ export default function CoachSetup() {
       <main className="wizard-body stack">
         {missingTable && (
           <p className="auth-error">
-            The coach tables aren’t set up yet. Run <code>supabase/coach.sql</code> in the
-            Supabase SQL editor. Nothing here will save until you do.
+            The coach tables aren’t set up yet. Apply the migrations with{' '}
+            <code>npx supabase db push</code>. Nothing here will save until you do.
           </p>
         )}
         {oldSchema && !missingTable && (
           <p className="auth-error">
-            Your coach tables are from an earlier version and are missing some fields, so
-            re-run <code>supabase/coach.sql</code>. It’s safe to run again and won’t touch
-            what you’ve already saved.
+            Your coach tables are from an earlier version and are missing some fields. Apply the
+            migrations with <code>npx supabase db push</code>. It’s safe to run again and
+            won’t touch what you’ve already saved.
           </p>
         )}
 
@@ -475,7 +475,7 @@ function GoalsSection({ goals, onChanged }) {
       setDraft(null)
       onChanged()
     } catch (e) {
-      setErr(e.message || 'Could not save. Has supabase/coach.sql been run?')
+      setErr(e.message || 'Could not save. Have the migrations been applied (npx supabase db push)?')
     }
     setBusy(false)
   }

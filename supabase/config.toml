@@ -1,0 +1,6 @@
+# Supabase CLI project config. Deliberately minimal: this project only uses the
+# CLI to apply the migrations in ./migrations. See supabase/README.md.
+project_id = "treningsdagbok"
+
+[db]
+major_version = 15

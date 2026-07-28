@@ -12,11 +12,19 @@ enterprise.
 npm run dev     # vite, :5173
 npm run test    # vitest, the pure-logic tests in src/lib/*.test.js
 npm run build   # ALWAYS run before pushing; main auto-deploys to prod
+
+npx supabase db push   # apply migrations (see supabase/README.md)
 ```
 
-No linter. The tests cover the coach engine and the finger-load maths only,
-the parts where a wrong answer is invisible on inspection, so the build is
-still the gate for everything else. Push to `main` and Vercel deploys it.
+No linter. The tests cover the coach engine, the finger-load maths and the
+golden fixtures, the parts where a wrong answer is invisible on inspection, so
+the build is still the gate for everything else. Push to `main` and Vercel
+deploys it.
+
+`src/lib/coachFixtures.test.js` holds ~20 synthetic athletes snapshotted through
+the whole readout. Change a coach constant and the diff shows the blast radius;
+update with `npm run test -- -u` **after reading the diff**, never before.
+There is also a dev-only bench at `/coach/simulator` for watching signals move.
 
 ## Layout
 
@@ -30,10 +38,12 @@ still the gate for everything else. Push to `main` and Vercel deploys it.
   owning its own Supabase queries.
 - `src/styles.css`: one stylesheet, plain CSS variables, themes via
   `[data-theme]`. No CSS framework, no CSS-in-JS.
-- `supabase/*.sql`: migrations, applied **by hand** in the Supabase SQL
-  editor. Write the file, tell the user to run it; never assume it has run.
-  Guard reads against a missing table (`isMissingTable`) so an un-migrated
-  install degrades instead of erroring.
+- `supabase/migrations/`: `<timestamp>_<name>.sql`, applied in filename order
+  with `npx supabase db push`. Write it idempotent (`if not exists`, `drop
+  policy if exists`), one contiguous block per table so a failed statement can
+  never leave a table created but unprotected, and still guard reads against a
+  missing table (`isMissingTable`) so a half-migrated install degrades instead
+  of erroring. Never assume a migration has run.
 - `api/`: two Vercel functions (account deletion, feedback). Everything else
   talks to Supabase directly, protected by RLS.
 
@@ -52,6 +62,17 @@ still the gate for everything else. Push to `main` and Vercel deploys it.
   inputs with `loadCoachInputs()` and derive with `readoutFrom()` from
   `lib/coachData.js`, so every screen reads the same signals. The exercise
   library is data in `lib/exercises.js`.
+- **Never read `sessions.extra` directly.** `lib/sessionShape.js` is the only
+  place that interprets it: `normaliseSession(row, { bodyweight })` returns
+  hangboard loads resolved to total kilos (or an explicit null), `campus` as the
+  enum it is, grades parsed. Three shipped bugs were three consumers reading
+  that blob independently and drifting apart. Writes stamp
+  `extra.schema_version`; absent means v3 or older.
+- **Fitted, not chosen, where possible.** `expectedDose` in the library is
+  effectively a labelled dataset: the dose coefficients in `coach.js` are fitted
+  to reproduce it, so refit and re-check the library if you touch them. Say in
+  the copy which numbers are findings and which were picked so the model
+  behaves.
 - **Units are metric**, dates are ISO `yyyy-MM-dd` strings via `lib/format.js`
   (`todayISO`, `asDate`), not `Date` objects in state.
 - **Comments explain why, not what.** The existing ones carry real reasoning

@@ -4,6 +4,25 @@
 // Add a new entry at the top whenever something ships that people would notice.
 export const CHANGELOG = [
   {
+    date: '2026-07-28',
+    title: 'The coach stops nagging, and starts showing its work',
+    changes: [
+      'The coach used to tell an ordinary three-times-a-week climber to do technique drills more or less forever. Its idea of a “hard finger day” counted any session on small holds, which is most sessions, so the 28-day ceiling was permanently over the line. Working hard on small holds is no longer scored the same as a maximal hang, the ceilings are higher, and there is a band between “fine” and “stop” instead of a cliff.',
+      'The finger-load maths was refitted. The old version said it had been changed so a long repeater session would not outscore a max hangboard session, and it still did. Now a session works out to what the exercise library says it should cost, which also means the library tests the maths.',
+      'Today shows one line saying why, instead of a row of chips at equal weight. The four signals fold into a single row and only open themselves when something wants looking at.',
+      'Readiness can now see a bad month. It compares you against your own recent normal, so two months of poor sleep used to read as “normal”. It now says so in words, separately from the number.',
+      'Monotony was incapable of firing for anyone who takes rest days, so it read “Steady” forever. It now measures whether your sessions differ from each other, and says “not meaningful at your training frequency” when it cannot tell.',
+      'New: “Log this again today” on any session in the logbook, which opens the form filled in and dated today. A hangboard protocol is nearly the same every week.',
+      'Logging is faster: duration, RPE and finger RPE, then save. Everything else is behind “Add detail”. Finger RPE moved up, because it is the number the coach leans on hardest.',
+      'The 1-10 scales are two rows of five. Ten buttons across a phone left each one about 26 px wide, which is not a target you can hit with chalky fingers.',
+      'A session can say Morning, Midday or Evening. The finger-recovery window then counts hours instead of calendar days, so a Monday evening to a Wednesday morning is 34 hours and not two days.',
+      'Indoor sessions can log “attempts within a grade of your limit”. Only outdoor route logs used to count, so the coach could barely see how hard an indoor session was.',
+      'The Finger tab’s hangboard chart has been showing 0 kg since loads moved to total kilos. Fixed, and it now says total kilos, which is what it is.',
+      'Where a number is a starting point rather than a finding, the screen says so next to the number instead of in a disclaimer three taps away.',
+      'For coaches: a squad page with this week’s overuse answers, athletes down the side and body areas across. Athletes turn sharing on per coach and can turn it off again, and it shares signals and overuse answers only, never your daily check-in entries or your notes.',
+    ],
+  },
+  {
     date: '2026-07-27',
     title: 'The coach, rearranged, and testing has its own place',
     changes: [

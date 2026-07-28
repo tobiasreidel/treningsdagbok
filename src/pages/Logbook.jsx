@@ -18,6 +18,7 @@ import {
 import { fetchPeriodDays } from '../lib/health'
 import { embeddedStrengthMinutes, embeddedFingerMinutes } from '../lib/stats'
 import { ALL_SPORTS, getLogPeriod } from '../lib/prefs'
+import { repeatSessionForm } from '../lib/coachData'
 import { PendingBadge, PillRow } from '../components/ui'
 
 // Session-length buckets for the filter row (minutes).
@@ -131,6 +132,13 @@ export default function Logbook() {
       ),
     [sessions, sportFilter, lenFilter, lenMin, lenMax, customLen, q],
   )
+
+  // Log the same session again, dated today, opened for editing rather than
+  // saved behind your back.
+  const repeat = (s) => {
+    const prefill = repeatSessionForm([s], {})
+    if (prefill) navigate('/new', { state: { prefill } })
+  }
 
   // Group filtered sessions by calendar month, newest month first. Sessions
   // arrive already sorted newest-first, so each month's order is preserved.
@@ -256,6 +264,7 @@ export default function Logbook() {
                           open={openId === s.id}
                           onToggle={() => setOpenId((id) => (id === s.id ? null : s.id))}
                           onOpenFull={() => navigate(`/session/${s.id}`)}
+                          onRepeat={() => repeat(s)}
                         />
                       ))}
                     </div>
@@ -270,7 +279,7 @@ export default function Logbook() {
   )
 }
 
-function Entry({ session: s, period, open, onToggle, onOpenFull }) {
+function Entry({ session: s, period, open, onToggle, onOpenFull, onRepeat }) {
   const sport = SPORTS[s.sport]
   const facts = keyFacts(s)
   return (
@@ -298,12 +307,12 @@ function Entry({ session: s, period, open, onToggle, onOpenFull }) {
         </span>
       </button>
 
-      {open && <Expanded session={s} onOpenFull={onOpenFull} />}
+      {open && <Expanded session={s} onOpenFull={onOpenFull} onRepeat={onRepeat} />}
     </div>
   )
 }
 
-function Expanded({ session: s, onOpenFull }) {
+function Expanded({ session: s, onOpenFull, onRepeat }) {
   const tiles = detailTiles(s)
   const grades = s.extra?.grades || []
   return (
@@ -346,9 +355,18 @@ function Expanded({ session: s, onOpenFull }) {
           Delete offline session
         </button>
       ) : (
-        <button className="btn btn-secondary btn-sm btn-block" onClick={onOpenFull}>
-          Open full session ›
-        </button>
+        <>
+          {/* Nearly every session is a repeat of one you have already logged,
+              and retyping a hangboard protocol week after week is the friction
+              that starves the coach of data. Opens the form filled in, dated
+              today, so only what differed needs editing. */}
+          <button className="btn btn-primary btn-sm btn-block" onClick={onRepeat}>
+            Log this again today
+          </button>
+          <button className="btn btn-secondary btn-sm btn-block" onClick={onOpenFull}>
+            Open full session ›
+          </button>
+        </>
       )}
     </div>
   )

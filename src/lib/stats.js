@@ -11,7 +11,8 @@ import {
   differenceInCalendarDays,
 } from 'date-fns'
 import { asDate } from './format'
-import { normalizeHang } from './formState'
+import { normaliseSession } from './sessionShape'
+import { getBodyweight } from './prefs'
 import { formatGrade } from './constants'
 
 const WEEK_OPTS = { weekStartsOn: 1 }
@@ -460,8 +461,7 @@ function exerciseEntries(session, key) {
 }
 
 export function hasFingerData(s) {
-  const f = s.extra?.finger
-  return Boolean(f && (f.campus || (f.hangboard || []).length > 0))
+  return normaliseSession(s).hasFingerWork
 }
 
 // Distinct exercise keys logged, in first-seen order.
@@ -490,8 +490,14 @@ export function fingerSessionCount(arr) {
   return arr.filter((s) => hasFingerData(s)).length
 }
 
+// Campus board only. `campus` is an enum whose 'spray' member is also truthy,
+// so a plain truthiness test counted spray-wall sessions as campus sessions.
 export function campusCount(sessions) {
-  return sessions.filter((s) => s.extra?.finger?.campus).length
+  return sessions.filter((s) => normaliseSession(s).campus === 'board').length
+}
+
+export function sprayCount(sessions) {
+  return sessions.filter((s) => normaliseSession(s).campus === 'spray').length
 }
 
 // Per-session series for one exercise, oldest→newest.
@@ -526,22 +532,42 @@ export function exerciseBest(sessions, key) {
   return { maxWeight, maxReps, sessions: count }
 }
 
-// Heaviest added weight across an exercise's sets (handles both data shapes).
-function hangMaxWeight(h) {
-  return Math.max(0, ...normalizeHang(h).sets.map((x) => num(x.weight)))
+// Hangboard progression: heaviest two-hand TOTAL load per session, oldest to
+// newest. Nulls for sessions whose sets cannot be read without a bodyweight, so
+// they show as a gap instead of a zero.
+//
+// This read `set.weight`, which v4 rows never write, so the chart and the "best
+// hang" tile silently showed 0 kg for every session logged after the total-load
+// migration. It is also the reason the card said "kg added": both were left
+// behind by the migration.
+export function hangboardSeries(sessions, bodyweight = getBodyweight()) {
+  const shaped = sessions.map((s) => ({ s, n: normaliseSession(s, { bodyweight }) }))
+  const rows = shaped
+    .filter(({ n }) => n.hangboard.some((h) => h.hands === 'two'))
+    .sort((a, b) => a.s.date.localeCompare(b.s.date))
+  return rows.map(({ s, n }) => {
+    const kgs = n.hangboard
+      .filter((h) => h.hands === 'two')
+      .flatMap((h) => h.sets.map((x) => x.kg))
+      .filter((kg) => kg != null && kg > 0)
+    return { label: fmtShort(s.date), value: kgs.length ? round1(Math.max(...kgs)) : null }
+  })
 }
 
-// Hangboard progression: heaviest two-hand added weight per session (oldest→newest).
-export function hangboardSeries(sessions) {
-  const isTwo = (h) => normalizeHang(h).hands === 'two'
-  const rows = sessions
-    .filter((s) => (s.extra?.finger?.hangboard || []).some(isTwo))
-    .slice()
-    .sort((a, b) => a.date.localeCompare(b.date))
-  return rows.map((s) => {
-    const two = (s.extra.finger.hangboard || []).filter(isTwo)
-    return { label: fmtShort(s.date), value: round1(Math.max(0, ...two.map(hangMaxWeight))) }
-  })
+// Where the load series changes definition. `sessionLoad` prefers imported TSS
+// and estimates from duration and RPE otherwise, and the two are only roughly
+// on the same scale. Connecting or disconnecting intervals.icu therefore
+// redefines every affected session, and CTL takes 42 days to forget it, so form
+// (a fifth of readiness) drifts for six weeks with no explanation. Cheaper and
+// more honest to say the window is mixed than to pretend it is one unit.
+export function loadUnitMix(sessions) {
+  let imported = 0
+  let estimated = 0
+  for (const s of sessions) {
+    if (num(s.extra?.training_load) > 0) imported += 1
+    else if (sessionLoad(s) > 0) estimated += 1
+  }
+  return { imported, estimated, mixed: imported > 0 && estimated > 0 }
 }
 
 // Null-passing so "no data" stays a chart gap instead of becoming a 0.

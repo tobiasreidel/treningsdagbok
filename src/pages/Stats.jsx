@@ -319,6 +319,7 @@ function FitnessBlock({ view }) {
   const shown = fitness[shownIdx]
   const isToday = hoverIdx == null || shownIdx === fitness.length - 1
   const status = S.formStatus(shown.form)
+  const mix = S.loadUnitMix(view.windowed)
 
   return (
     <div className="card chart-card">
@@ -371,6 +372,19 @@ function FitnessBlock({ view }) {
         fresh and race-ready, red = overreached. Slide across the chart to see
         any day. {FITNESS_SOURCE_NOTE[source]}
       </p>
+      {/* Two units in one series. Imported TSS and load estimated from duration
+          and RPE are only roughly the same scale, and connecting or
+          disconnecting intervals.icu redefines every affected session. Fitness
+          takes 42 days to forget that, so say the window is mixed rather than
+          letting it read as one number that drifted for no reason. */}
+      {mix.mixed && (
+        <p className="muted small chart-note">
+          Part of this window is imported TSS ({mix.imported} session
+          {mix.imported === 1 ? '' : 's'}) and part is estimated from duration and RPE (
+          {mix.estimated}). The two are close but not the same unit, and fitness takes six
+          weeks to forget a switch, so a change around then is worth reading as that.
+        </p>
+      )}
     </div>
   )
 }
@@ -815,7 +829,9 @@ function Finger({ view }) {
     )
   }
 
-  const bestHang = hang.reduce((m, p) => Math.max(m, p.value), 0)
+  const spray = S.sprayCount(windowed)
+  const readable = hang.filter((p) => p.value != null)
+  const bestHang = readable.reduce((m, p) => Math.max(m, p.value), 0)
   const freqBars = buckets.map((b) => ({ label: b.label, value: S.fingerSessionCount(b.sessions) }))
 
   return (
@@ -824,7 +840,8 @@ function Finger({ view }) {
         items={[
           { label: 'Sessions', value: sessCount },
           { label: 'Campus', value: campus },
-          { label: 'Best hang', value: bestHang || '–', sub: bestHang ? 'kg' : '' },
+          { label: 'Spray wall', value: spray },
+          { label: 'Best hang', value: bestHang || '–', sub: bestHang ? 'kg total' : '' },
         ]}
       />
 
@@ -832,9 +849,17 @@ function Finger({ view }) {
         <Bars data={freqBars} color={FINGER} />
       </Card>
 
-      <Card title="Hangboard, max two-hand weight" value="kg added">
-        {hang.length ? (
+      {/* Total load, bodyweight included, the same number your max test is
+          recorded in. It used to read the added-weight field, which nothing has
+          written since the total-load migration, so this chart sat at 0 kg. */}
+      <Card title="Hangboard, heaviest two-hand set" value="kg total">
+        {readable.length ? (
           <Line data={hang} color={FINGER} />
+        ) : hang.length ? (
+          <p className="muted small">
+            These sets were logged as added weight by an older version. Add your bodyweight in
+            the coach setup and they become readable.
+          </p>
         ) : (
           <p className="muted small">Log two-hand hangboard sets to track this.</p>
         )}

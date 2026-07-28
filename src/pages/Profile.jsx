@@ -20,6 +20,7 @@ import {
   respondCoachRequest,
   removeCoachLink,
 } from '../lib/coaches'
+import { setSignalSharing } from '../lib/squad'
 import { getAvatarUrl, uploadAvatar, removeAvatar } from '../lib/profile'
 import { fetchSessions } from '../lib/sessions'
 import { sumHours, currentWeekStreak, round1 } from '../lib/stats'
@@ -704,10 +705,23 @@ function CoachColumn({ data, reload }) {
               onClick={() => navigate(`/athlete/${c.otherId}`)}
             >
               <Avatar name={personName(c)} size={30} />
-              <span className="person-name">{personName(c)}</span>
+              <span className="person-name">
+                {personName(c)}
+                {c.sharesSignals && <span className="muted small"> · sharing signals</span>}
+              </span>
               <span className="person-chevron">›</span>
             </button>
           ))}
+          {coach.athletes.some((c) => c.sharesSignals) && (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm btn-block settings-link-row"
+              onClick={() => navigate('/squad')}
+            >
+              <span>🩺 Squad, this week</span>
+              <span className="settings-link-arrow">›</span>
+            </button>
+          )}
         </div>
       )}
 
@@ -715,23 +729,50 @@ function CoachColumn({ data, reload }) {
         <div className="people-group">
           <span className="field-label">Your coaches</span>
           {coach.coaches.map((c) => (
-            <div className="person-row" key={c.id}>
-              <Avatar name={personName(c)} size={30} />
-              <span className="person-name">
-                {personName(c)}
-                {c.status === 'pending' && <span className="muted small"> · pending</span>}
-              </span>
-              <button
-                type="button"
-                className="person-x"
-                aria-label={`Remove ${personName(c)}`}
-                title="Remove"
-                onClick={() => removeC(c)}
-              >
-                ✕
-              </button>
+            <div className="person-row-stack" key={c.id}>
+              <div className="person-row">
+                <Avatar name={personName(c)} size={30} />
+                <span className="person-name">
+                  {personName(c)}
+                  {c.status === 'pending' && <span className="muted small"> · pending</span>}
+                </span>
+                <button
+                  type="button"
+                  className="person-x"
+                  aria-label={`Remove ${personName(c)}`}
+                  title="Remove"
+                  onClick={() => removeC(c)}
+                >
+                  ✕
+                </button>
+              </div>
+              {/* A separate, revocable grant from the session access the link
+                  itself carries. They get the derived numbers and your weekly
+                  overuse answers, never your daily check-in entries or notes. */}
+              {c.status === 'accepted' && (
+                <label className="toggle-row">
+                  <span className="toggle-label">
+                    <span className="toggle-emoji">🩺</span>
+                    Share my signals and overuse answers
+                  </span>
+                  <span className="switch">
+                    <input
+                      type="checkbox"
+                      checked={!!c.sharesSignals}
+                      onChange={() => act(() => setSignalSharing(c.id, !c.sharesSignals))}
+                    />
+                    <span className="switch-track" />
+                    <span className="switch-thumb" />
+                  </span>
+                </label>
+              )}
             </div>
           ))}
+          <p className="muted small">
+            Sharing signals shows a coach your readiness and finger-load state and your weekly
+            overuse answers. It never shows your daily sleep, fatigue, soreness or stress
+            entries, or anything you typed in a note. You can turn it off at any time.
+          </p>
         </div>
       )}
 
@@ -791,7 +832,7 @@ function GearCard({ sessions, onSaved }) {
       <h2 className="step-q">Gear</h2>
       {loadErr && (
         <p className="auth-error">
-          Couldn’t load gear. Has supabase/gear.sql been run?
+          Couldn’t load gear. Have the migrations been applied?
         </p>
       )}
       {gearSports.map((sport) => (
@@ -1203,7 +1244,7 @@ function HrZonesCard({ onSaved }) {
 }
 
 // Injury log: note + start date; "Healed" stamps the end date, ✕ deletes.
-// Data is owner-only (see supabase/health.sql). Includes a small stats row so
+// Data is owner-only (see supabase/migrations/20260101000500_health.sql). Includes a small stats row so
 // the injury history reads at a glance.
 function InjuriesCard() {
   const [injuries, setInjuries] = useState(null) // null = loading
@@ -1261,7 +1302,7 @@ function InjuriesCard() {
       <span className="field-label">Injuries</span>
       {loadErr && (
         <p className="auth-error">
-          Couldn’t load injuries. Has supabase/health.sql been run?
+          Couldn’t load injuries. Have the migrations been applied?
         </p>
       )}
 

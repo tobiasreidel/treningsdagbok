@@ -1,0 +1,738 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`golden fixtures > elite boulderer, six days a week, campus available 1`] = `
+{
+  "exercises": [
+    "M4",
+    "K8",
+    "M1",
+  ],
+  "grades": null,
+  "hangKg": null,
+  "headline": "Spare the fingers",
+  "level": "Elite",
+  "monotony": {
+    "flag": false,
+    "value": 1.9,
+  },
+  "planned": "power",
+  "readiness": {
+    "index": 69,
+    "label": "High",
+    "sustained": [],
+  },
+  "reasons": [
+    "* Fingers loaded today",
+  ],
+  "recovery": {
+    "chronic": "very-high",
+    "days28": 24,
+    "days7": 6,
+    "state": "loaded",
+    "sustainedWeeks": 10,
+  },
+  "session": "mental · tier 1",
+  "tone": "easy",
+  "trend": "steady",
+}
+`;
+
+exports[`golden fixtures > hangboard twice a week plus climbing, tested max 1`] = `
+{
+  "exercises": [
+    "S10",
+    "S11",
+    "S13",
+  ],
+  "grades": null,
+  "hangKg": null,
+  "headline": "Spare the fingers",
+  "level": "Intermediate",
+  "monotony": {
+    "gated": "frequency",
+  },
+  "planned": "limit",
+  "readiness": {
+    "index": 52,
+    "label": "Normal",
+    "sustained": [],
+  },
+  "reasons": [
+    "* Fingers loaded 1d ago · needs 3d",
+  ],
+  "recovery": {
+    "chronic": "ok",
+    "days28": 8,
+    "days7": 2,
+    "state": "recovering",
+    "sustainedWeeks": 7,
+  },
+  "session": "antagonist · tier 2",
+  "tone": "easy",
+  "trend": "steady",
+}
+`;
+
+exports[`golden fixtures > indoor session with near-limit attempts logged 1`] = `
+{
+  "exercises": [
+    "B6",
+    "B12",
+    "B14",
+  ],
+  "grades": "6A–6B",
+  "hangKg": null,
+  "headline": "Recovery day",
+  "level": "Intermediate",
+  "monotony": {
+    "gated": "frequency",
+  },
+  "planned": "powerEndurance",
+  "readiness": {
+    "index": 36,
+    "label": "Low",
+    "sustained": [],
+  },
+  "reasons": [
+    "* Readiness 36",
+  ],
+  "recovery": {
+    "chronic": "ok",
+    "days28": 1,
+    "days7": 1,
+    "state": "recovering",
+    "sustainedWeeks": 0,
+  },
+  "session": "deload · tier 2",
+  "tone": "easy",
+  "trend": "sharp",
+}
+`;
+
+exports[`golden fixtures > junior in a competition build-up 1`] = `
+{
+  "exercises": [
+    "S10",
+    "S11",
+    "S13",
+  ],
+  "grades": null,
+  "hangKg": null,
+  "headline": "Spare the fingers",
+  "level": "Intermediate",
+  "monotony": {
+    "gated": "frequency",
+  },
+  "planned": "power",
+  "readiness": {
+    "index": 52,
+    "label": "Normal",
+    "sustained": [],
+  },
+  "reasons": [
+    "* Fingers loaded today",
+  ],
+  "recovery": {
+    "chronic": "very-high",
+    "days28": 16,
+    "days7": 4,
+    "state": "loaded",
+    "sustainedWeeks": 8,
+  },
+  "session": "antagonist · tier 2",
+  "tone": "easy",
+  "trend": "steady",
+}
+`;
+
+exports[`golden fixtures > legacy added-weight sets and no bodyweight 1`] = `
+{
+  "exercises": [
+    "K4",
+    "K5",
+    "B3",
+  ],
+  "grades": "6A+–6B+",
+  "hangKg": null,
+  "headline": "Following the plan",
+  "level": "Intermediate",
+  "monotony": {
+    "gated": "frequency",
+  },
+  "planned": "powerEndurance",
+  "readiness": {
+    "index": 44,
+    "label": "Below normal",
+    "sustained": [],
+  },
+  "reasons": [
+    "- Fingers fresh",
+    "- Readiness 44",
+  ],
+  "recovery": {
+    "chronic": "ok",
+    "days28": 0,
+    "days7": 0,
+    "state": "fresh",
+    "sustainedWeeks": 0,
+  },
+  "session": "powerEndurance · tier 4",
+  "tone": "go",
+  "trend": "gated: baseline",
+}
+`;
+
+exports[`golden fixtures > legacy added-weight sets with a bodyweight 1`] = `
+{
+  "exercises": [
+    "K6",
+    "K3",
+  ],
+  "grades": "5+–6A+",
+  "hangKg": null,
+  "headline": "Same session, easier",
+  "level": "Intermediate",
+  "monotony": {
+    "gated": "frequency",
+  },
+  "planned": "powerEndurance",
+  "readiness": {
+    "index": 44,
+    "label": "Below normal",
+    "sustained": [],
+  },
+  "reasons": [
+    "* Fingers loaded 1d ago",
+    "- Readiness 44",
+  ],
+  "recovery": {
+    "chronic": "ok",
+    "days28": 8,
+    "days7": 2,
+    "state": "recovering",
+    "sustainedWeeks": 5,
+  },
+  "session": "powerEndurance · tier 2 (eased 2)",
+  "tone": "moderate",
+  "trend": "gated: baseline",
+}
+`;
+
+exports[`golden fixtures > maximal hangboard session yesterday 1`] = `
+{
+  "exercises": [
+    "K6",
+    "K3",
+  ],
+  "grades": "5+–6A+",
+  "hangKg": null,
+  "headline": "Same session, easier",
+  "level": "Intermediate",
+  "monotony": {
+    "gated": "frequency",
+  },
+  "planned": "powerEndurance",
+  "readiness": {
+    "index": 41,
+    "label": "Below normal",
+    "sustained": [],
+  },
+  "reasons": [
+    "* Fingers loaded 1d ago",
+    "- Readiness 41",
+  ],
+  "recovery": {
+    "chronic": "ok",
+    "days28": 1,
+    "days7": 1,
+    "state": "recovering",
+    "sustainedWeeks": 0,
+  },
+  "session": "powerEndurance · tier 2 (eased 2)",
+  "tone": "moderate",
+  "trend": "steady",
+}
+`;
+
+exports[`golden fixtures > no profile at all 1`] = `
+{
+  "exercises": [
+    "K4",
+    "K5",
+    "B1",
+  ],
+  "grades": null,
+  "hangKg": null,
+  "headline": "Following the plan",
+  "level": "Intermediate",
+  "monotony": {
+    "gated": "frequency",
+  },
+  "planned": "powerEndurance",
+  "readiness": {
+    "index": 43,
+    "label": "Below normal",
+    "sustained": [],
+  },
+  "reasons": [
+    "- Fingers fresh",
+    "- Readiness 43",
+  ],
+  "recovery": {
+    "chronic": "ok",
+    "days28": 0,
+    "days7": 0,
+    "state": "fresh",
+    "sustainedWeeks": 0,
+  },
+  "session": "powerEndurance · tier 4",
+  "tone": "go",
+  "trend": "steady",
+}
+`;
+
+exports[`golden fixtures > nothing logged at all 1`] = `
+{
+  "exercises": [
+    "F4",
+  ],
+  "grades": null,
+  "hangKg": null,
+  "headline": "Start easy",
+  "level": "Intermediate",
+  "monotony": {
+    "gated": "sparse",
+  },
+  "planned": "limit",
+  "readiness": {
+    "gated": "history",
+  },
+  "reasons": [
+    "* No finger history yet",
+  ],
+  "recovery": {
+    "chronic": "ok",
+    "days28": 0,
+    "days7": 0,
+    "state": "unknown",
+    "sustainedWeeks": 0,
+  },
+  "session": "fingerMaintenance · tier 1",
+  "tone": "moderate",
+  "trend": "gated: baseline",
+}
+`;
+
+exports[`golden fixtures > one wellness entry ever 1`] = `
+{
+  "exercises": [
+    "T1",
+    "T2",
+    "T3",
+    "T4",
+    "T5",
+  ],
+  "grades": null,
+  "hangKg": null,
+  "headline": "Deload week",
+  "level": "Intermediate",
+  "monotony": {
+    "gated": "frequency",
+  },
+  "planned": "mobility",
+  "readiness": {
+    "index": 52,
+    "label": "Normal",
+    "sustained": [],
+  },
+  "reasons": [
+    "* Week 4 of the cycle",
+    "- Half the volume, same intensity",
+  ],
+  "recovery": {
+    "chronic": "ok",
+    "days28": 0,
+    "days7": 0,
+    "state": "fresh",
+    "sustainedWeeks": 0,
+  },
+  "session": "mobility · tier 1",
+  "tone": "planned",
+  "trend": "steady",
+}
+`;
+
+exports[`golden fixtures > open shoulder injury 1`] = `
+{
+  "exercises": [
+    "T1",
+    "T2",
+    "T3",
+    "T4",
+    "T5",
+  ],
+  "grades": null,
+  "hangKg": null,
+  "headline": "Rehab or easy day",
+  "level": "Intermediate",
+  "monotony": {
+    "gated": "frequency",
+  },
+  "planned": "mobility",
+  "readiness": {
+    "index": 52,
+    "label": "Normal",
+    "sustained": [],
+  },
+  "reasons": [
+    "* Open injury: shoulder",
+  ],
+  "recovery": {
+    "chronic": "ok",
+    "days28": 0,
+    "days7": 0,
+    "state": "fresh",
+    "sustainedWeeks": 0,
+  },
+  "session": "mobility · tier 1",
+  "tone": "caution",
+  "trend": "steady",
+}
+`;
+
+exports[`golden fixtures > outdoor session with near-limit attempts logged 1`] = `
+{
+  "exercises": [
+    "B6",
+    "B12",
+    "B14",
+  ],
+  "grades": "6A–6B",
+  "hangKg": null,
+  "headline": "Recovery day",
+  "level": "Intermediate",
+  "monotony": {
+    "gated": "frequency",
+  },
+  "planned": "powerEndurance",
+  "readiness": {
+    "index": 29,
+    "label": "Low",
+    "sustained": [],
+  },
+  "reasons": [
+    "* Readiness 29",
+  ],
+  "recovery": {
+    "chronic": "ok",
+    "days28": 1,
+    "days7": 1,
+    "state": "recovering",
+    "sustainedWeeks": 0,
+  },
+  "session": "deload · tier 2",
+  "tone": "easy",
+  "trend": "sharp",
+}
+`;
+
+exports[`golden fixtures > profile but no finger test 1`] = `
+{
+  "exercises": [
+    "K4",
+    "K5",
+    "B3",
+  ],
+  "grades": "6A+–6B+",
+  "hangKg": null,
+  "headline": "Following the plan",
+  "level": "Intermediate",
+  "monotony": {
+    "gated": "frequency",
+  },
+  "planned": "powerEndurance",
+  "readiness": {
+    "index": 44,
+    "label": "Below normal",
+    "sustained": [],
+  },
+  "reasons": [
+    "- Fingers fresh",
+    "- Readiness 44",
+  ],
+  "recovery": {
+    "chronic": "ok",
+    "days28": 0,
+    "days7": 0,
+    "state": "fresh",
+    "sustainedWeeks": 0,
+  },
+  "session": "powerEndurance · tier 4",
+  "tone": "go",
+  "trend": "gated: baseline",
+}
+`;
+
+exports[`golden fixtures > rope climber with a trip in ten weeks 1`] = `
+{
+  "exercises": [
+    "K5",
+    "K4",
+    "K3",
+  ],
+  "grades": "6b+–6c+",
+  "hangKg": null,
+  "headline": "Following the plan",
+  "level": "Intermediate",
+  "monotony": {
+    "gated": "frequency",
+  },
+  "planned": "powerEndurance",
+  "readiness": {
+    "index": 68,
+    "label": "High",
+    "sustained": [],
+  },
+  "reasons": [
+    "- Fingers fresh",
+    "- Readiness 68",
+  ],
+  "recovery": {
+    "chronic": "ok",
+    "days28": 0,
+    "days7": 0,
+    "state": "fresh",
+    "sustainedWeeks": 0,
+  },
+  "session": "powerEndurance · tier 4",
+  "tone": "go",
+  "trend": "steady",
+}
+`;
+
+exports[`golden fixtures > same climber, but every session is genuinely hard on the fingers 1`] = `
+{
+  "exercises": [
+    "F4",
+  ],
+  "grades": null,
+  "hangKg": null,
+  "headline": "Time for an easy finger week",
+  "level": "Intermediate",
+  "monotony": {
+    "gated": "frequency",
+  },
+  "planned": "powerEndurance",
+  "readiness": {
+    "index": 69,
+    "label": "High",
+    "sustained": [],
+  },
+  "reasons": [
+    "* 9 weeks straight of hard finger days",
+  ],
+  "recovery": {
+    "chronic": "elevated",
+    "days28": 12,
+    "days7": 3,
+    "state": "recovering",
+    "sustainedWeeks": 9,
+  },
+  "session": "fingerMaintenance · tier 1",
+  "tone": "caution",
+  "trend": "steady",
+}
+`;
+
+exports[`golden fixtures > substantial OSTRC finger problem this week 1`] = `
+{
+  "exercises": [
+    "T1",
+    "T2",
+    "T3",
+    "T4",
+    "T5",
+  ],
+  "grades": null,
+  "hangKg": null,
+  "headline": "Back off, something is brewing",
+  "level": "Intermediate",
+  "monotony": {
+    "gated": "frequency",
+  },
+  "planned": "mobility",
+  "readiness": {
+    "index": 52,
+    "label": "Normal",
+    "sustained": [],
+  },
+  "reasons": [
+    "* fingers: substantial problem this week",
+  ],
+  "recovery": {
+    "chronic": "ok",
+    "days28": 0,
+    "days7": 0,
+    "state": "fresh",
+    "sustainedWeeks": 0,
+  },
+  "session": "mobility · tier 1",
+  "tone": "caution",
+  "trend": "steady",
+}
+`;
+
+exports[`golden fixtures > test stopped because of pain last week 1`] = `
+{
+  "exercises": [
+    "T1",
+    "T2",
+    "T3",
+    "T4",
+    "T5",
+  ],
+  "grades": null,
+  "hangKg": null,
+  "headline": "Back off, something is brewing",
+  "level": "Intermediate",
+  "monotony": {
+    "gated": "frequency",
+  },
+  "planned": "mobility",
+  "readiness": {
+    "index": 52,
+    "label": "Normal",
+    "sustained": [],
+  },
+  "reasons": [
+    "* fingers: substantial problem this week",
+  ],
+  "recovery": {
+    "chronic": "ok",
+    "days28": 0,
+    "days7": 0,
+    "state": "fresh",
+    "sustainedWeeks": 0,
+  },
+  "session": "mobility · tier 1",
+  "tone": "caution",
+  "trend": "steady",
+}
+`;
+
+exports[`golden fixtures > three sessions a week indoors, ordinary finger RPE 1`] = `
+{
+  "exercises": [
+    "K4",
+    "K5",
+    "B3",
+  ],
+  "grades": "6A+–6B+",
+  "hangKg": null,
+  "headline": "Following the plan",
+  "level": "Intermediate",
+  "monotony": {
+    "gated": "frequency",
+  },
+  "planned": "powerEndurance",
+  "readiness": {
+    "index": 69,
+    "label": "High",
+    "sustained": [],
+  },
+  "reasons": [
+    "- Fingers fresh",
+    "- Readiness 69",
+  ],
+  "recovery": {
+    "chronic": "ok",
+    "days28": 0,
+    "days7": 0,
+    "state": "fresh",
+    "sustainedWeeks": 0,
+  },
+  "session": "powerEndurance · tier 4",
+  "tone": "go",
+  "trend": "steady",
+}
+`;
+
+exports[`golden fixtures > trains six days a week at the same load every day 1`] = `
+{
+  "exercises": [
+    "B14",
+    "B6",
+    "B12",
+  ],
+  "grades": "6A–6B",
+  "hangKg": null,
+  "headline": "Deload week",
+  "level": "Intermediate",
+  "monotony": {
+    "flag": true,
+    "value": 0,
+  },
+  "planned": "deload",
+  "readiness": {
+    "index": 52,
+    "label": "Normal",
+    "sustained": [],
+  },
+  "reasons": [
+    "* Week 4 of the cycle",
+    "- Half the volume, same intensity",
+  ],
+  "recovery": {
+    "chronic": "ok",
+    "days28": 0,
+    "days7": 0,
+    "state": "fresh",
+    "sustainedWeeks": 0,
+  },
+  "session": "deload · tier 2",
+  "tone": "planned",
+  "trend": "steady",
+}
+`;
+
+exports[`golden fixtures > two months of poor sleep and high stress 1`] = `
+{
+  "exercises": [
+    "K4",
+    "K5",
+    "B3",
+  ],
+  "grades": "6A+–6B+",
+  "hangKg": null,
+  "headline": "Following the plan",
+  "level": "Intermediate",
+  "monotony": {
+    "gated": "frequency",
+  },
+  "planned": "powerEndurance",
+  "readiness": {
+    "index": 69,
+    "label": "High",
+    "sustained": [
+      "sleep",
+      "fatigue",
+      "soreness",
+      "stress",
+    ],
+  },
+  "reasons": [
+    "- Fingers fresh",
+    "- Readiness 69",
+  ],
+  "recovery": {
+    "chronic": "ok",
+    "days28": 0,
+    "days7": 0,
+    "state": "fresh",
+    "sustainedWeeks": 0,
+  },
+  "session": "powerEndurance · tier 4",
+  "tone": "go",
+  "trend": "steady",
+}
+`;

@@ -183,7 +183,7 @@ create policy "ostrc reports are private to owner" on public.ostrc_reports
   with check (auth.uid() = user_id);
 
 -- ---------------------------------------------------------------------------
--- injuries gain a body region (the table itself lives in supabase/health.sql).
+-- injuries gain a body region (the table itself lives in supabase/migrations/20260101000500_health.sql).
 --
 -- Without a region the coach can't route around the affected structure - and
 -- prescribing antagonist work, which is mostly shoulder and push, is the worst

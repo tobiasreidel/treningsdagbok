@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { format, subDays } from 'date-fns'
 import { fingerDose, fingerRecovery, buildLimits } from './coach'
 import { sessionExercises } from './exercises'
 import { prescribeHang, maxTotalFor, hasUnreadableHangs } from './fingerLoad'
@@ -67,12 +68,9 @@ describe('finger dose', () => {
 describe('finger recovery', () => {
   it('reports fingers as loaded the day after a maximal session', () => {
     const limits = buildLimits([], profile)
-    const today = new Date()
-    const iso = (offsetDays) => {
-      const d = new Date(today)
-      d.setDate(d.getDate() - offsetDays)
-      return d.toISOString().slice(0, 10)
-    }
+    // Local dates, like the app: toISOString() is UTC, so building fixtures
+    // that way made this test fail between local midnight and 02:00.
+    const iso = (offsetDays) => format(subDays(new Date(), offsetDays), 'yyyy-MM-dd')
     const r = fingerRecovery([hangSession(iso(1))], limits, profile, tests)
     expect(r.daysSinceMax).toBe(1)
     expect(['loaded', 'recovering']).toContain(r.key)

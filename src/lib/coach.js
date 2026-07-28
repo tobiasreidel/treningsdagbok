@@ -13,7 +13,7 @@
 import { addDays, differenceInCalendarDays, format, subDays, startOfWeek } from 'date-fns'
 import { asDate, todayISO } from './format'
 import { BOULDER_GRADES, ROUTE_GRADES, formatGrade } from './constants'
-import { normalizeHang } from './formState'
+import { normaliseSession } from './sessionShape'
 import { fitnessSeries, sessionLoad } from './stats'
 import {
   EXERCISE_MAP,
@@ -79,6 +79,13 @@ export function currentLimit(sessions, subtype, stated, location) {
       const i = gradeIndex(r.grade, subtype)
       if (i > best) best = i
     }
+    // "Grades worked" chips are how an indoor session records difficulty: the
+    // route log is outdoor-only, so without these an indoor limit could only
+    // ever come from the stated profile grade.
+    for (const g of normaliseSession(s).grades) {
+      const i = gradeIndex(g, subtype)
+      if (i > best) best = i
+    }
   }
   if (best < 0) return null
   const arr = subtype === 'bouldering' ? BOULDER_GRADES : ROUTE_GRADES
@@ -127,7 +134,10 @@ export function gradeAt(limit, offset) {
   const arr = limit.subtype === 'bouldering' ? BOULDER_GRADES : ROUTE_GRADES
   const raw = limit.idx + offset
   const idx = clamp(raw, 0, arr.length - 1)
-  return { grade: arr[idx], clamped: raw !== idx }
+  // Which end it ran off matters: the bottom means "words, not a grade", the
+  // top means the scale ended and quoting its last entry as a prescription
+  // would be inventing a number.
+  return { grade: arr[idx], clamped: raw !== idx, atTop: raw > arr.length - 1 }
 }
 
 // ---------------------------------------------------------------------------
@@ -223,12 +233,25 @@ export function experienceLevel(profile) {
 // tendinopathy at any level - but the number of days that means is not the
 // same for a fourteen-year climber as for a two-year one, and pinning it to
 // the beginner's figure made the plan constantly flag its own prescriptions.
+//
+// Raised from 8/11..12/15. At the old numbers, combined with the old
+// "finger RPE 6 is a hard day" trigger, an ordinary climber training three
+// times a week sat at 12 hard days per 28 and was therefore permanently
+// "very high": the plan told them to do technique drills forever, which is how
+// you teach someone to ignore a coach. Two genuinely hard finger days a week
+// (8-9 per 28) must read as normal; three a week is where a warning belongs.
+// Still chosen numbers, and the honest fix is to fit them to logged data.
 const CHRONIC_CEILING = {
-  new: { high: 8, veryHigh: 11 },
-  intermediate: { high: 9, veryHigh: 12 },
-  advanced: { high: 11, veryHigh: 14 },
-  elite: { high: 12, veryHigh: 15 },
+  new: { high: 10, veryHigh: 13 },
+  intermediate: { high: 12, veryHigh: 15 },
+  advanced: { high: 14, veryHigh: 17 },
+  elite: { high: 16, veryHigh: 19 },
 }
+
+// A band below `high`, so the count degrades instead of cliff-edging from
+// "fine" straight to "stop". 12 and 15 producing completely different
+// behaviour with nothing in between is what made it feel arbitrary.
+const CHRONIC_ELEVATED = 0.8
 
 // ---------------------------------------------------------------------------
 // finger dose
@@ -249,37 +272,96 @@ export const FINGER_TIERS = {
 const TIER_ORDER = ['none', 'light', 'hard', 'maximal']
 const higherTier = (a, b) => (TIER_ORDER.indexOf(a) >= TIER_ORDER.indexOf(b) ? a : b)
 
-// Dose thresholds. Arbitrary units, calibrated so that a 4×10 s max-hang
-// session and a session with several near-limit attempts both land in
-// 'maximal'. Heuristic, and meant to be tuned.
+// Dose thresholds. Arbitrary units, but no longer arbitrary in relation to the
+// library: the coefficients below are fitted so that the prescribed sessions
+// compute to the `expectedDose` values the library assigns by hand, and a
+// logged F1 (4 × 10 s at 85%) lands on 40 exactly. Climbing attempts do not
+// reach these numbers on their own and get their tier from the categorical
+// triggers instead; that is a safety net, not the main mechanism.
 const DOSE_MAXIMAL = 40
 const DOSE_HARD = 15
 
-// Relative intensity of one hangboard set, 0..1.3.
+// Per-set dose: k × rel^4 × sqrt(time under tension).
+//
+// FITTED, NOT CHOSEN. The previous form was rel^3 × seconds × reps × 0.5, and
+// it did not do what it was changed to do. It was raised from an exponent of 2
+// to 3 to stop a long repeater session outscoring a max-hang session, but dose
+// was linear in time under tension, and repeaters carry 245 s against max
+// hangs' 40 s. No exponent on `rel` can overcome a factor of 6 in a term it
+// multiplies, because raising the exponent shrinks both sides: the ratio went
+// from 3.05 to 2.15 and repeaters still cost twice a max hang.
+//
+// The volume term has to saturate. With a square root on TUT and the intensity
+// exponent at 4, k = 6.06 reproduces the library's own hand-assigned doses:
+//
+//   F1 max hangs   4 × 1 × 10 s @ 0.85   -> 40.0  (expectedDose 40)
+//   F6 grip variety 4 × 1 × 10 s @ 0.825 -> 35.5  (expectedDose 35)
+//   F2 repeaters   5 × 7 × 7 s  @ 0.60   -> 27.5  (expectedDose 32)
+//   F2 at 70% instead of 60%             -> 50.9  (correctly higher)
+//   an 8-set long repeater block         -> 44.0  (correctly higher)
+//
+// `expectedDose` is effectively a labelled dataset, so refit against it any
+// time these change and check the library still reproduces.
+const DOSE_K = 6.06
+const DOSE_INTENSITY_EXPONENT = 4
+
+function setDose(rel, seconds, reps) {
+  const tut = Math.max(0, num(seconds) || 7) * Math.max(1, num(reps))
+  return DOSE_K * rel ** DOSE_INTENSITY_EXPONENT * Math.sqrt(tut)
+}
+
+// The same form for the self-reported estimate, because it has to land on the
+// same scale as the itemised one or the two disagree about what a hard day is.
+//
+// The old floor was linear in duration: (rf/10)^2 x hours x 45. That gave an
+// ordinary 90-minute session at finger RPE 6 a dose of 24, over the hard
+// threshold, so raising the RPE tier trigger to 7 changed nothing - the floor
+// promoted the session anyway, one rule further on. Saturating duration and
+// raising the exponent fixes it the same way it fixed the set arithmetic:
+//
+//   finger RPE 6, 90 min  -> 12.7  light   (an ordinary indoor session)
+//   finger RPE 7, 90 min  -> 23.5  hard
+//   finger RPE 8, 120 min -> 46.2  maximal
+//   finger RPE 9, 35 min  -> 40.0  maximal (an F1 session, logged untimed)
+//
+// k = 10.3 is set by that last line: a max-hang session described only by its
+// RPE should score what the same session scores when its sets are itemised.
+const RPE_DOSE_K = 10.3
+
+function rpeDose(rf, minutes) {
+  if (!(rf > 0) || !(minutes > 0)) return 0
+  return RPE_DOSE_K * (rf / 10) ** DOSE_INTENSITY_EXPONENT * Math.sqrt(minutes)
+}
+
+// Relative intensity of one resolved hangboard set, 0..1.3.
 //
 // TOTAL load against a TOTAL-load max. Using added-weight on either side makes
 // every percentage a percentage of the wrong denominator - see fingerLoad.js.
 function hangIntensity(set, profile, tests, grip) {
   const maxTotal = usableMaxTotal(profile, tests, grip)
-  const bw = num(profile?.bodyweight_kg)
   if (maxTotal) {
-    const rel = setIntensity(set, maxTotal, bw)
+    const rel = setIntensity(set, maxTotal)
     if (rel != null) return rel
   }
   // No usable max (or a set we can't read): fall back to the edge as a coarse
   // proxy rather than treating "any added weight at all" as maximal, which
   // +2 kg on 20 mm is not.
-  const edge = num(set.edge)
-  if (edge > 0 && edge <= 10) return 0.85
-  if (edge > 0 && edge <= 13) return 0.7
-  const added = num(set.weight) || num(set.load_total_kg) - bw
+  //
+  // Biased low on purpose. Every one of these numbers can end up as kilos on a
+  // card, and the errors are not symmetric: underestimating a max costs a
+  // slightly easy session, overestimating one costs a pulley.
+  const edge = num(set.edgeMm)
+  if (edge > 0 && edge <= 10) return 0.8
+  if (edge > 0 && edge <= 13) return 0.65
+  const bw = num(profile?.bodyweight_kg)
+  const added = set.kg != null && bw > 0 ? set.kg - bw : 0
   return added > 0 ? 0.6 : 0.45
 }
 
 // Everything a single session did to the fingers: a continuous dose plus the
 // tier that dose (and any absolute trigger) puts it in.
 export function fingerDose(s, limits, profile, tests = []) {
-  const f = s.extra?.finger
+  const n = normaliseSession(s, { bodyweight: num(profile?.bodyweight_kg) })
   let dose = 0
   let tier = 'none'
   const why = []
@@ -289,18 +371,12 @@ export function fingerDose(s, limits, profile, tests = []) {
   let peakRel = 0
 
   // --- hangboard -----------------------------------------------------------
-  for (const h of f?.hangboard || []) {
-    const nh = normalizeHang(h)
-    const reps = Math.max(1, num(nh.reps))
-    for (const set of nh.sets) {
-      const t = num(set.time) || 7
-      const rel = hangIntensity(set, profile, tests, nh.grip)
+  for (const h of n.hangboard) {
+    for (const set of h.sets) {
+      const rel = hangIntensity(set, profile, tests, h.grip)
       if (rel > peakRel) peakRel = rel
-      // Intensity exponent is 3, not 2: peak force drives pulley injury, and a
-      // squared term scored a long repeater session ~3.5x a max-hang session -
-      // the wrong way round for the mechanism this window exists to respect.
-      dose += rel ** 3 * t * reps * 0.5
-      if (nh.hands === 'one') {
+      dose += setDose(rel, set.seconds, h.reps)
+      if (h.hands === 'one') {
         tier = higherTier(tier, 'maximal')
       } else if (rel >= 0.8) {
         tier = higherTier(tier, 'maximal')
@@ -311,21 +387,21 @@ export function fingerDose(s, limits, profile, tests = []) {
       }
     }
   }
-  if (f?.hangboard?.length) why.push('hangboard')
+  if (n.hangboard.length) why.push('hangboard')
 
   // --- campus / pockets ----------------------------------------------------
-  if (f?.campus === 'board' || f?.campus === true) {
+  if (n.campus === 'board') {
     dose += 25
     tier = higherTier(tier, 'maximal')
     why.push('campus')
-  } else if (f?.campus === 'spray') {
+  } else if (n.campus === 'spray') {
     dose += 15
     tier = higherTier(tier, 'hard')
     why.push('spray wall')
   }
   // Two-finger and pocket work carries pulley and lumbrical risk out of
   // proportion to how hard it feels.
-  if (f?.pockets) {
+  if (n.pockets) {
     dose += 12
     tier = higherTier(tier, 'hard')
     why.push('pockets / two-finger')
@@ -343,6 +419,13 @@ export function fingerDose(s, limits, profile, tests = []) {
       const w = gap <= 0 ? 4 : gap === 1 ? 2.5 : gap === 2 ? 1.2 : 0.3
       dose += w * attempts
       if (gap <= 1) nearLimitAttempts += attempts
+    }
+    // Indoor sessions have no route log, so the whole attempt mechanism could
+    // never fire indoors: for a mostly-indoor climber the coach could only see
+    // difficulty through self-reported finger RPE. This one field closes that.
+    if (n.nearLimitAttempts > 0) {
+      dose += 2.5 * n.nearLimitAttempts
+      nearLimitAttempts += n.nearLimitAttempts
     }
     if (nearLimitAttempts >= 3) {
       tier = higherTier(tier, 'maximal')
@@ -377,14 +460,21 @@ export function fingerDose(s, limits, profile, tests = []) {
   // --- self-reported finger intensity --------------------------------------
   // A global read on the session. Taken as an alternative estimate of the same
   // thing rather than added on top, so it can't double-count the itemised dose.
+  //
+  // The "hard" cut is 7, not 6. The UI anchors 6 as "small holds, working
+  // hard", which is an ordinary indoor session for anyone climbing 6C and up.
+  // Scoring that identically to a max hang put a normal three-times-a-week
+  // climber permanently over the 28-day ceiling, and a coach that nags every
+  // day is a coach you learn to ignore. Working hard on small holds is not the
+  // same tissue event as a maximal hang.
   const rf = num(s.extra?.rpe_finger)
   if (rf > 0) {
     const mins = clamp(num(s.duration), 0, 180)
-    dose = Math.max(dose, (rf / 10) ** 2 * (mins / 60) * 45)
+    dose = Math.max(dose, rpeDose(rf, mins))
     if (rf >= 8) {
       tier = higherTier(tier, 'maximal')
       why.push(`finger RPE ${rf}`)
-    } else if (rf >= 6) {
+    } else if (rf >= 7) {
       tier = higherTier(tier, 'hard')
       why.push(`finger RPE ${rf}`)
     } else if (rf >= 3) {
@@ -394,8 +484,10 @@ export function fingerDose(s, limits, profile, tests = []) {
 
   // Hard bouldering, but only when the fingers were actually the limiting
   // factor. Whole-body RPE alone would let a two-hour pumpy jug circuit block
-  // finger work for three days.
-  if (s.sport === 'climbing' && s.subtype === 'bouldering' && num(s.rpe) >= 8 && rf >= 6) {
+  // finger work for three days. Kept in step with the cut above: at finger RPE
+  // 6 this used to promote an ordinary hard bouldering session straight to
+  // maximal, which was the same miscalibration one rule further on.
+  if (s.sport === 'climbing' && s.subtype === 'bouldering' && num(s.rpe) >= 8 && rf >= 7) {
     tier = higherTier(tier, 'maximal')
   }
   // Any climbing at all is at least light finger contact.
@@ -475,7 +567,9 @@ export function fingerRecovery(sessions, limits, profile, tests = []) {
     if (d.tier === 'none') continue
     everLoaded = true
     if (d.tier === 'light') continue
-    if (!last || s.date > last.date) last = { date: s.date, ...d }
+    if (!last || s.date > last.date) {
+      last = { date: s.date, hour: normaliseSession(s).hour, ...d }
+    }
   }
 
   // Acute vs chronic finger exposure, on disjoint windows: this week against
@@ -495,6 +589,8 @@ export function fingerRecovery(sessions, limits, profile, tests = []) {
   if (load28.hardDays >= ceiling.veryHigh) chronicLevel = 'very-high'
   else if (load28.hardDays >= ceiling.high) {
     chronicLevel = load56.hardDays >= ceiling.high * 2 ? 'very-high' : 'high'
+  } else if (load28.hardDays >= Math.round(ceiling.high * CHRONIC_ELEVATED)) {
+    chronicLevel = 'elevated'
   }
 
   // Rate alone misses the real pattern. Two hard finger days every single week
@@ -515,6 +611,9 @@ export function fingerRecovery(sessions, limits, profile, tests = []) {
     dose28: load28.dose,
     rampFlag,
     chronicLevel,
+    // The ceiling this count is being judged against, so a screen can show
+    // "12 of 15" and say the 15 is a chosen number rather than a finding.
+    chronicCeiling: ceiling,
     sustainedWeeks,
     everLoaded,
   }
@@ -528,23 +627,43 @@ export function fingerRecovery(sessions, limits, profile, tests = []) {
 
   const daysSinceMax = differenceInCalendarDays(asDate(today), asDate(last.date))
   const required = FINGER_TIERS[last.tier].recoveryDays
+  const requiredHours = required * 24
+
+  // Hours when the session said when it was: a Monday evening to a Wednesday
+  // morning is 34 h, not two days, and counting it as two days let the plan
+  // clear a window it had not actually cleared. Falls back to calendar days,
+  // which is all an untimed row can support.
+  let hoursSince = null
+  if (last.hour != null) {
+    const at = asDate(last.date)
+    at.setHours(last.hour, 0, 0, 0)
+    hoursSince = Math.max(0, (Date.now() - at.getTime()) / 3600000)
+  }
+  const since = hoursSince != null ? hoursSince : daysSinceMax * 24
+
   let state
-  if (daysSinceMax >= required + 14) state = RECOVERY_STATES.fresh
+  if (since >= requiredHours + 14 * 24) state = RECOVERY_STATES.fresh
   else if (daysSinceMax <= 0) state = RECOVERY_STATES.loaded
-  else if (daysSinceMax < required) state = RECOVERY_STATES.recovering
+  else if (since < requiredHours) state = RECOVERY_STATES.recovering
   else state = RECOVERY_STATES.ready
 
   const tierWord = FINGER_TIERS[last.tier].label.toLowerCase()
+  const elapsed = hoursSince != null ? `${Math.round(hoursSince)} h ago` : null
   const hint =
     state.key === 'recovering' || state.key === 'loaded'
-      ? `${state.hint} That session was ${tierWord} on the fingers, so it wants about ${required * 24} h.`
+      ? `${state.hint} That session was ${tierWord} on the fingers${
+          elapsed ? `, ${elapsed}` : ''
+        }, so it wants about ${requiredHours} h.`
       : state.hint
 
   return {
     ...state,
     hint,
     daysSinceMax,
+    hoursSince: hoursSince == null ? null : Math.round(hoursSince),
+    timed: hoursSince != null,
     required,
+    requiredHours,
     lastTier: last.tier,
     lastDose: last.dose,
     lastWhy: last.why,
@@ -622,23 +741,53 @@ export function loadTrend(sessions) {
   }
 }
 
-// Foster's monotony (mean daily load / SD over 7 days) and strain.
+// Monotony: are all your sessions the same session?
+//
+// DEPARTS FROM FOSTER, DELIBERATELY. Foster's monotony is the mean of all seven
+// daily loads over their SD, rest days included as zeros. Computed that way it
+// is structurally incapable of firing for anyone who takes rest days: a
+// three-session week lands near 0.87 and a four-session week near 1.15, so the
+// > 2 flag could only ever trip for someone training six or seven days a week.
+// The signal sat on the screen reading "Steady" forever, which is how you teach
+// a user to stop looking at a part of the screen.
+//
+// So the spread is computed over the days you actually trained. That measures
+// the thing worth knowing (is every session the same session) rather than the
+// thing Foster measured (are you training every day at the same load), and the
+// copy says so.
+//
+// The threshold had to move with the denominator. Over active days only,
+// mean/SD is the reciprocal of the coefficient of variation: a week with a real
+// hard/easy contrast sits around 2 to 3.5, and only a week of near-identical
+// sessions goes above 4. Chosen, like the old 2 was.
+const MONOTONY_FLAG = 4
+const MONOTONY_CAP = 8
+
+// Below this many training days there is nothing to judge: two or three
+// sessions cannot tell a varied week from a flat one, and saying so is more
+// honest than printing a number.
+const MIN_MONOTONY_ACTIVE_DAYS = 5
+
 export function monotonyStrain(sessions) {
   const days = dailyLoadWindow(sessions, 7, 0)
   const loads = days.map((d) => d.load)
+  const active = loads.filter((l) => l > 0)
   const weeklyLoad = loads.reduce((a, b) => a + b, 0)
-  if (weeklyLoad <= 0 || loads.filter((l) => l > 0).length < 3) {
-    return { enough: false, reason: 'sparse' }
+  if (weeklyLoad <= 0) return { enough: false, reason: 'sparse', activeDays: 0 }
+  if (active.length < MIN_MONOTONY_ACTIVE_DAYS) {
+    return { enough: false, reason: 'frequency', activeDays: active.length }
   }
-  const m = mean(loads)
-  const sd = stdev(loads)
-  const monotony = sd > 0 ? m / sd : null
+  const m = mean(active)
+  const sd = stdev(active)
+  const monotony = sd > 0 ? Math.min(MONOTONY_CAP, m / sd) : null
   return {
     enough: true,
+    activeDays: active.length,
     weeklyLoad,
     monotony,
     strain: monotony != null ? weeklyLoad * monotony : null,
-    flag: monotony == null || monotony > 2,
+    flag: monotony == null || monotony > MONOTONY_FLAG,
+    threshold: MONOTONY_FLAG,
   }
 }
 
@@ -700,7 +849,8 @@ export function trendSeries(sessions, days = 42) {
   return out
 }
 
-// Foster monotony over the trailing 7 days, for each of the last `days` days.
+// Monotony over the trailing 7 days, for each of the last `days` days, on the
+// same active-days basis and behind the same frequency gate as the live number.
 // A flat week with zero SD is shown capped rather than as a gap - "off the
 // scale" is the finding, not missing data.
 export function monotonySeries(sessions, days = 42) {
@@ -711,12 +861,15 @@ export function monotonySeries(sessions, days = 42) {
     const end = total - days + i
     const date = loads[end].date
     const wk = loads.slice(end - 6, end + 1).map((d) => d.load)
-    const weekly = wk.reduce((a, b) => a + b, 0)
-    if (weekly <= 0 || wk.filter((l) => l > 0).length < 3) {
+    const active = wk.filter((l) => l > 0)
+    if (active.length < MIN_MONOTONY_ACTIVE_DAYS) {
       out.push({ date, monotony: null })
     } else {
-      const sd = stdev(wk)
-      out.push({ date, monotony: sd > 0 ? Math.min(4, mean(wk) / sd) : 4 })
+      const sd = stdev(active)
+      out.push({
+        date,
+        monotony: sd > 0 ? Math.min(MONOTONY_CAP, mean(active) / sd) : MONOTONY_CAP,
+      })
     }
   }
   return out
@@ -742,7 +895,26 @@ export function readinessSeries(sessions, wellnessRows, icuWellness, days = 42) 
 
 const BASELINE_DAYS = 60
 const MIN_BASELINE_DAYS = 21
-const MIN_RECENT_WELLNESS = 4 // entries needed in the last 7 days
+
+// Entries needed in the last 7 days before the subjective half counts at all,
+// and the point below which it is counted but called thin.
+//
+// This used to be a hard gate at 4, which flickered: a user who checks in on
+// training days only sits at 3 or 4 and crosses it at random, so the subjective
+// half switched in and out and the index jumped for reasons invisible to them.
+// A persistent "thin" state is more honest than an intermittent one.
+const MIN_RECENT_WELLNESS = 2
+const THIN_RECENT_WELLNESS = 4
+
+// The absolute counterpart to the z-scores. Every readiness input is scored
+// against its own 60-day baseline, so a climber who has slept badly and been
+// stressed for two months has a baseline of "bad", scores z near 0, and reads
+// Normal. The score is definitionally incapable of seeing a sustained poor
+// state, which is the state most worth seeing. The finger model already solved
+// this by running absolute checks (the 28-day ceiling, sustained weeks)
+// alongside the relative one; this is the same idea for wellness.
+const SUSTAINED_WINDOW_DAYS = 14
+const SUSTAINED_MIN_DAYS = 10
 
 // z of this week against a baseline that EXCLUDES it.
 //
@@ -791,6 +963,24 @@ const WELLNESS_SIGNALS = [
   { key: 'soreness', label: 'Soreness', weight: 0.125, invert: true },
   { key: 'stress', label: 'Stress', weight: 0.125, invert: true },
 ]
+
+// Items sitting at the bad end of their own scale for most of a fortnight.
+// Sleep is scored the other way up (5 is slept well), so "bad" is not the same
+// end for every item.
+function sustainedPoor(rows, asOf) {
+  const from = format(subDays(asOf, SUSTAINED_WINDOW_DAYS - 1), 'yyyy-MM-dd')
+  const to = format(asOf, 'yyyy-MM-dd')
+  const recent = (rows || []).filter((r) => r.date >= from && r.date <= to)
+  const out = []
+  for (const s of WELLNESS_SIGNALS) {
+    const vals = recent.filter((r) => r[s.key] != null).map((r) => Number(r[s.key]))
+    const bad = vals.filter((v) => (s.invert ? v >= 4 : v <= 2)).length
+    if (bad >= SUSTAINED_MIN_DAYS) {
+      out.push({ key: s.key, label: s.label, days: bad, of: SUSTAINED_WINDOW_DAYS })
+    }
+  }
+  return out
+}
 
 // Readiness against your own normal, 0-100 (50 = normal).
 //
@@ -859,6 +1049,10 @@ export function readiness(sessions, wellnessRows, icuWellness, asOf = new Date()
     tone = 'good'
   }
   const subjective = signals.filter((s) => WELLNESS_SIGNALS.some((w) => w.key === s.key))
+  const recentWellness = rows.filter((r) => {
+    const ago = differenceInCalendarDays(today, asDate(r.date))
+    return ago >= 0 && ago < 7
+  }).length
   return {
     enough: true,
     index,
@@ -868,6 +1062,12 @@ export function readiness(sessions, wellnessRows, icuWellness, asOf = new Date()
     historyDays,
     // Surfaced so the UI can say the score is running on objective data alone.
     subjectiveMissing: subjective.every((s) => s.z == null),
+    // Counted, but from too few days to lean on. Said persistently rather than
+    // switching the subjective half on and off around a threshold.
+    subjectiveThin: recentWellness > 0 && recentWellness < THIN_RECENT_WELLNESS,
+    recentWellness,
+    // Absolute, index-independent: "your recent normal has been low".
+    sustained: sustainedPoor(wellnessRows, today),
   }
 }
 
@@ -1293,6 +1493,33 @@ function plannedType(sessions, model, daysPerWeek, goals, level) {
   return { key: harder(pattern[done % pattern.length]), pos, gp }
 }
 
+// Adherence, not learning.
+//
+// A feedback loop from "did the session go well" into plan content is
+// deliberately not built: at one athlete you cannot learn what works. But
+// noticing what *happens* needs no science at all. If the Thursday slot has
+// been skipped several weeks running, stop putting the hard session there. That
+// is the difference between a plan you follow and a plan you feel guilty about.
+const ADHERENCE_WEEKS = 4
+
+// Preferred weekdays with nothing logged on them for the last `weeks` complete
+// weeks. The current, partial week is excluded: a Thursday that has not
+// happened yet is not a skipped Thursday.
+export function skippedWeekdays(sessions, weekdays, weeks = ADHERENCE_WEEKS) {
+  const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 })
+  const dates = new Set((sessions || []).map((s) => s.date))
+  const out = new Set()
+  for (const wd of weekdays) {
+    let logged = 0
+    for (let w = 1; w <= weeks; w += 1) {
+      const iso = format(addDays(weekStart, -7 * w + (wd - 1)), 'yyyy-MM-dd')
+      if (dates.has(iso)) logged += 1
+    }
+    if (logged === 0) out.add(wd)
+  }
+  return out
+}
+
 // Spread `count` hard days as evenly as possible across `n` slots.
 function spreadPositions(n, count) {
   const out = new Set()
@@ -1311,7 +1538,7 @@ function spreadPositions(n, count) {
 // days spread across the training slots. Deload and phase are computed per
 // week - next Monday can be a different phase than today, and the plan should
 // show that instead of pretending the current week repeats forever.
-function weekKeys(pos, goal, emphasis, model, trainingDays, wk, level) {
+function weekKeys(pos, goal, emphasis, model, trainingDays, wk, level, avoidHard = null) {
   let gp = null
   if (goal) {
     const days = daysUntil(goal) - wk * 7
@@ -1376,6 +1603,21 @@ function weekKeys(pos, goal, emphasis, model, trainingDays, wk, level) {
   const hardKeys = keys.filter((k) => SESSION_TYPES[k].fingerCost === 'high')
   const easyKeys = keys.filter((k) => SESSION_TYPES[k].fingerCost !== 'high')
   const hardSlots = spreadPositions(trainingDays, hardKeys.length)
+  // Move hard sessions off slots the athlete keeps skipping, as long as there
+  // is somewhere else to put them.
+  let adherenceMoved = false
+  if (avoidHard?.size && hardKeys.length && avoidHard.size < trainingDays) {
+    const free = Array.from({ length: trainingDays }, (_, i) => i).filter(
+      (i) => !hardSlots.has(i) && !avoidHard.has(i),
+    )
+    for (const bad of [...hardSlots].filter((i) => avoidHard.has(i))) {
+      const alt = free.shift()
+      if (alt == null) break
+      hardSlots.delete(bad)
+      hardSlots.add(alt)
+      adherenceMoved = true
+    }
+  }
   const ordered = []
   let hi = 0
   let ei = 0
@@ -1392,6 +1634,7 @@ function weekKeys(pos, goal, emphasis, model, trainingDays, wk, level) {
     disciplines,
     deload,
     taper: gp?.phase.key === 'taper',
+    adherenceMoved,
     phaseLabel: gp ? gp.phase.label : LINEAR_BLOCK[blockWeek].label,
     gp,
   }
@@ -1423,6 +1666,13 @@ export function rollingPlan(sessions, model, sessionsPerWeek, goals, profile, su
 
   const doubleSlots = [...spreadPositions(trainingDays, doubles)].sort((a, b) => a - b)
 
+  // Training days that have been going unused. Only meaningful when the athlete
+  // told us which days they train: a spread-evenly plan has no promise to keep.
+  const skipped = weekdaysKnown ? skippedWeekdays(sessions, daySlots) : new Set()
+  const avoidHard = new Set(
+    daySlots.map((wd, i) => (skipped.has(wd) ? i : -1)).filter((i) => i >= 0),
+  )
+
   // Sessions logged in the window, by date.
   const today = todayISO()
   const byDate = new Map()
@@ -1435,7 +1685,10 @@ export function rollingPlan(sessions, model, sessionsPerWeek, goals, profile, su
   const weekCache = new Map()
   const weekOf = (wk) => {
     if (!weekCache.has(wk)) {
-      weekCache.set(wk, weekKeys(pos, goal, emphasis, model, trainingDays, wk, level))
+      weekCache.set(
+        wk,
+        weekKeys(pos, goal, emphasis, model, trainingDays, wk, level, avoidHard),
+      )
     }
     return weekCache.get(wk)
   }
@@ -1531,6 +1784,10 @@ export function rollingPlan(sessions, model, sessionsPerWeek, goals, profile, su
     minHardGap,
     deloadNow: days[0]?.deload || false,
     phaseChange,
+    // Days the plan has stopped putting hard sessions on, because nothing has
+    // been logged on them for a month.
+    skippedWeekdays: [...skipped],
+    adherenceMoved: !!weekOf(0).adherenceMoved,
   })
 }
 
@@ -1717,10 +1974,14 @@ export function gradeRange(typeKey, limits, exercise, tierDrop = 0) {
       : context
         ? CONTEXT_LABEL[context]
         : null
-  // Both ends clamped to the bottom of the scale means the offset ran off the
-  // end - for a 6A climber "8 grades below your limit" is not a grade.
+  // Both ends clamped means the offset ran off the end of the scale, and the
+  // clamped value is not a prescription. At the bottom, for a 6A climber, "8
+  // grades below your limit" is not a grade. At the top there is nothing above
+  // the last entry, so quoting it would invent one.
   if (low.clamped && high.clamped) {
-    return { text: 'well below your limit', context, label, offScale: true }
+    return low.atTop
+      ? { text: 'at the top of the scale', context, label, offScale: true }
+      : { text: 'well below your limit', context, label, offScale: true }
   }
   return {
     low: low.grade,
@@ -1816,6 +2077,20 @@ export function phaseTimeline(goals, sessions, model) {
 // the daily decision
 // ---------------------------------------------------------------------------
 
+// When the coach changes a session, the copy names the input that changed it,
+// in the user's own units: "Fingers loaded 34 h ago, needs 48" beats "fingers
+// recovering". Hours when the session said when it was, days otherwise.
+function loadedReason(recovery, withNeed) {
+  if (recovery.daysSinceMax === 0 && !recovery.timed) return 'Fingers loaded today'
+  const elapsed = recovery.timed ? `${recovery.hoursSince} h ago` : `${recovery.daysSinceMax}d ago`
+  const need = !withNeed
+    ? ''
+    : recovery.timed
+      ? ` · needs ${recovery.requiredHours} h`
+      : ` · needs ${recovery.required}d`
+  return `Fingers loaded ${elapsed}${need}`
+}
+
 export function suggestSession(sessions, ctx) {
   const {
     recovery, readinessState, trend, monotony, injuries, problems, limits,
@@ -1823,7 +2098,12 @@ export function suggestSession(sessions, ctx) {
   } = ctx
   const plan = plannedType(sessions, model, daysPerWeek, goals, level)
   const planned = SESSION_TYPES[plan.key]
+  // Reasons carry whether they actually changed the prescription. A chip that
+  // describes a signal which did not influence today's session is decoration,
+  // and rendering the two identically means the one that matters does not
+  // stand out.
   const reasons = []
+  const addReason = (text, changed = false) => reasons.push({ text, changed })
   let key = plan.key
   let tone = 'go'
   let headline = 'Following the plan'
@@ -1852,26 +2132,34 @@ export function suggestSession(sessions, ctx) {
   ]
   const substantial = (problems || []).filter((p) => p.substantial)
 
-  // --- rule 0: youth ------------------------------------------------------
+  // --- the youth variety rule ---------------------------------------------
   // NOT a blanket block on fingerStrength/power/limit. The Norwegian Climbing
   // Federation's current position is that *controlled* finger training loads
   // the fingers less than finger-heavy bouldering does, and it no longer
   // advises against dead-hangs for growing athletes; what it does still advise
-  // against is campus training and a one-sided focus. Blocking limit and
+  // against is campus training and a one-sided focus. That is a live position
+  // that can move, and it decides what a junior is prescribed, so it is dated
+  // and pending confirmation in docs/youth-guidance.md. Blocking limit and
   // finger strength outright refused a competition junior essentially their
   // whole programme and offered volume bouldering during a championship
   // build-up. Gating happens per *exercise* (see pickExercises) on
-  // `youth`/`minYearsClimbing`, plus the variety rule below.
+  // `youth`/`minYearsClimbing`, plus this variety cap.
+  //
+  // It is evaluated here but applied *below* the pain rules. It used to run
+  // first, which meant a junior with a brewing finger problem who had
+  // bouldered twice this week was told to vary the stimulus rather than to back
+  // off. Variety must never outrank pain, and that matters most for someone
+  // else's child.
   const varietyCapped = youth && categoryOverused(sessions, plan.key, plan.discipline)
-  if (varietyCapped) {
-    key = 'technique'
-    reasons.push('Under 18: varying the stimulus (max 2 of a kind per week)')
-  }
 
-  const cost = SESSION_TYPES[key].fingerCost
+  const cost = SESSION_TYPES[plan.key].fingerCost
   const costly = cost === 'high'
   const anyFingerCost = cost === 'high' || cost === 'medium'
   const fingersBusy = recovery.key === 'loaded' || recovery.key === 'recovering'
+  // One quiet week is the way out of the 28-day ceiling. Without this, the
+  // count only clears after several weeks of reduced climbing, so the rule had
+  // no fast exit and simply repeated itself daily.
+  const chronicHardBlock = recovery.chronicLevel === 'very-high' && recovery.days7 > 0
 
   if (substantial.length) {
     // A developing overuse problem, caught by the weekly questionnaire before
@@ -1879,7 +2167,7 @@ export function suggestSession(sessions, ctx) {
     key = 'mobility'
     tone = 'caution'
     headline = 'Back off, something is brewing'
-    reasons.push(`${substantial.map((p) => p.area).join(', ')}: substantial problem this week`)
+    addReason(`${substantial.map((p) => p.area).join(', ')}: substantial problem this week`, true)
   } else if (openInjuries.length) {
     // Mobility, not antagonist work: antagonist is largely shoulder and push,
     // which is the worst possible answer to a shoulder injury.
@@ -1887,56 +2175,60 @@ export function suggestSession(sessions, ctx) {
     tone = 'caution'
     headline = 'Rehab or easy day'
     const regions = openInjuries.map((i) => i.region).filter(Boolean)
-    reasons.push(regions.length ? `Open injury: ${regions.join(', ')}` : 'Open injury in your log')
+    addReason(regions.length ? `Open injury: ${regions.join(', ')}` : 'Open injury in your log', true)
+  } else if (varietyCapped) {
+    key = 'technique'
+    tone = 'moderate'
+    headline = 'Vary the stimulus'
+    addReason('Under 18: max 2 of a kind per week', true)
   } else if (recovery.key === 'unknown' && costly) {
     key = 'fingerMaintenance'
     tone = 'moderate'
     headline = 'Start easy'
-    reasons.push('No finger history yet')
+    addReason('No finger history yet', true)
   } else if (fingersBusy && cost === 'high') {
     // Still inside the rebuild window and the plan wants a maximal finger day:
     // that is a category change, not a tier change.
     key = LOW_FINGER_TYPES[plan.pos.week % LOW_FINGER_TYPES.length]
     tone = 'easy'
     headline = 'Spare the fingers'
-    reasons.push(
-      recovery.daysSinceMax === 0
-        ? 'Fingers loaded today'
-        : `Fingers loaded ${recovery.daysSinceMax}d ago · needs ${recovery.required}d`,
-    )
+    addReason(loadedReason(recovery, true), true)
   } else if (recovery.sustainedWeeks >= 8 && anyFingerCost) {
     // Months of hard finger loading with no lighter week. Nothing else in the
     // model can see this, because every relative measure has adapted to it.
     key = 'fingerMaintenance'
     tone = 'caution'
     headline = 'Time for an easy finger week'
-    reasons.push(`${recovery.sustainedWeeks} weeks straight of hard finger days`)
-  } else if (recovery.chronicLevel === 'very-high' && anyFingerCost) {
+    addReason(`${recovery.sustainedWeeks} weeks straight of hard finger days`, true)
+  } else if (chronicHardBlock && anyFingerCost) {
     key = 'technique'
     tone = 'caution'
     headline = 'Too many hard finger days'
-    reasons.push(`${recovery.days28} hard finger days in 28d`)
+    addReason(
+      `${recovery.days28} hard finger days in 28d, ceiling ${recovery.chronicCeiling?.veryHigh}`,
+      true,
+    )
   } else if (readinessState?.enough && readinessState.index < 38) {
     key = 'deload'
     tone = 'easy'
     headline = 'Recovery day'
-    reasons.push(`Readiness ${readinessState.index}`)
+    addReason(`Readiness ${readinessState.index}`, true)
   } else if (plan.deload) {
     // Not an easy day - a lighter *week*. The session itself keeps its
     // intensity, which is what stops a deload from being a detraining week.
-    tone = 'moderate'
+    //
+    // Neutral, not amber: this is the plan working, not the coach reacting to
+    // something. Amber has to mean "changed or noticed something" or it stops
+    // being worth reading.
+    tone = 'planned'
     headline = 'Deload week'
-    reasons.push(plan.gp ? 'Scheduled in the countdown' : 'Week 4 of the cycle')
-    reasons.push('Half the volume, same intensity')
+    addReason(plan.gp ? 'Scheduled in the countdown' : 'Week 4 of the cycle', true)
+    addReason('Half the volume, same intensity')
   } else {
     // --- soft rules: same session, lower tier. They stack. ----------------
     if (fingersBusy && anyFingerCost) {
       tierDrop += 2
-      softReasons.push(
-        recovery.daysSinceMax === 0
-          ? 'Fingers loaded today'
-          : `Fingers loaded ${recovery.daysSinceMax}d ago`,
-      )
+      softReasons.push(loadedReason(recovery, false))
       tone = 'moderate'
     }
     if (recovery.rampFlag && anyFingerCost) {
@@ -1944,7 +2236,10 @@ export function suggestSession(sessions, ctx) {
       softReasons.push(`${recovery.days7} hard finger days this week`)
       tone = 'moderate'
     }
-    if (recovery.chronicLevel === 'high' && anyFingerCost) {
+    // A very-high count with a quiet week behind it eases the session instead
+    // of replacing it: the user has already done the thing the hard rule would
+    // have asked for.
+    if ((recovery.chronicLevel === 'high' || recovery.chronicLevel === 'very-high') && anyFingerCost) {
       tierDrop += 1
       softReasons.push(`${recovery.days28} hard finger days in 28d`)
       tone = 'moderate'
@@ -1957,21 +2252,25 @@ export function suggestSession(sessions, ctx) {
 
     if (tierDrop > 0) {
       headline = 'Same session, easier'
-      reasons.push(...softReasons)
+      for (const r of softReasons) addReason(r, true)
     } else {
+      if (recovery.chronicLevel === 'elevated' && anyFingerCost) {
+        // A note, not a cliff: the count is climbing but nothing has changed.
+        addReason(`${recovery.days28} hard finger days in 28d`)
+      }
       if (recovery.key === 'unknown') {
-        reasons.push('No finger history yet')
+        addReason('No finger history yet')
       } else if (recovery.daysSinceMax != null) {
-        reasons.push(`Fingers recovered · ${recovery.daysSinceMax}d`)
+        addReason(`Fingers recovered · ${recovery.daysSinceMax}d`)
       } else {
-        reasons.push('Fingers fresh')
+        addReason('Fingers fresh')
       }
     }
-    if (readinessState?.enough) reasons.push(`Readiness ${readinessState.index}`)
+    if (readinessState?.enough) addReason(`Readiness ${readinessState.index}`)
   }
 
   if (monotony?.enough && monotony.flag && key !== 'deload') {
-    reasons.push('Monotony high, so vary the stimulus')
+    addReason('Monotony high, so vary the stimulus')
   }
 
   const discipline = plan.discipline || plan.emphasis?.goal?.discipline || null
@@ -1988,12 +2287,15 @@ export function suggestSession(sessions, ctx) {
     sessionCat: base.sessionCat,
   })
 
-  // You can promote one of the alternatives to today's pick. It only reorders
-  // the list the rules already produced - everything downstream (grades, the
-  // hang prescription, the dashboard card, the log form) reads position 0, so
-  // a swap stays consistent without a second notion of "the session".
+  // You can choose one of the alternatives instead of the coach's first pick.
+  // It selects in place: the list keeps the order the rules produced, because
+  // that order is information (it is the tier fit), and a list that rearranges
+  // itself under your thumb makes you re-find what you were looking at.
+  // Everything downstream reads `chosen`, never position 0.
   const at = pick ? offered.findIndex((e) => e.id === pick) : -1
-  const exercises = at > 0 ? [offered[at], ...offered.filter((_, i) => i !== at)] : offered
+  const chosenIndex = at >= 0 ? at : 0
+  const exercises = offered
+  const chosen = offered[chosenIndex] || null
 
   return {
     type: SESSION_TYPES[key],
@@ -2004,15 +2306,22 @@ export function suggestSession(sessions, ctx) {
     plannedTier: base.tier,
     tone,
     headline,
-    reasons,
-    grades: gradeRange(key, limits, exercises[0], tierDrop),
+    // Whatever changed the prescription first, then the rest. Ordering is the
+    // cheapest way to stop a decorative chip competing with the one that
+    // explains today.
+    reasons: [...reasons].sort((a, b) => Number(b.changed) - Number(a.changed)),
+    grades: gradeRange(key, limits, chosen, tierDrop),
     exercises,
-    // Whose choice is on top, so the UI can offer to hand it back.
+    // The session you are actually doing, and where it sits in the list. The
+    // list order never changes; this is what moves.
+    chosen,
+    chosenIndex,
+    // Whose choice it is, so the UI can offer to hand it back.
     pickedByYou: at > 0,
     coachPick: offered[0]?.id || null,
     // What "80-90% of max" actually means today, in kilos, including the
     // assisted case. Null when there is no usable max or no bodyweight.
-    hang: hangPrescription(exercises[0], profile, fingerTests),
+    hang: hangPrescription(chosen, profile, fingerTests),
     emphasis: plan.emphasis || null,
     plannedKey: plan.key,
     plannedLabel: planned.label,

@@ -4,6 +4,9 @@
 import { supabase, isConfigured, PHOTO_BUCKET, currentUserId } from './supabase'
 import { enqueue, listPending, remove } from './outbox'
 import { fetchThroughCache, loadPersisted, invalidate } from './sessionCache'
+import { stampSchema } from './sessionShape'
+import { mirrorHangboardSets } from './hangboardSets'
+import { getBodyweight } from './prefs'
 
 // Broadcast helper so views can refresh after sessions change (create/edit/
 // delete or an outbox flush). Views subscribe to the window event.
@@ -31,7 +34,7 @@ function isNetworkError(err) {
 }
 
 // Postgres unique-violation - hit when the same intervals.icu activity is
-// imported twice (see supabase/dedupe_intervals.sql). Not a real failure:
+// imported twice (see supabase/migrations/20260101000700_dedupe_intervals.sql). Not a real failure:
 // the session already exists, so we treat it as a no-op.
 function isDuplicateError(err) {
   return err?.code === '23505'
@@ -58,7 +61,9 @@ function buildItem(form, kind = 'create') {
     rpe: form.rpe ?? null,
     duration: form.duration === '' || form.duration == null ? null : Number(form.duration),
     notes: form.notes?.trim() || null,
-    extra: form.extra || {},
+    // Every row we write says which shape it is in, so a reader never has to
+    // guess. Absent means v3 or older (see lib/sessionShape.js).
+    extra: stampSchema(form.extra),
   }
   const routes = (form.routes || []).map((r, i) => ({
     name: r.name?.trim() || null,
@@ -107,7 +112,19 @@ async function pushNewToServer(item) {
     const { error: rErr } = await supabase.from('routes').insert(rows)
     if (rErr) throw rErr
   }
+  await mirrorSets(inserted)
   return inserted
+}
+
+// Mirror hangboard sets into their own table (see lib/hangboardSets.js).
+// Best-effort on purpose: `extra` is still the source of truth, and a session
+// must never fail to save because a mirror write did.
+async function mirrorSets(session) {
+  try {
+    await mirrorHangboardSets(session, { bodyweight: getBodyweight() })
+  } catch {
+    /* the session is saved; the mirror can catch up on the next edit */
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -173,6 +190,7 @@ export async function updateSession(id, form) {
     const { error: insErr } = await supabase.from('routes').insert(rows)
     if (insErr) throw insErr
   }
+  await mirrorSets({ id, date: item.data.date, extra: item.data.extra })
   return { ok: true }
 }
 

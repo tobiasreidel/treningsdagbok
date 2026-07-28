@@ -74,7 +74,7 @@ export default function CoachTests({ tests, fingerTests, profile, onProfilePatch
       setDone(`Saved ${count} result${count === 1 ? '' : 's'}, and added the session to your diary.`)
       onChanged()
     } catch (e) {
-      setErr(e.message || 'Could not save. Has supabase/coach_v4.sql been run?')
+      setErr(e.message || 'Could not save. Have the migrations been applied (npx supabase db push)?')
     }
     setBusy(false)
   }
@@ -320,7 +320,7 @@ function FingerTestsSection({ profile, tests, onChanged, onMigrate }) {
       setDraft(null)
       onChanged()
     } catch (e) {
-      setErr(e.message || 'Could not save. Has supabase/coach_v4.sql been run?')
+      setErr(e.message || 'Could not save. Have the migrations been applied (npx supabase db push)?')
     }
     setBusy(false)
   }

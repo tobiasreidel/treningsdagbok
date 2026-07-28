@@ -20,7 +20,7 @@
 // MIGRATION STATE
 // ---------------
 // Both of this app's existing stores are ADDED weight, and we know it rather
-// than infer it: supabase/coach.sql documents `hang_max_kg` as "Added kg for a
+// than infer it: supabase/migrations/20260725000000_coach.sql documents `hang_max_kg` as "Added kg for a
 // 7-10 s two-hand hang", the setup form labels it "Added weight", and the
 // session logger's own hint said "Weight: added weight". So legacy rows are
 // unambiguous and need no guessing heuristic. They need a bodyweight to be
@@ -28,7 +28,7 @@
 // usable rather than quietly prescribing off the wrong denominator.
 import { differenceInCalendarDays } from 'date-fns'
 import { asDate } from './format'
-import { normalizeHang } from './formState'
+import { normaliseSession } from './sessionShape'
 
 const num = (v) => Number(v) || 0
 
@@ -229,36 +229,16 @@ export function prescribeHang({ lo, hi }, maxTotal, bodyweight) {
 // reading a logged set
 // ---------------------------------------------------------------------------
 
-// Total load a logged hangboard set put through the fingers.
-//
-//   v4 rows carry `load_total_kg` directly.
-//   Legacy rows carry `weight` = ADDED kg, which needs a bodyweight to become
-//   comparable. Without one we return null rather than pretending.
-export function setTotalLoad(set, bodyweight) {
-  const total = Number(set?.load_total_kg)
-  if (Number.isFinite(total) && total > 0) return { kg: total, derived: false }
-  const added = Number(set?.weight)
-  if (!Number.isFinite(added)) return { kg: null, derived: false }
-  const bw = num(bodyweight)
-  if (!(bw > 0)) return { kg: null, derived: false, reason: 'needs-bodyweight' }
-  // Legacy added weight; one-hand sets may be negative (assisted).
-  return { kg: bw + added, derived: true }
-}
-
-// Relative intensity of a set against a max total load, 0..1.3.
-export function setIntensity(set, maxTotal, bodyweight) {
-  const { kg } = setTotalLoad(set, bodyweight)
-  if (!(kg > 0) || !(maxTotal > 0)) return null
-  return Math.max(0, Math.min(1.3, kg / maxTotal))
+// Relative intensity of an already-resolved set against a max total load,
+// 0..1.3. The set comes from normaliseSession(), which is the only thing that
+// knows how to turn a stored row into total kilos.
+export function setIntensity(set, maxTotal) {
+  if (!(set?.kg > 0) || !(maxTotal > 0)) return null
+  return Math.max(0, Math.min(1.3, set.kg / maxTotal))
 }
 
 // Does this session log contain any hangboard set the app cannot interpret?
 // Used to prompt for a bodyweight rather than silently mis-dosing.
 export function hasUnreadableHangs(session, bodyweight) {
-  for (const h of session?.extra?.finger?.hangboard || []) {
-    for (const set of normalizeHang(h).sets) {
-      if (setTotalLoad(set, bodyweight).reason === 'needs-bodyweight') return true
-    }
-  }
-  return false
+  return normaliseSession(session, { bodyweight }).hasUnreadableHangs
 }

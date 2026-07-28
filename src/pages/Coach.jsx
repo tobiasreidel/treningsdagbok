@@ -17,6 +17,7 @@ import {
   EMPTY_COACH_INPUTS,
 } from '../lib/coachData'
 import { hasLoggedToday, areaLabel } from '../lib/wellness'
+import { writeSignalSnapshot, sharesWithAnyone } from '../lib/squad'
 import {
   pumpLabel,
   STRETCH_PROTOCOL,
@@ -38,6 +39,8 @@ import SignalBlock from '../components/SignalBlock'
 // on a training day; the plan and the tests are things you look at now and
 // then, and having them all in one column meant the answer to "what do I do
 // today" was five screens from the bottom of the page.
+const WEEKDAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
 const TABS = [
   { key: 'today', label: 'Today' },
   { key: 'plan', label: 'The plan' },
@@ -54,6 +57,10 @@ export default function Coach() {
   const [loading, setLoading] = useState(true)
   const [model, setModelState] = useState(getCoachModel)
   const [pick, setPick] = useState(() => getSessionPick(todayISO()))
+  // Signals stay folded away on a day when nothing has changed, and open
+  // themselves when something wants looking at: a warning must never be one
+  // tap further away than it used to be.
+  const [signalsOpen, setSignalsOpen] = useState(null)
 
   const load = useCallback(async () => {
     setInputs(await loadCoachInputs())
@@ -65,6 +72,7 @@ export default function Coach() {
     window.addEventListener('coach:changed', load)
     return () => window.removeEventListener('coach:changed', load)
   }, [load])
+
 
   const { sessions, goals, profile, fingerTests } = inputs
   const readout = useMemo(
@@ -80,6 +88,25 @@ export default function Coach() {
     [goals, sessions, model],
   )
 
+  // If any coach has been granted signal access, leave them today's derived
+  // numbers. Written from here because this is where the readout already exists,
+  // and derived only: the raw check-in entries stay on this device's account.
+  // Declared after `readout` for a reason: a dependency array is evaluated
+  // during render, so referencing it above its own useMemo throws.
+  useEffect(() => {
+    if (loading) return undefined
+    let alive = true
+    sharesWithAnyone()
+      .then((yes) => {
+        if (!alive || !yes) return undefined
+        return writeSignalSnapshot(readout, { checkedIn: hasLoggedToday(inputs.wellness) })
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [loading, readout, inputs.wellness])
+
   // The one profile write the tests tab makes: converting a legacy
   // added-weight max into a total-load test clears the old field.
   const saveProfilePatch = async (patch) => {
@@ -92,10 +119,11 @@ export default function Coach() {
     setCoachModel(k)
   }
 
-  // Tapping the session already on top hands the choice back to the coach,
-  // rather than freezing today on a card that happens to match its own pick.
+  // Tapping the coach's own pick hands the choice back to it, rather than
+  // freezing today on a card that happens to match what it would have said. It
+  // is the first in the list, which does not move when you choose another.
   const choosePick = (id) => {
-    const next = id === readout.suggestion.exercises[0]?.id ? null : id
+    const next = id === readout.suggestion.coachPick ? null : id
     setSessionPick(todayISO(), next)
     setPick(next)
   }
@@ -112,6 +140,29 @@ export default function Coach() {
   const setUp = isProfileComplete(profile)
   // Null for the handful of library entries the diary has no sport for.
   const logPrefill = sessionFromSuggestion(suggestion)
+  const primaryReason = suggestion.reasons.find((r) => r.changed) || suggestion.reasons[0] || null
+  const otherReasons = suggestion.reasons.filter((r) => r !== primaryReason)
+
+  // How many signals are worth a look, so the section can say so in one line
+  // instead of four blocks that mostly read "steady".
+  const attention = [
+    recovery.tone === 'warn',
+    readiness.enough && (readiness.tone === 'warn' || readiness.sustained.length > 0),
+    trend.enough && trend.tone === 'warn',
+    monotony.enough && monotony.flag,
+  ].filter(Boolean).length
+  const gated = [!readiness.enough, !trend.enough, !monotony.enough].filter(Boolean).length
+  const steady = 4 - attention - gated
+  const signalSummary = [
+    attention > 0 ? `${attention} to look at` : null,
+    steady > 0 ? `${steady} steady` : null,
+    gated > 0 ? `${gated} not enough data yet` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+  // Untouched (null) means "decide for me": open when there is something to
+  // see, folded when there is not.
+  const signalsShown = signalsOpen == null ? attention > 0 : signalsOpen
 
   return (
     <div className="page">
@@ -199,10 +250,19 @@ export default function Coach() {
             {suggestion.type.emoji} {suggestion.type.label}
           </strong>
           <p className="muted small coach-detail">{suggestion.type.goal}</p>
-          {suggestion.reasons.length > 0 && (
+          {/* The line that explains today, then the rest. A chip that
+              describes a signal which did not change the prescription is
+              decoration, and rendering both the same way buried the one that
+              matters. */}
+          {primaryReason && (
+            <p className={`coach-why ${primaryReason.changed ? 'is-changed' : ''}`}>
+              {primaryReason.text}
+            </p>
+          )}
+          {otherReasons.length > 0 && (
             <div className="coach-reasons">
-              {suggestion.reasons.map((r) => (
-                <span className="coach-reason" key={r}>{r}</span>
+              {otherReasons.map((r) => (
+                <span className="coach-reason" key={r.text}>{r.text}</span>
               ))}
             </div>
           )}
@@ -276,27 +336,37 @@ export default function Coach() {
               ) : (
                 <p className="muted small">
                   {suggestion.pickedByYou
-                    ? 'Your choice for today. Tap it again to hand the choice back to the coach.'
+                    ? 'Your choice for today. Tap the coach’s pick at the top to hand the choice back.'
                     : 'Tap another to swap to it. Same session type, so the grades and load above still apply.'}
                 </p>
               )}
-              {/* Only the chosen session is spelled out. The alternatives sit
-                  as one line each: three full cards was most of the page, and
-                  the choice is easier to make when you can see all of it. */}
+              {/* The chosen session is spelled out and the rest sit as one line
+                  each: three full cards was most of the page, and the choice is
+                  easier to make when you can see all of it at once.
+
+                  Choosing one does NOT move it to the top. The order is the
+                  coach's ranking, so it stays put and the selection moves
+                  instead: a list that rearranges itself under your thumb makes
+                  you re-find what you were just looking at. */}
               <div className="stack">
                 {suggestion.exercises.map((ex, i) =>
-                  i === 0 || suggestion.key === 'mobility' ? (
+                  i === suggestion.chosenIndex || suggestion.key === 'mobility' ? (
                     <ExerciseCard
                       key={ex.id}
                       ex={ex}
-                      primary={i === 0 && suggestion.key !== 'mobility'}
-                      youPicked={i === 0 && suggestion.pickedByYou}
+                      primary={suggestion.key !== 'mobility'}
+                      youPicked={suggestion.pickedByYou}
                       onPick={suggestion.key === 'mobility' ? null : () => choosePick(ex.id)}
                       profile={profile}
                       tests={fingerTests}
                     />
                   ) : (
-                    <AlternativeRow key={ex.id} ex={ex} onPick={() => choosePick(ex.id)} />
+                    <AlternativeRow
+                      key={ex.id}
+                      ex={ex}
+                      isCoachPick={suggestion.pickedByYou && ex.id === suggestion.coachPick}
+                      onPick={() => choosePick(ex.id)}
+                    />
                   ),
                 )}
               </div>
@@ -305,8 +375,27 @@ export default function Coach() {
         </section>
 
         {/* ---- signals ---- */}
+        {/* Four blocks plus a card plus problem blocks was most of a screen,
+            and on a normal day none of it has changed. Collapsed to one line
+            unless something actually wants looking at. */}
         <section className="card settings-card stack">
-          <h2 className="step-q">Where you’re at</h2>
+          <button
+            type="button"
+            className="coach-signals-summary"
+            aria-expanded={signalsShown}
+            onClick={() => setSignalsOpen(!signalsShown)}
+          >
+            <span className="step-q">Where you’re at</span>
+            <span className="coach-signals-state">
+              {signalSummary}
+              <span className={`coach-finger-chev ${signalsShown ? 'is-open' : ''}`} aria-hidden="true">
+                ›
+              </span>
+            </span>
+          </button>
+
+          {signalsShown && (
+          <>
           <p className="muted small">What the coach read to land on today’s session. Tap any of them for the history behind it.</p>
 
           <SignalBlock
@@ -325,10 +414,21 @@ export default function Coach() {
               hint={
                 readiness.subjectiveMissing
                   ? 'Your own normal is 50, but this is running on objective data only. Daily check-ins carry half the weight when they exist, and they are the part that actually tracks how you feel.'
-                  : "Your own normal is 50. Built from your daily check-ins plus HRV, resting heart rate and form, each measured against your own baseline, not anyone else's."
+                  : readiness.subjectiveThin
+                    ? `Your own normal is 50. Running on thin subjective data: ${readiness.recentWellness} check-in${readiness.recentWellness === 1 ? '' : 's'} in the last 7 days, so the half that tracks how you feel is a guess from a couple of days.`
+                    : "Your own normal is 50. Built from your daily check-ins plus HRV, resting heart rate and form, each measured against your own baseline, not anyone else's."
               }
               onPress={() => navigate('/coach/signals/readiness')}
             >
+              {/* The index cannot see a baseline that has been bad for weeks,
+                  so the absolute check says it in words. */}
+              {readiness.sustained.map((s) => (
+                <p className="auth-error small" key={s.key}>
+                  Your {s.label.toLowerCase()} has been poor {s.days} of the last {s.of} days.
+                  Readiness compares you against your own recent normal, and your recent normal
+                  has been low.
+                </p>
+              ))}
               <div className="coach-zrow">
                 {readiness.signals.map((s) => (
                   <span
@@ -380,21 +480,27 @@ export default function Coach() {
             title="🔁 Monotony"
             state={
               !monotony.enough
-                ? 'Quiet week'
+                ? monotony.reason === 'frequency'
+                  ? 'Not meaningful yet'
+                  : 'Quiet week'
                 : monotony.monotony == null
                   ? 'Very high'
                   : monotony.monotony.toFixed(1)
             }
-            tone={!monotony.enough ? 'ok' : monotony.flag ? 'warn' : 'good'}
+            tone={!monotony.enough ? 'planned' : monotony.flag ? 'warn' : 'good'}
             hint={
               !monotony.enough
-                ? 'Too few training days this week to judge the spread.'
+                ? monotony.reason === 'frequency'
+                  ? `Judged over the days you train, and ${monotony.activeDays} is too few to tell a varied week from a flat one. It starts meaning something at five training days a week.`
+                  : 'Nothing logged this week yet.'
                 : monotony.flag
-                  ? 'Your days look much the same. Making hard days harder and easy days easier tends to beat a flat week.'
-                  : 'Good spread between your hard and easy days.'
+                  ? 'Your sessions look much the same. Making hard days harder and easy days easier tends to beat a flat week.'
+                  : 'Good spread between your hard and easy sessions.'
             }
             onPress={() => navigate('/coach/signals/monotony')}
           />
+          </>
+          )}
         </section>
         </>
         )}
@@ -538,6 +644,15 @@ export default function Coach() {
             <p className="muted small">
               Tell the coach which days you train and the plan can land on your real days. Right
               now it spreads your {week.trainingDays} sessions evenly across the week.
+            </p>
+          )}
+          {week.skippedWeekdays.length > 0 && (
+            <p className="muted small">
+              Nothing has been logged on{' '}
+              {week.skippedWeekdays.map((d) => WEEKDAY_NAMES[d - 1]).join(' or ')} for the last
+              month, so the hard sessions have moved off{' '}
+              {week.skippedWeekdays.length === 1 ? 'it' : 'them'}. Not a judgement: a plan you
+              follow beats a plan you feel guilty about.
             </p>
           )}
           {week.minHardGap != null && week.minHardGap < 2 && (
@@ -882,7 +997,7 @@ function PlanDayDetail({ d, profile, limits, suggestion, goalStyle, tests }) {
 
 // An alternative session, one line: enough to choose by, and one tap from
 // becoming the session that's spelled out in full above.
-function AlternativeRow({ ex, onPick }) {
+function AlternativeRow({ ex, onPick, isCoachPick }) {
   const meta = [ex.minutes ? `~${ex.minutes} min` : null, ex.pump ? `pump ${ex.pump[0]}` : null]
     .filter(Boolean)
     .join(' · ')
@@ -893,7 +1008,9 @@ function AlternativeRow({ ex, onPick }) {
         <span className="alt-row-name">{ex.name}</span>
         {meta && <span className="muted small">{meta}</span>}
       </span>
-      <span className="alt-row-swap">Swap</span>
+      {/* Which row hands the choice back, said on the row rather than only in
+          the paragraph above it. */}
+      <span className="alt-row-swap">{isCoachPick ? 'Coach’s pick' : 'Swap'}</span>
     </button>
   )
 }
@@ -956,7 +1073,7 @@ export function ExerciseCard({
         {ex.youthReduced && <span className="coach-week-tag">u18</span>}
         {primary && <span className="coach-week-tag">{youPicked ? 'your pick' : 'pick'}</span>}
       </div>
-      <p className="muted small ex-how">{ex.how}</p>
+      {ex.how && <p className="muted small ex-how">{ex.how}</p>}
       {ex.margin && <p className="muted small ex-how"><strong>Margin:</strong> {ex.margin}</p>}
       {note && <p className="auth-error small">{note}</p>}
       {rx?.assisted && (

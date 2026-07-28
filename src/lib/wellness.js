@@ -1,5 +1,5 @@
 // Daily wellness + the weekly OSTRC overuse questionnaire (see
-// supabase/coach.sql). Both feed the coach; both are strictly private.
+// supabase/migrations/20260725000000_coach.sql). Both feed the coach; both are strictly private.
 //
 // Why daily wellness is its own table rather than a field on a session: a
 // rating attached to a session only exists on days you trained, and people
@@ -76,7 +76,7 @@ export async function saveWellnessDay(date, patch) {
     .upsert({ ...patch, user_id: userId, date }, { onConflict: 'user_id,date' })
   if (error) {
     if (isMissingTable(error)) {
-      const e = new Error('Run supabase/coach.sql to enable daily check-ins.')
+      const e = new Error('Daily check-ins need the coach tables. Apply the migrations (npx supabase db push).')
       e.code = 'no-table'
       throw e
     }
@@ -190,7 +190,7 @@ export async function saveOstrc(weekStart, area, answers) {
     )
   if (error) {
     if (isMissingTable(error)) {
-      const e = new Error('Run supabase/coach.sql to enable the weekly check-in.')
+      const e = new Error('The weekly check-in needs the coach tables. Apply the migrations (npx supabase db push).')
       e.code = 'no-table'
       throw e
     }

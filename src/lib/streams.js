@@ -191,7 +191,7 @@ function laps(activity) {
 // belongs to its owner's account and only their API key can read it. So when
 // you open one of your own rides, a compact copy of the chart data is stored
 // on the session (session_streams, shared by the same rule as the session
-// itself - see supabase/session_streams.sql). Friends then read that copy.
+// itself - see supabase/migrations/20260723120000_session_streams.sql). Friends then read that copy.
 //
 // The GPS track is deliberately NOT shared: a route sketch reveals where you
 // live and ride, which is a bigger step than sharing pace and heart rate, and
