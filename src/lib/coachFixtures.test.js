@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, afterAll } from 'vitest'
 import { format, subDays } from 'date-fns'
 import {
   coachReadout,
@@ -23,6 +23,31 @@ import { ALL_EXERCISES } from './exercises'
 //
 // Snapshots are deliberately a *summary* of the readout, not the whole object:
 // a snapshot nobody can read is a snapshot nobody checks.
+
+// The clock is frozen for this whole file, and frozen here at module scope
+// rather than in a beforeAll: the fixtures below are built while the file is
+// imported, which happens before any hook runs, so a hook would fake the
+// engine's "today" while the session dates kept drifting with the real clock.
+//
+// It has to be the system clock rather than an asOf argument because both
+// sides read it. `iso()` dates the sessions, and most of the engine takes no
+// asOf at all: coachReadout, cyclePosition, rollingPlan, monotonyStrain and
+// fitnessSeries all call new Date() themselves, and readiness/readinessSeries
+// default to it. Faking Date covers the lot.
+//
+// Without this the snapshots encoded the weekday and the deload-cycle position
+// of the day they were generated, so they went red on their own a day or two
+// later with no code change, and "npm run test -- -u" stopped meaning anything.
+//
+// 2026-07-15 is a Wednesday mid-block, so the weekday-sensitive paths (skipped
+// days, sessions so far this week) and the 4:1 cycle both stay exercised.
+// 09:00Z is the same calendar day from UTC-9 through UTC+14.
+const FROZEN_NOW = new Date('2026-07-15T09:00:00Z')
+vi.useFakeTimers({ toFake: ['Date'] })
+vi.setSystemTime(FROZEN_NOW)
+afterAll(() => {
+  vi.useRealTimers()
+})
 
 const iso = (daysAgo) => format(subDays(new Date(), daysAgo), 'yyyy-MM-dd')
 

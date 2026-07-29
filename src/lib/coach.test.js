@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, afterAll } from 'vitest'
 import { format, subDays } from 'date-fns'
 import { fingerDose, fingerRecovery, buildLimits } from './coach'
 import { sessionExercises } from './exercises'
@@ -9,6 +9,18 @@ import { sessionsToCsv } from './exportData'
 // inspection, and the one place a silent regression costs the most: it decides
 // whether you are told to train hard today. These cover the behaviours that
 // have actually gone wrong, not the whole surface.
+
+// Frozen for the same reason as coachFixtures.test.js, which carries the long
+// version: the dates below are fixed but the engine's "today" was not, so a
+// tested max that is nine days old today was a stale one a few months from now,
+// and two of these went red on their own. Same instant as the fixtures, and
+// installed at module scope so it covers the fixture data built up here too.
+const FROZEN_NOW = new Date('2026-07-15T09:00:00Z')
+vi.useFakeTimers({ toFake: ['Date'] })
+vi.setSystemTime(FROZEN_NOW)
+afterAll(() => {
+  vi.useRealTimers()
+})
 
 const profile = { bodyweight_kg: 70, sessions_week: 3, max_boulder_indoor: '7A' }
 
@@ -43,14 +55,14 @@ const tests = [
     grip: 'halfcrimp',
     hands: 'two',
     value: 100,
-    tested_on: '2026-07-20',
+    tested_on: '2026-07-06',
   },
 ]
 
 describe('finger dose', () => {
   it('scores a near-max hang as maximal when a tested max is known', () => {
     const limits = buildLimits([], profile)
-    const dose = fingerDose(hangSession('2026-07-25'), limits, profile, tests)
+    const dose = fingerDose(hangSession('2026-07-11'), limits, profile, tests)
     expect(dose.tier).toBe('maximal')
   })
 
@@ -59,8 +71,8 @@ describe('finger dose', () => {
   // alone and could land in a different tier than the Coach page showed.
   it('scores the same session lower without the tests, which is why they must be passed', () => {
     const limits = buildLimits([], profile)
-    const withTests = fingerDose(hangSession('2026-07-25'), limits, profile, tests)
-    const without = fingerDose(hangSession('2026-07-25'), limits, profile, [])
+    const withTests = fingerDose(hangSession('2026-07-11'), limits, profile, tests)
+    const without = fingerDose(hangSession('2026-07-11'), limits, profile, [])
     expect(without.dose).toBeLessThan(withTests.dose)
   })
 })
@@ -106,8 +118,8 @@ describe('hang prescription', () => {
 describe('max total', () => {
   it('prefers a test on the exact grip', () => {
     const rows = [
-      { protocol: 'total_load', grip: 'openhand', hands: 'two', value: 90, tested_on: '2026-07-21' },
-      { protocol: 'total_load', grip: 'halfcrimp', hands: 'two', value: 100, tested_on: '2026-07-20' },
+      { protocol: 'total_load', grip: 'openhand', hands: 'two', value: 90, tested_on: '2026-07-07' },
+      { protocol: 'total_load', grip: 'halfcrimp', hands: 'two', value: 100, tested_on: '2026-07-06' },
     ]
     const m = maxTotalFor(profile, rows, 'halfcrimp')
     expect(m.kg).toBe(100)
@@ -139,13 +151,13 @@ describe('unreadable hangs', () => {
 
 describe('csv export', () => {
   it('quotes commas and newlines', () => {
-    const csv = sessionsToCsv([{ date: '2026-07-01', sport: 'climbing', notes: 'felt good, then bad' }])
+    const csv = sessionsToCsv([{ date: '2026-06-17', sport: 'climbing', notes: 'felt good, then bad' }])
     expect(csv.split('\n')[1]).toContain('"felt good, then bad"')
   })
 
   // A note that starts with "=" is a note, not a spreadsheet formula.
   it('defuses a leading equals so Excel treats it as text', () => {
-    const csv = sessionsToCsv([{ date: '2026-07-01', sport: 'climbing', notes: '=1+1' }])
+    const csv = sessionsToCsv([{ date: '2026-06-17', sport: 'climbing', notes: '=1+1' }])
     expect(csv.split('\n')[1]).toContain("'=1+1")
   })
 })
@@ -171,13 +183,13 @@ describe('naming what a session was made of', () => {
   // hardest part of it - not from the sum, which would look like three days.
   it('takes the hardest part as the floor rather than summing', () => {
     const combined = {
-      date: '2026-07-25',
+      date: '2026-07-11',
       sport: 'climbing',
       duration: 120,
       extra: { coach: { exercises: ['B6', 'F3'] } },
     }
     const campusOnly = {
-      date: '2026-07-25',
+      date: '2026-07-11',
       sport: 'climbing',
       duration: 120,
       extra: { coach: { exercises: ['F3'] } },
