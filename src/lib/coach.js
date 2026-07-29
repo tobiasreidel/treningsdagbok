@@ -964,6 +964,32 @@ const WELLNESS_SIGNALS = [
   { key: 'stress', label: 'Stress', weight: 0.125, invert: true },
 ]
 
+// The inputs that say how you are *responding*. Form is deliberately not one of
+// them: it is derived from the sessions themselves, so it says how much you
+// have trained. At least one of these has to be present before there is a
+// readiness score at all, because a score built from load alone is the load
+// chart with a different label on it, and it reads as an opinion about your
+// body that nothing in it ever measured.
+const RECOVERY_KEYS = ['sleep', 'fatigue', 'soreness', 'stress', 'hrv', 'rhr']
+
+// Form still belongs in the mix (a big involuntary swing is worth seeing), but
+// it is capped tighter than the ±3 the other signals get. Form falls for weeks
+// on end through any build block, which is the plan working, not a symptom; at
+// the shared clamp it pinned the index at its floor for days at a time.
+const FORM_Z_CAP = 1.5
+
+// Missing inputs re-weight the rest, but only down to this much coverage.
+// Below it the score is shrunk toward 50 instead of handing the survivors the
+// whole weight: one input re-weighted to 100% is one number wearing the score's
+// clothes. Chosen, not fitted: it is the point where the four check-in items
+// (0.5) are close to full strength while no single input can reach an extreme
+// on its own.
+export const MIN_EFFECTIVE_WEIGHT = 0.6
+
+// Daily check-ins before a subjective item has something to be scored against:
+// 14 baseline days that the scoring week cannot overlap, plus that week.
+export const NEED_CHECKIN_DAYS = 21
+
 // Items sitting at the bad end of their own scale for most of a fortnight.
 // Sleep is scored the other way up (5 is slept well), so "bad" is not the same
 // end for every item.
@@ -1018,20 +1044,47 @@ export function readiness(sessions, wellnessRows, icuWellness, asOf = new Date()
   const signals = [
     ...WELLNESS_SIGNALS.map((s) => ({
       ...s,
-      z: signalZ(wellPoints(s.key), 7, MIN_RECENT_WELLNESS, asOf),
+      points: wellPoints(s.key),
+      minRecent: MIN_RECENT_WELLNESS,
     })),
-    { key: 'hrv', label: 'HRV', weight: 0.2, invert: false, z: signalZ(icuPoints('hrv'), 7, 1, asOf) },
-    { key: 'rhr', label: 'Resting HR', weight: 0.1, invert: true, z: signalZ(icuPoints('restingHR'), 7, 1, asOf) },
-    { key: 'form', label: 'Form', weight: 0.2, invert: false, z: signalZ(formPoints, 7, 1, asOf) },
-  ].map((s) => ({ ...s, z: s.z == null ? null : s.invert ? -s.z : s.z }))
+    { key: 'hrv', label: 'HRV', weight: 0.2, invert: false, points: icuPoints('hrv') },
+    { key: 'rhr', label: 'Resting HR', weight: 0.1, invert: true, points: icuPoints('restingHR') },
+    { key: 'form', label: 'Form', weight: 0.2, invert: false, points: formPoints, cap: FORM_Z_CAP },
+  ].map(({ points, minRecent, cap, ...s }) => {
+    const raw = signalZ(points, 7, minRecent ?? 1, asOf)
+    const z = raw == null ? null : clamp(s.invert ? -raw : raw, -(cap ?? 3), cap ?? 3)
+    // `days` is what the screens show in place of the z-score while an input is
+    // still building a baseline. "Four days in" and "no data" are different
+    // messages, and only one of them is true for someone who has started.
+    return { ...s, z, days: points.length }
+  })
+
+  // Distinct days with any subjective item, for "you are n check-ins into it".
+  const checkInDays = rows.filter((r) =>
+    WELLNESS_SIGNALS.some((s) => r[s.key] != null),
+  ).length
 
   const available = signals.filter((s) => s.z != null)
-  if (!available.length) {
-    return { enough: false, reason: 'signals', historyDays, needDays: MIN_BASELINE_DAYS }
+  if (!available.some((s) => RECOVERY_KEYS.includes(s.key))) {
+    return {
+      enough: false,
+      reason: 'signals',
+      historyDays,
+      needDays: MIN_BASELINE_DAYS,
+      signals,
+      checkInDays,
+      needCheckIns: NEED_CHECKIN_DAYS,
+      // Absolute, so it works with no baseline at all. Weeks of bad sleep are
+      // worth saying out loud precisely when there is no score to say it
+      // through: this is the state the index would have been blind to anyway.
+      sustained: sustainedPoor(wellnessRows, today),
+    }
   }
 
   const totalWeight = available.reduce((a, s) => a + s.weight, 0)
-  const composite = available.reduce((a, s) => a + s.z * s.weight, 0) / totalWeight
+  const composite =
+    available.reduce((a, s) => a + s.z * s.weight, 0) /
+    Math.max(totalWeight, MIN_EFFECTIVE_WEIGHT)
   // 10 points per SD, not 15: on ordinal 1-5 items a single bad day moves a
   // z-score a long way, and tighter scaling produced constant false "Low".
   const index = Math.round(clamp(50 + 10 * composite, 0, 100))
@@ -1066,9 +1119,36 @@ export function readiness(sessions, wellnessRows, icuWellness, asOf = new Date()
     // switching the subjective half on and off around a threshold.
     subjectiveThin: recentWellness > 0 && recentWellness < THIN_RECENT_WELLNESS,
     recentWellness,
+    checkInDays,
+    needCheckIns: NEED_CHECKIN_DAYS,
+    // How much of the total weight is actually reporting. Below
+    // MIN_EFFECTIVE_WEIGHT the index is pulled toward 50 by the shortfall, and
+    // the screens say so rather than presenting a thin score as a full one.
+    coverage: totalWeight,
     // Absolute, index-independent: "your recent normal has been low".
     sustained: sustainedPoor(wellnessRows, today),
   }
+}
+
+// Why the score is not running yet, in one line, said the same way everywhere
+// it appears. The check-in count is the point: "not enough data" invites the
+// reader to wonder whether their check-ins are being read at all.
+export function readinessGateHint(r) {
+  if (r.enough) return null
+  if (r.reason !== 'signals') {
+    return `Needs about ${r.needDays ?? MIN_BASELINE_DAYS} days of history before it means anything. Keep logging.`
+  }
+  const need = r.needCheckIns ?? NEED_CHECKIN_DAYS
+  const done = r.checkInDays ?? 0
+  if (!done) {
+    return `Nothing to measure how you feel against yet. Check in daily, rest days included; about ${need} of them and this switches on. Training load alone cannot tell you how recovered you are.`
+  }
+  if (done < need) {
+    return `${done} check-in${done === 1 ? '' : 's'} so far, and it takes about ${need} before there is a normal to compare a week against. Keep going, rest days included.`
+  }
+  // Enough of them, still nothing to score: the days are bunched up, or every
+  // answer is the same number, which leaves no spread to measure a week against.
+  return `${done} check-ins so far, but not yet spread over enough weeks, or too alike day to day, for a week of yours to look different from a normal one.`
 }
 
 // ---------------------------------------------------------------------------

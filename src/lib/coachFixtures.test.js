@@ -5,6 +5,9 @@ import {
   fingerDose,
   buildLimits,
   readiness,
+  readinessSeries,
+  readinessGateHint,
+  MIN_EFFECTIVE_WEIGHT,
   monotonyStrain,
   skippedWeekdays,
 } from './coach'
@@ -115,12 +118,28 @@ const maxHangTest = (weeksAgo = 2, value = 100) => ({
   tested_on: iso(weeksAgo * 7),
 })
 
-// Wellness rows for the last `days` days at a fixed level.
-function wellness(days, { sleep = 3, fatigue = 3, soreness = 3, stress = 3, every = 1 } = {}) {
+// Wellness rows for the last `days` days around a fixed level.
+//
+// The wobble is not decoration. Answering an identical 3 every day gives a
+// baseline with no spread, every z-score comes back null, and the whole fixture
+// suite quietly stopped exercising readiness at all. Its period is deliberately
+// coprime with 7 so that consecutive weeks are not identical either.
+const WOBBLE = [0, 0, 1, 0, -1, 0, 0, 1, 0, 0, -1]
+const lvl = (v, w) => Math.max(1, Math.min(5, v + w))
+
+function wellness(days, { sleep = 3, fatigue = 3, soreness = 3, stress = 3, every = 1, flat = false } = {}) {
   const out = []
   for (let d = days - 1; d >= 0; d -= 1) {
     if (d % every !== 0) continue
-    out.push({ date: iso(d), sleep, fatigue, soreness, stress })
+    const w = flat ? 0 : WOBBLE[d % WOBBLE.length]
+    out.push({
+      date: iso(d),
+      sleep: lvl(sleep, w),
+      fatigue: lvl(fatigue, w),
+      // Opposite sign, so soreness and fatigue are not the same column twice.
+      soreness: lvl(soreness, -w),
+      stress: lvl(stress, w),
+    })
   }
   return out
 }
@@ -557,6 +576,78 @@ describe('readiness properties', () => {
     expect(r.index).toBeGreaterThan(38)
     // The absolute check is not.
     expect(r.sustained.map((s) => s.key).sort()).toEqual(['fatigue', 'sleep', 'soreness', 'stress'])
+  })
+
+  // The shipped bug this guards: with no check-ins and no intervals.icu, the
+  // only signal left was form, it was re-weighted to the whole score, and a
+  // normal training block walked the index down to 20 and parked it there. The
+  // reading was "you are wrecked"; the evidence was "you have been training".
+  it('does not score readiness from training load alone', () => {
+    // A build: three sessions a week, then five, so form falls for weeks.
+    const build = [
+      ...weekly([1, 3, 6], 12, (d) => indoorBoulder(d)),
+      ...weekly([2, 5], 3, (d) => indoorBoulder(d, { rpe: 8 })),
+    ]
+    const r = readiness(build, [], [])
+    expect(r.enough).toBe(false)
+    expect(r.reason).toBe('signals')
+    // And it says how far off it is rather than "no data".
+    expect(r.checkInDays).toBe(0)
+    expect(readinessGateHint(r)).toMatch(/check in daily/i)
+
+    // Every day of the chart, not just today: the old failure was a slide.
+    for (const p of readinessSeries(build, [], [], 42)) expect(p.index).toBe(null)
+  })
+
+  it('reports how far along the check-ins are while the baseline builds', () => {
+    const r = readiness(sessions, wellness(4), [])
+    expect(r.enough).toBe(false)
+    expect(r.checkInDays).toBe(4)
+    // The four items are logged but unscorable, and the difference is visible:
+    // the screens show "4 days logged", not "no data".
+    for (const key of ['sleep', 'fatigue', 'soreness', 'stress']) {
+      const sig = r.signals.find((s) => s.key === key)
+      expect(sig.z).toBe(null)
+      expect(sig.days).toBe(4)
+    }
+    expect(readinessGateHint(r)).toMatch(/4 check-ins/)
+  })
+
+  it('lets form colour the score but never run it', () => {
+    const build = [
+      ...weekly([1, 3, 6], 12, (d) => indoorBoulder(d)),
+      ...weekly([2, 5], 3, (d) => indoorBoulder(d, { rpe: 8 })),
+    ]
+    const steady = wellness(60)
+    const r = readiness(build, steady, [])
+    expect(r.enough).toBe(true)
+    // Form is at its cap and pulling down; the check-ins say an ordinary week.
+    expect(r.signals.find((s) => s.key === 'form').z).toBeLessThan(0)
+    expect(r.label).toBe('Normal')
+  })
+
+  it('still calls a genuinely bad week low', () => {
+    const rows = wellness(60).map((r, i, all) =>
+      i < all.length - 7 ? r : { ...r, sleep: 1, fatigue: 5, soreness: 5, stress: 5 },
+    )
+    const r = readiness(sessions, rows, [])
+    expect(r.enough).toBe(true)
+    expect(r.label).toBe('Low')
+  })
+
+  it('shrinks toward normal when most of the weight is missing', () => {
+    // HRV alone, at its most extreme, is a fifth of the weight. Re-weighted to
+    // 100% it would read 20 or 80; shrunk, it is an opinion the size of its
+    // evidence.
+    const collapse = Array.from({ length: 60 }, (_, i) => ({
+      date: iso(59 - i),
+      hrv: i < 53 ? 60 + (i % 5) : 30,
+    }))
+    const r = readiness(sessions, [], collapse)
+    expect(r.enough).toBe(true)
+    expect(r.coverage).toBeLessThan(MIN_EFFECTIVE_WEIGHT)
+    expect(r.signals.find((s) => s.key === 'hrv').z).toBeLessThanOrEqual(-2)
+    expect(r.index).toBeGreaterThan(38)
   })
 })
 

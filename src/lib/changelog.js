@@ -4,6 +4,17 @@
 // Add a new entry at the top whenever something ships that people would notice.
 export const CHANGELOG = [
   {
+    date: '2026-07-29',
+    title: 'Readiness stops reading your training back at you',
+    changes: [
+      'Readiness could slide lower and lower through a normal training block while you felt fine. With no daily check-ins and no intervals.icu, the only input left was form, fitness minus fatigue, and it was quietly promoted to the entire score. Form falls through any hard block, so the score was reporting your training schedule as if it were a symptom, and the coach handed out recovery days on the strength of it.',
+      'It now needs something that actually measures how you are responding, either your check-ins or HRV, before it shows a number at all. Form still counts, capped tighter than the rest, and can no longer run the score by itself.',
+      'Missing inputs used to hand their weight to whatever was left, so one number could become the whole score. Below 60% of the inputs the score is pulled back toward normal instead, and the page says how much of it is reporting.',
+      'While an input is still building its baseline the page says how many days you have logged and how many it takes, instead of “no data”, which read like your check-ins were being ignored.',
+      'Weeks of bad sleep are still called out even before there is a score, since that check compares you against the scale rather than against your own normal.',
+    ],
+  },
+  {
     date: '2026-07-28',
     title: 'The coach stops nagging, and starts showing its work',
     changes: [

@@ -9,6 +9,7 @@ import {
   gradeRange,
   COACH_MODELS,
   hangTestAge,
+  readinessGateHint,
 } from '../lib/coach'
 import {
   loadCoachInputs,
@@ -145,13 +146,19 @@ export default function Coach() {
 
   // How many signals are worth a look, so the section can say so in one line
   // instead of four blocks that mostly read "steady".
-  const attention = [
+  const attentionFlags = [
     recovery.tone === 'warn',
-    readiness.enough && (readiness.tone === 'warn' || readiness.sustained.length > 0),
+    // The sustained check needs no baseline, so readiness can be worth a look
+    // while it is still building one.
+    (readiness.sustained?.length ?? 0) > 0 || (readiness.enough && readiness.tone === 'warn'),
     trend.enough && trend.tone === 'warn',
     monotony.enough && monotony.flag,
-  ].filter(Boolean).length
-  const gated = [!readiness.enough, !trend.enough, !monotony.enough].filter(Boolean).length
+  ]
+  const gatedFlags = [false, !readiness.enough, !trend.enough, !monotony.enough]
+  const attention = attentionFlags.filter(Boolean).length
+  // Counted once: a signal with something to say is listed as that, not as a
+  // gap, or the four signals add up to five.
+  const gated = gatedFlags.filter((g, i) => g && !attentionFlags[i]).length
   const steady = 4 - attention - gated
   const signalSummary = [
     attention > 0 ? `${attention} to look at` : null,
@@ -446,13 +453,17 @@ export default function Coach() {
               title="🔋 Readiness"
               state="Building baseline"
               tone="ok"
-              hint={
-                readiness.reason === 'signals'
-                  ? 'You have the history, but nothing to measure against yet. Check in daily; that is what this is built from.'
-                  : `Needs about ${readiness.needDays ?? 14} days of history before it means anything. Keep logging.`
-              }
+              hint={readinessGateHint(readiness)}
               onPress={() => navigate('/coach/signals/readiness')}
-            />
+            >
+              {/* No index yet is not the same as nothing to say: this check is
+                  absolute and needs no baseline. */}
+              {(readiness.sustained || []).map((s) => (
+                <p className="auth-error small" key={s.key}>
+                  Your {s.label.toLowerCase()} has been poor {s.days} of the last {s.of} days.
+                </p>
+              ))}
+            </SignalBlock>
           )}
 
           <SignalBlock

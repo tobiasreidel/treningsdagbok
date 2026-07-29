@@ -11,6 +11,8 @@ import {
   trendSeries,
   monotonySeries,
   readinessSeries,
+  readinessGateHint,
+  MIN_EFFECTIVE_WEIGHT,
   FINGER_TIERS,
 } from '../lib/coach'
 import { asDate } from '../lib/format'
@@ -275,9 +277,7 @@ function ReadinessDetail({ readout, sessions, wellness, icu, onCheckIn }) {
         hint={
           readiness.enough
             ? 'Your own normal is 50. Each input is scored against your own baseline (how far this week sits from a typical week of yours), then weighted together.'
-            : readiness.reason === 'signals'
-              ? 'You have the history, but nothing to measure against yet. Check in daily; that is what this is built from.'
-              : `Needs about ${readiness.needDays ?? 21} days of history before it means anything. Keep logging.`
+            : readinessGateHint(readiness)
         }
       />
 
@@ -301,12 +301,13 @@ function ReadinessDetail({ readout, sessions, wellness, icu, onCheckIn }) {
           <Line data={line} fromZero={false} color="var(--primary)" />
         ) : (
           <p className="muted small">
-            Nothing to chart yet; the score needs ~3 weeks of history before it starts.
+            Nothing to chart yet. The line starts once your check-ins, or HRV from
+            intervals.icu, have about three weeks behind them.
           </p>
         )}
       </ChartCard>
 
-      {readiness.enough && (
+      {readiness.signals && (
         <section className="card settings-card stack">
           <h2 className="step-q">What feeds it</h2>
           <div className="coach-spec">
@@ -315,9 +316,11 @@ function ReadinessDetail({ readout, sessions, wellness, icu, onCheckIn }) {
                 key={s.key}
                 label={`${s.label} · weight ${Math.round(s.weight * 100)}%`}
                 value={
-                  s.z == null
-                    ? 'no data'
-                    : `${s.z >= 0 ? '+' : ''}${s.z.toFixed(1)} SD ${s.z >= 0.3 ? '· better than usual' : s.z <= -0.3 ? '· worse than usual' : '· about normal'}`
+                  s.z != null
+                    ? `${s.z >= 0 ? '+' : ''}${s.z.toFixed(1)} SD ${s.z >= 0.3 ? '· better than usual' : s.z <= -0.3 ? '· worse than usual' : '· about normal'}`
+                    : s.days
+                      ? `${s.days} day${s.days === 1 ? '' : 's'}, no baseline yet`
+                      : 'no data'
                 }
               />
             ))}
@@ -326,8 +329,19 @@ function ReadinessDetail({ readout, sessions, wellness, icu, onCheckIn }) {
             Sleep, fatigue, soreness and stress come from your daily check-ins and carry
             half the total weight. HRV and resting heart rate come from intervals.icu when
             connected. Form is the app's own fitness-minus-fatigue. Every input is a
-            z-score against your own recent weeks; missing inputs simply drop out and the
-            rest re-weight.
+            z-score against your own recent weeks, and each one needs about three weeks of
+            its own history before it can be scored.
+          </p>
+          <p className="muted small">
+            Missing inputs re-weight the rest, but only down to{' '}
+            {Math.round(MIN_EFFECTIVE_WEIGHT * 100)}% of the weight
+            {readiness.coverage != null && readiness.coverage < 1
+              ? ` (yours is at ${Math.round(readiness.coverage * 100)}%)`
+              : ''}
+            . Below that the score is pulled back toward 50 instead, so one input can never
+            become the whole number. Form gets a tighter cap than the rest and cannot carry
+            the score alone: form drops through any hard block, and that is the training
+            working, not a sign you need a rest day.
           </p>
           {readiness.subjectiveMissing && (
             <p className="auth-error">
@@ -345,17 +359,19 @@ function ReadinessDetail({ readout, sessions, wellness, icu, onCheckIn }) {
           )}
           {/* The z-score cannot see a baseline that has been bad for weeks, by
               construction. The absolute check is the counterpart. */}
-          {readiness.sustained.map((s) => (
+          {(readiness.sustained || []).map((s) => (
             <p className="auth-error" key={s.key}>
               Your {s.label.toLowerCase()} has been poor {s.days} of the last {s.of} days.
-              Readiness compares you against your own recent normal, and your recent normal has
-              been low, so the score can read fine while you do not.
+              {readiness.enough
+                ? ' Readiness compares you against your own recent normal, and your recent normal has been low, so the score can read fine while you do not.'
+                : ' This one is measured against the scale itself, not against your own normal, so it works before there is a score.'}
             </p>
           ))}
           <p className="muted small">
-            50 as your normal, 10 points per standard deviation, and the weights above are all
-            chosen numbers rather than findings. The construction (7-day means against the
-            spread of 7-day means, windows that never overlap) is the part worth trusting.
+            50 as your normal, 10 points per standard deviation, the weights above, the{' '}
+            {Math.round(MIN_EFFECTIVE_WEIGHT * 100)}% floor and form's tighter cap are all chosen
+            numbers rather than findings. The construction (7-day means against the spread of
+            7-day means, windows that never overlap) is the part worth trusting.
           </p>
         </section>
       )}
