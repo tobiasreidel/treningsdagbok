@@ -5,7 +5,7 @@ import { useAuth } from './context/AuthContext'
 import { flushOutbox, notifySessionsChanged } from './lib/sessions'
 import { autoImportNewActivities } from './lib/intervals'
 import { autoShareAnalyses } from './lib/streams'
-import { isOnboarded } from './lib/prefs'
+import { isOnboarded, flushPrefs } from './lib/prefs'
 import SetupNeeded from './components/SetupNeeded'
 import Onboarding from './components/Onboarding'
 import Login from './components/Login'
@@ -43,13 +43,15 @@ export default function App() {
   const { session, loading, recovery } = useAuth()
   const location = useLocation()
   // Bumped to re-evaluate onboarding after the picker finishes. The value is
-  // unused - onboarding state itself is read from prefs, keyed by user id.
+  // unused - onboarding state itself is read from prefs.
   const [, bumpOnboarding] = useState(0)
 
   // Flush any queued offline sessions on load and whenever we come back online.
   useEffect(() => {
     if (!session) return
     const sync = async () => {
+      // Settings changed while offline are queued the same way sessions are.
+      flushPrefs().catch(() => {})
       const n = await flushOutbox().catch(() => 0)
       if (n > 0) notifySessionsChanged()
       // Pull any new rides/climbs from intervals.icu so they appear without a
@@ -84,9 +86,8 @@ export default function App() {
 
   if (!session) return <Login />
 
-  const userId = session.user?.id
-  if (!isOnboarded(userId)) {
-    return <Onboarding userId={userId} onDone={() => bumpOnboarding((n) => n + 1)} />
+  if (!isOnboarded()) {
+    return <Onboarding onDone={() => bumpOnboarding((n) => n + 1)} />
   }
 
   const showTabs = TABBAR_PATHS.includes(location.pathname)

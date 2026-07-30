@@ -4,7 +4,7 @@ import { ALL_SPORTS, setEnabledSports, setOnboarded, setDashboardWidgets, defaul
 
 // First-run screen: pick the sports you do. This seeds your enabled sports
 // (changeable any time in Settings) so the app shows only what's relevant.
-export default function Onboarding({ userId, onDone }) {
+export default function Onboarding({ onDone }) {
   const [picked, setPicked] = useState([])
 
   const toggle = (key) =>
@@ -14,7 +14,7 @@ export default function Onboarding({ userId, onDone }) {
     if (!picked.length) return
     setEnabledSports(picked)
     setDashboardWidgets(defaultWidgetsForSports(picked))
-    setOnboarded(userId)
+    setOnboarded()
     onDone()
   }
 

@@ -23,6 +23,7 @@ const TABLES = [
   'gear_items',
   'gear_events',
   'user_settings',
+  'user_prefs',
 ]
 
 // Credentials are not data you want lying around in a file in your downloads.

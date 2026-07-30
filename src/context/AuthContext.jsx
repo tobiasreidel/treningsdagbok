@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase, isConfigured } from '../lib/supabase'
 import { invalidate as forgetSessions } from '../lib/sessionCache'
 import { forgetSettings } from '../lib/intervals'
+import { loadPrefs, forgetPrefs, prefsUserId } from '../lib/prefs'
 
 const AuthContext = createContext(null)
 
@@ -17,9 +18,18 @@ export function AuthProvider({ children }) {
       setLoading(false)
       return
     }
-    supabase.auth.getSession().then(({ data }) => {
+    // Boot owns the first prefs load; the listener below only handles the
+    // person changing afterwards.
+    let booted = false
+    supabase.auth.getSession().then(async ({ data }) => {
+      // Settings live on the server now, and half the app reads them while
+      // rendering. Fetch them before the first paint so nothing renders with
+      // defaults and then rearranges itself a moment later. An offline launch
+      // falls straight through to this device's cached copy.
+      await loadPrefs(data.session?.user?.id ?? null).catch(() => {})
       setSession(data.session)
       setLoading(false)
+      booted = true
     })
     const { data: sub } = supabase.auth.onAuthStateChange((event, newSession) => {
       // Whoever is signed in changed: drop the in-memory copies so nothing
@@ -28,6 +38,20 @@ export function AuthProvider({ children }) {
       if (event === 'SIGNED_OUT' || event === 'SIGNED_IN') {
         forgetSessions()
         forgetSettings()
+      }
+      const nextUser = newSession?.user?.id ?? null
+      if (booted && nextUser !== prefsUserId()) {
+        // A different person, not a refreshed token. Hold the splash until
+        // their settings are in, so signing in on a new device doesn't show
+        // the defaults for a beat. Deferred out of the callback: Supabase
+        // warns against calling back into the client from inside it.
+        setLoading(true)
+        forgetPrefs()
+        setTimeout(() => {
+          loadPrefs(nextUser)
+            .catch(() => {})
+            .finally(() => setLoading(false))
+        }, 0)
       }
       setSession(newSession)
       if (event === 'PASSWORD_RECOVERY') setRecovery(true)

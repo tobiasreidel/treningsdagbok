@@ -1,7 +1,10 @@
 // App colour themes. "system" follows the device's light/dark setting; every
 // other key forces a fixed palette. A theme is applied by setting data-theme on
-// <html> - the matching CSS lives in styles.css. Choice is per-device (local).
-const KEY = 'pref.theme'
+// <html> - the matching CSS lives in styles.css. The choice follows the
+// account like every other preference (see prefs.js).
+import { getPref, setPref } from './prefs'
+
+const KEY = 'theme'
 
 // `bg`/`surface`/`accent` are only used to draw the little swatch preview in
 // Settings. `meta` is the browser chrome colour (theme-color); null = resolve
@@ -25,12 +28,8 @@ export const THEMES = [
 const VALID = new Set(THEMES.map((t) => t.key))
 
 export function getTheme() {
-  try {
-    const t = localStorage.getItem(KEY)
-    return t && VALID.has(t) ? t : 'system'
-  } catch {
-    return 'system'
-  }
+  const t = getPref(KEY)
+  return t && VALID.has(t) ? t : 'system'
 }
 
 function metaColor(key) {
@@ -52,18 +51,18 @@ export function applyTheme(key) {
 
 export function setTheme(key) {
   const t = VALID.has(key) ? key : 'system'
-  try {
-    localStorage.setItem(KEY, t)
-  } catch {
-    /* ignore */
-  }
+  setPref(KEY, t)
   applyTheme(t)
   return t
 }
 
 // Boot: apply the stored theme and keep "system" tracking the OS as it flips.
+// The first paint uses whatever this device last cached, which is the right
+// answer on your own phone; signing in somewhere new repaints once the
+// account's settings arrive, hence the prefs:changed listener.
 export function initTheme() {
   applyTheme(getTheme())
+  window.addEventListener('prefs:changed', () => applyTheme(getTheme()))
   const mq = window.matchMedia?.('(prefers-color-scheme: dark)')
   mq?.addEventListener?.('change', () => {
     if (getTheme() === 'system') applyTheme('system')

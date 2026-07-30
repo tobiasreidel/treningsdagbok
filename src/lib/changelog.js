@@ -5,6 +5,15 @@
 export const CHANGELOG = [
   {
     date: '2026-07-30',
+    title: 'Your settings follow you between devices',
+    changes: [
+      'Settings were stored in the browser, so they were per device. Signing in on a laptop gave you a factory-fresh app: sports back on, widgets back to the defaults, the gear and coach toggles off, and the welcome screen again. Turning something on where you happened to be standing did nothing anywhere else.',
+      'They belong to your account now. Sports, dashboard widgets, theme, heart rate zones, the gear and period and coach toggles, the short-ride filter: set them once, on any device, and every other device has them the next time it opens.',
+      'Your current settings are carried over the first time you open this version, so nothing to redo. Changes made offline are sent the next time you have signal.',
+    ],
+  },
+  {
+    date: '2026-07-30',
     title: 'The details step shows the details again',
     changes: [
       'The register form no longer hides most of the details step behind “Add detail”. Date, pump, time of day, feeling, warm-up, rehab, gear and the sport-specific numbers are all on the page from the start.',

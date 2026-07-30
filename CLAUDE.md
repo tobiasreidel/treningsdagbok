@@ -49,9 +49,15 @@ There is also a dev-only bench at `/coach/simulator` for watching signals move.
 
 ## Conventions that matter
 
-- **Local vs server state.** Display preferences live in `lib/prefs.js`
-  (localStorage, per device, no migration). Anything another device or person
-  must see goes in Postgres.
+- **Local vs server state.** Everything a user chooses is server state. Display
+  preferences live in `lib/prefs.js`, one row per setting in `user_prefs`;
+  localStorage holds a per-user copy so the getters can stay synchronous and
+  the first paint costs no round-trip, but it is a cache and never the source
+  of truth. `loadPrefs()` fills it at sign-in (awaited in `AuthContext` before
+  the app renders), setters write through, and a write made offline stays
+  pending until `flushPrefs()`. Add a setting by adding a getter/setter pair
+  over `getPref`/`setPref`: no migration needed, and `prefs.js` stays the only
+  place that interprets the stored values.
 - **Cross-component refresh** is by window event, not a store:
   `sessions:changed` / `coach:changed`. Dispatch after a write, listen in
   whatever needs to re-read.
