@@ -4,6 +4,13 @@
 // Add a new entry at the top whenever something ships that people would notice.
 export const CHANGELOG = [
   {
+    date: '2026-07-30',
+    title: 'The details step shows the details again',
+    changes: [
+      'The register form no longer hides most of the details step behind “Add detail”. Date, pump, time of day, feeling, warm-up, rehab, gear and the sport-specific numbers are all on the page from the start.',
+    ],
+  },
+  {
     date: '2026-07-29',
     title: 'Readiness stops reading your training back at you',
     changes: [

@@ -13,9 +13,8 @@ const num = (v) => Number(v) || 0
 //
 // Field order follows how much each number actually does. Duration and finger
 // RPE feed the coach; feeling feeds a trend line on the stats page and nothing
-// else, so it sits below the fold rather than first. `compact` hides everything
-// the quick path does not ask for.
-export default function DetailsFields({ form, update, updateExtra, compact = false }) {
+// else, so it sits below the fold rather than first.
+export default function DetailsFields({ form, update, updateExtra }) {
   const isCycling = form.sport === 'cycling'
   const isClimbing = form.sport === 'climbing'
   const isRunning = form.sport === 'running'
@@ -26,15 +25,13 @@ export default function DetailsFields({ form, update, updateExtra, compact = fal
 
   return (
     <div className="stack">
-      {!compact && (
-        <Field label="Date">
-          <input
-            type="date"
-            value={form.date}
-            onChange={(e) => update({ date: e.target.value })}
-          />
-        </Field>
-      )}
+      <Field label="Date">
+        <input
+          type="date"
+          value={form.date}
+          onChange={(e) => update({ date: e.target.value })}
+        />
+      </Field>
 
       <Field label="Duration" required>
         <NumberField
@@ -93,73 +90,67 @@ export default function DetailsFields({ form, update, updateExtra, compact = fal
         </Field>
       )}
 
-      {compact ? null : (
-        <>
-          {(isClimbing || isFinger) && (
-            <Field label="Pump" hint={pumpHint(extra.pump)} optional>
-              <Scale
-                min={1}
-                max={5}
-                value={num(extra.pump) || null}
-                onChange={(v) => updateExtra({ pump: v })}
-                lowLabel="None"
-                highLabel="Maxed"
-              />
-            </Field>
-          )}
-
-          {/* Indoor sessions have no route log, so this is the only way the
-              coach can see that the session had real attempts near your limit.
-              Without it, a mostly-indoor climber's difficulty is invisible
-              except through finger RPE. */}
-          {isIndoorClimbing && (
-            <Field
-              label="Attempts within a grade of your limit"
-              hint="Counts toward the finger load the same way logged outdoor attempts do. Leave blank if none."
-              optional
-            >
-              <NumberField
-                value={extra.near_limit_attempts ?? ''}
-                onChange={(v) => updateExtra({ near_limit_attempts: v })}
-                placeholder="0"
-                step="1"
-              />
-            </Field>
-          )}
-
-          {/* Coarse on purpose, and enough to stop counting calendar days: a
-              Monday evening to a Wednesday morning is 34 hours, and calling
-              that two days let the recovery window clear early. */}
-          <Field
-            label="Time of day"
-            hint="Used to count the recovery window in hours instead of days."
-            optional
-          >
-            <Segmented
-              options={TIMES_OF_DAY.map((t) => ({ key: t.key, label: t.label }))}
-              value={extra.time_of_day || null}
-              onChange={(v) => updateExtra({ time_of_day: v })}
-              columns={3}
-            />
-          </Field>
-
-          <Field label="Feeling" hint={feelingHint(form.feeling)}>
-            <Scale
-              min={1}
-              max={5}
-              value={form.feeling}
-              onChange={(v) => update({ feeling: v })}
-              lowLabel="Weak"
-              highLabel="Strong"
-            />
-          </Field>
-        </>
+      {(isClimbing || isFinger) && (
+        <Field label="Pump" hint={pumpHint(extra.pump)} optional>
+          <Scale
+            min={1}
+            max={5}
+            value={num(extra.pump) || null}
+            onChange={(v) => updateExtra({ pump: v })}
+            lowLabel="None"
+            highLabel="Maxed"
+          />
+        </Field>
       )}
+
+      {/* Indoor sessions have no route log, so this is the only way the
+          coach can see that the session had real attempts near your limit.
+          Without it, a mostly-indoor climber's difficulty is invisible
+          except through finger RPE. */}
+      {isIndoorClimbing && (
+        <Field
+          label="Attempts within a grade of your limit"
+          hint="Counts toward the finger load the same way logged outdoor attempts do. Leave blank if none."
+          optional
+        >
+          <NumberField
+            value={extra.near_limit_attempts ?? ''}
+            onChange={(v) => updateExtra({ near_limit_attempts: v })}
+            placeholder="0"
+            step="1"
+          />
+        </Field>
+      )}
+
+      {/* Coarse on purpose, and enough to stop counting calendar days: a
+          Monday evening to a Wednesday morning is 34 hours, and calling
+          that two days let the recovery window clear early. */}
+      <Field
+        label="Time of day"
+        hint="Used to count the recovery window in hours instead of days."
+        optional
+      >
+        <Segmented
+          options={TIMES_OF_DAY.map((t) => ({ key: t.key, label: t.label }))}
+          value={extra.time_of_day || null}
+          onChange={(v) => updateExtra({ time_of_day: v })}
+          columns={3}
+        />
+      </Field>
+
+      <Field label="Feeling" hint={feelingHint(form.feeling)}>
+        <Scale
+          min={1}
+          max={5}
+          value={form.feeling}
+          onChange={(v) => update({ feeling: v })}
+          lowLabel="Weak"
+          highLabel="Strong"
+        />
+      </Field>
 
       {/* Warm-up and rehab ride along on any sport: minutes + a short note.
           Display-only extras - they never split hours or add calendar dots. */}
-      {!compact && (
-      <>
       <Field label="Warm-up" optional>
         <div className="wr-row">
           <NumberField
@@ -195,19 +186,13 @@ export default function DetailsFields({ form, update, updateExtra, compact = fal
           />
         </div>
       </Field>
-      </>
-      )}
 
-      {!compact && (
-        <>
-          <GearPicker sport={form.sport} extra={extra} updateExtra={updateExtra} />
+      <GearPicker sport={form.sport} extra={extra} updateExtra={updateExtra} />
 
-          {isCycling && <CyclingFields form={form} updateExtra={updateExtra} />}
-          {isClimbing && <ClimbingFields form={form} updateExtra={updateExtra} />}
-          {isRunning && <RunningFields form={form} updateExtra={updateExtra} />}
-          {isSwimming && <SwimmingFields form={form} updateExtra={updateExtra} />}
-        </>
-      )}
+      {isCycling && <CyclingFields form={form} updateExtra={updateExtra} />}
+      {isClimbing && <ClimbingFields form={form} updateExtra={updateExtra} />}
+      {isRunning && <RunningFields form={form} updateExtra={updateExtra} />}
+      {isSwimming && <SwimmingFields form={form} updateExtra={updateExtra} />}
     </div>
   )
 }
