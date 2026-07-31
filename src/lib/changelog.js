@@ -4,6 +4,17 @@
 // Add a new entry at the top whenever something ships that people would notice.
 export const CHANGELOG = [
   {
+    date: '2026-07-31',
+    title: 'The charts say what they are measuring',
+    changes: [
+      'Every chart now has a scale down the left, on round numbers. Before, a bar was tall or short and there was nothing on the page to tell you tall meant six hours or sixty.',
+      'The numbers on the points used to be thinned to a fixed one in four, whether or not the rest would have fitted. They are now packed in wherever there is room: a 13-week chart labels all thirteen bars, and the 28-day load chart labels all 28 days. On a crowded chart the peaks, the dips and the most recent day are kept first.',
+      'Dates along the bottom got the same treatment, and the last bar is always labelled, so you can see where a chart ends.',
+      'The activity charts, heart rate, power, speed, elevation and cadence, have a scale too. You no longer have to slide along a ride to find out roughly how high or how hard it was.',
+      'Numbers sitting on top of a line are outlined in the card colour so they stay readable.',
+    ],
+  },
+  {
     date: '2026-07-30',
     title: 'Your settings follow you between devices',
     changes: [

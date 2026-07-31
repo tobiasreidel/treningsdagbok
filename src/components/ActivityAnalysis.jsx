@@ -6,10 +6,15 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { fetchActivityAnalysis, fetchSharedAnalysis } from '../lib/streams'
+import { gridValues } from './charts'
 import { getHrZoneConfig } from '../lib/prefs'
 import { ZONE_COLORS } from '../lib/constants'
 
 const VW = 320 // chart viewBox width, matches components/charts.jsx
+// Left gutter holding each strip's y values. Shared by every strip so the plots
+// stay aligned under one scrubber, and wide enough for a 4-digit altitude.
+const GUT = 28
+const PW = VW - GUT
 
 // ---- tiny formatters -------------------------------------------------------
 const round1 = (n) => Math.round(n * 10) / 10
@@ -319,7 +324,9 @@ function StreamStrips({ points, stats, isRun, onScrub }) {
     const el = wrapRef.current
     if (!el) return 0
     const rect = el.getBoundingClientRect()
-    const frac = (e.clientX - rect.left) / rect.width
+    // Map into the plot area, not the full width: the left gutter is y labels.
+    const plotLeft = rect.left + rect.width * (GUT / VW)
+    const frac = (e.clientX - plotLeft) / (rect.width * (PW / VW))
     return Math.max(0, Math.min(n - 1, Math.round(frac * (n - 1))))
   }
 
@@ -497,7 +504,7 @@ function Strip({ points, strip, idx, sel, exact }) {
   const bottom = 4
   const plotH = H - top - bottom
 
-  const { path, area, y } = useMemo(() => {
+  const { path, area, y, x: px, grid } = useMemo(() => {
     const vals = values.filter((v) => v != null)
     let min = strip.minBased ? Math.min(...vals) : 0
     let max = Math.max(...vals)
@@ -506,7 +513,7 @@ function Strip({ points, strip, idx, sel, exact }) {
     const padV = (max - min) * 0.08
     min = strip.minBased ? min - padV : min
     max += padV
-    const x = (i) => (n === 1 ? VW / 2 : (i / (n - 1)) * VW)
+    const x = (i) => GUT + (n === 1 ? PW / 2 : (i / (n - 1)) * PW)
     const yf = (v) => top + plotH - ((v - min) / (max - min)) * plotH
     let d = ''
     let started = false
@@ -517,8 +524,8 @@ function Strip({ points, strip, idx, sel, exact }) {
       started = true
     }
     const base = top + plotH
-    const areaD = d ? `${d}L${VW},${base}L0,${base}Z` : ''
-    return { path: d, area: areaD, y: yf }
+    const areaD = d ? `${d}L${VW},${base}L${GUT},${base}Z` : ''
+    return { path: d, area: areaD, y: yf, x, grid: gridValues(min, max, 3).values }
   }, [values, n, strip.minBased, plotH])
 
   const avg = exact ? exact.avg : avgOf(values)
@@ -538,6 +545,15 @@ function Strip({ points, strip, idx, sel, exact }) {
         </span>
       </div>
       <svg viewBox={`0 0 ${VW} ${H}`} className="chart strip-chart" role="img" aria-label={strip.label}>
+        {/* y reference lines, so a point reads as a number without scrubbing */}
+        {grid.map((v) => (
+          <g key={v}>
+            <line x1={GUT} y1={y(v)} x2={VW} y2={y(v)} className="chart-grid" />
+            <text x={GUT - 5} y={y(v) + 3} className="chart-ylabel" textAnchor="end">
+              {strip.fmt(v)}
+            </text>
+          </g>
+        ))}
         {strip.area ? (
           <path d={area} fill={strip.color} opacity="0.18" />
         ) : (
@@ -546,29 +562,23 @@ function Strip({ points, strip, idx, sel, exact }) {
         <path d={path} fill="none" stroke={strip.color} strokeWidth="1.8" />
         {sel && (
           <rect
-            x={(Math.min(sel.a, sel.b) / (n - 1)) * VW}
+            x={px(Math.min(sel.a, sel.b))}
             y="0"
-            width={Math.max(1, ((Math.abs(sel.b - sel.a)) / (n - 1)) * VW)}
+            width={Math.max(1, (Math.abs(sel.b - sel.a) / (n - 1)) * PW)}
             height={H}
             className="strip-selection"
           />
         )}
         {idx != null && (
-          <line
-            x1={(idx / (n - 1)) * VW}
-            x2={(idx / (n - 1)) * VW}
-            y1="0"
-            y2={H}
-            className="strip-cursor"
-          />
+          <line x1={px(idx)} x2={px(idx)} y1="0" y2={H} className="strip-cursor" />
         )}
         {idx != null && scrubVal != null && (
-          <circle cx={(idx / (n - 1)) * VW} cy={y(scrubVal)} r="3" fill={strip.color} />
+          <circle cx={px(idx)} cy={y(scrubVal)} r="3" fill={strip.color} />
         )}
         {/* the value rides along with the cursor (avg/max stay in the header) */}
         {idx != null && scrubVal != null && (
           <text
-            x={(idx / (n - 1)) * VW + (idx > n * 0.72 ? -7 : 7)}
+            x={px(idx) + (idx > n * 0.72 ? -7 : 7)}
             y={Math.max(12, y(scrubVal) - 8)}
             className="strip-tip"
             textAnchor={idx > n * 0.72 ? 'end' : 'start'}
@@ -595,7 +605,7 @@ function XAxis({ points }) {
     const frac = i / ticks
     const at = Math.round(frac * (n - 1))
     items.push({
-      x: frac * VW,
+      x: GUT + frac * PW,
       label: km ? kmLabel(km[at]) : fmtDur(points.t[at]),
       anchor: i === 0 ? 'start' : i === ticks ? 'end' : 'middle',
     })

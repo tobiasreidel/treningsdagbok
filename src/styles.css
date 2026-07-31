@@ -1503,6 +1503,11 @@ textarea {
   stroke: var(--border);
   stroke-width: 1;
 }
+/* Ties a kept x label to its own bar/point when its neighbours were dropped. */
+.chart-tick {
+  stroke: var(--border);
+  stroke-width: 1;
+}
 .chart-xlabel {
   fill: var(--text-muted);
   font-size: 10px;
@@ -1526,6 +1531,13 @@ textarea {
   fill: var(--text);
   font-size: 9px;
   font-weight: 700;
+  /* Halo in the card colour. Now that every point that fits gets a number, a
+     label often lands on the line or its area fill; this keeps it readable
+     without nudging it away from the point it belongs to. */
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 2.5px;
+  stroke-linejoin: round;
 }
 .chart-empty {
   color: var(--text-muted);
@@ -1618,7 +1630,8 @@ textarea {
 }
 .hbar-row {
   display: grid;
-  grid-template-columns: 84px 1fr 34px;
+  /* auto, not a fixed 34px: the value column also carries the unit ("12 km"). */
+  grid-template-columns: 84px 1fr auto;
   align-items: center;
   gap: 8px;
   font-size: 0.85rem;
@@ -1644,8 +1657,10 @@ textarea {
 }
 .hbar-val {
   text-align: right;
+  min-width: 34px;
   font-variant-numeric: tabular-nums;
-  color: var(--text-muted);
+  font-weight: 600;
+  color: var(--text);
 }
 
 /* ----- toast ----- */
