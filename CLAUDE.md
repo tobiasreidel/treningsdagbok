@@ -90,7 +90,11 @@ There is also a dev-only bench at `/coach/simulator` for watching signals move.
   semicolon or two sentences. Say a thing once and trust the reader: a hint
   that only restates its own label is noise, so drop it.
 - **Ship notes**: add an entry to `src/lib/changelog.js` whenever something
-  user-visible changes. It renders as the in-app "What's new".
+  user-visible changes. It renders as the in-app "What's new", and it is read in
+  ten seconds on a phone: one line per change, saying what changed and not why,
+  a handful of lines per release, one entry per date. Anything the user would
+  never have gone looking for goes in a single "Bug fixes:" line. The reasoning
+  belongs in the code comments, where it already is.
 - **Reads go through the cache.** `fetchSessions()` collapses concurrent
   callers, stores a copy in IndexedDB and serves it when the server can't be
   reached (`lib/sessionCache.js`). Any write must call
