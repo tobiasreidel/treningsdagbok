@@ -159,33 +159,3 @@ function seededHangboard(ex, hang) {
     ],
   }
 }
-
-// Everything needed to log the same session again: the most recent one of a
-// sport (and subtype), re-dated to today, opened for editing rather than saved
-// silently. A hangboard protocol is nearly identical week to week, and retyping
-// it is the single biggest reason a session goes unlogged.
-export function repeatSessionForm(sessions, { sport, subtype = null } = {}) {
-  const match = (sessions || [])
-    .filter((s) => (sport ? s.sport === sport : true) && (subtype ? s.subtype === subtype : true))
-    .sort((a, b) => String(b.date).localeCompare(String(a.date)))[0]
-  if (!match) return null
-  const { schema_version, ...extra } = match.extra || {}
-  return {
-    date: todayISO(),
-    sport: match.sport,
-    subtype: match.subtype ?? null,
-    location: match.location ?? null,
-    feeling: match.feeling ?? null,
-    rpe: match.rpe ?? null,
-    duration: match.duration == null ? '' : String(match.duration),
-    // Notes and the photo belong to that day, not this one.
-    notes: '',
-    extra,
-    routes: (match.routes || []).map((r) => ({
-      name: r.name ?? '',
-      grade: r.grade ?? null,
-      send_type: r.send_type ?? null,
-    })),
-    repeatedFrom: match.date,
-  }
-}

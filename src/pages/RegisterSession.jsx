@@ -8,7 +8,6 @@ import NotesPhoto from '../components/form/NotesPhoto'
 import NotesField from '../components/form/NotesField'
 import CoachPlanField, { COACH_SPORTS } from '../components/form/CoachPlanField'
 import { emptyForm, isOutdoorClimbing } from '../lib/formState'
-import { formatDayShort } from '../lib/format'
 import { SPORTS, SUBTYPES, LOCATIONS } from '../lib/constants'
 import { getEnabledSports, getCoachEnabled } from '../lib/prefs'
 import { createSession, notifySessionsChanged } from '../lib/sessions'
@@ -176,12 +175,6 @@ export default function RegisterSession() {
           <section className="stack">
             <div>
               <h2 className="step-q">Details</h2>
-              {form.repeatedFrom && (
-                <p className="muted small">
-                  Copied from your session on {formatDayShort(form.repeatedFrom)}, dated today.
-                  Change whatever was different.
-                </p>
-              )}
               <DetailsFields form={form} update={update} updateExtra={updateExtra} />
             </div>
             <NotesField form={form} update={update} />

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation, useNavigationType } from 'react-router-dom'
 import { isConfigured } from './lib/supabase'
 import { useAuth } from './context/AuthContext'
 import { flushOutbox, notifySessionsChanged } from './lib/sessions'
@@ -38,6 +38,19 @@ const CoachSignals = lazy(() => import('./pages/CoachSignals'))
 const CoachSimulator = lazy(() => import('./pages/CoachSimulator'))
 const Squad = lazy(() => import('./pages/Squad'))
 const CheckIn = lazy(() => import('./pages/CheckIn'))
+
+// Opening a screen should start at the top of it. The browser keeps the window
+// scrolled where the previous screen was, so tapping a session from halfway
+// down the dashboard used to open the session halfway down. Back is left alone:
+// on a POP the point is to return to where you were.
+function ScrollToTop() {
+  const { pathname } = useLocation()
+  const navType = useNavigationType()
+  useEffect(() => {
+    if (navType !== 'POP') window.scrollTo(0, 0)
+  }, [pathname, navType])
+  return null
+}
 
 export default function App() {
   const { session, loading, recovery } = useAuth()
@@ -94,6 +107,7 @@ export default function App() {
 
   return (
     <div className={showTabs ? 'with-tabbar' : ''}>
+      <ScrollToTop />
       <Suspense fallback={<Splash />}>
         <Routes>
           <Route path="/" element={<Dashboard />} />

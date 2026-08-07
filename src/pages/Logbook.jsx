@@ -18,7 +18,6 @@ import {
 import { fetchPeriodDays } from '../lib/health'
 import { embeddedStrengthMinutes, embeddedFingerMinutes } from '../lib/stats'
 import { ALL_SPORTS, getLogPeriod } from '../lib/prefs'
-import { repeatSessionForm } from '../lib/coachData'
 import { PendingBadge, PillRow } from '../components/ui'
 
 // Session-length buckets for the filter row (minutes).
@@ -66,6 +65,12 @@ function matchesQuery(s, q) {
   return hay.some((v) => v && String(v).toLowerCase().includes(q))
 }
 
+// What you last filtered the logbook down to. Opening a session unmounts this
+// screen, and coming back to "All sports, any length" after every look at an
+// entry made the filters not worth setting. Module scope on purpose: it is view
+// state for this one screen, not a setting, and a reload is a fair reset.
+let lastFilters = { query: '', sport: 'all', len: 'all', min: '', max: '' }
+
 // A "logbook" view: every session, newest first, grouped into months like the
 // pages of a diary. Each entry shows the essentials at a glance; tap it to
 // unfold the richer summary, or open the full session from there. Scroll down
@@ -75,13 +80,17 @@ export default function Logbook() {
   const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(true)
   const [openId, setOpenId] = useState(null)
-  const [sportFilter, setSportFilter] = useState('all')
-  const [lenFilter, setLenFilter] = useState('all')
-  const [query, setQuery] = useState('')
+  const [sportFilter, setSportFilter] = useState(lastFilters.sport)
+  const [lenFilter, setLenFilter] = useState(lastFilters.len)
+  const [query, setQuery] = useState(lastFilters.query)
   // Custom length range (minutes). When either is set it overrides the preset
   // length pills; choosing a preset clears it.
-  const [lenMin, setLenMin] = useState('')
-  const [lenMax, setLenMax] = useState('')
+  const [lenMin, setLenMin] = useState(lastFilters.min)
+  const [lenMax, setLenMax] = useState(lastFilters.max)
+
+  useEffect(() => {
+    lastFilters = { query, sport: sportFilter, len: lenFilter, min: lenMin, max: lenMax }
+  }, [query, sportFilter, lenFilter, lenMin, lenMax])
 
   // Period days (when tracking is on) so entries on those days get a drop.
   const [periodSet, setPeriodSet] = useState(null)
@@ -134,13 +143,6 @@ export default function Logbook() {
       ),
     [sessions, sportFilter, lenFilter, lenMin, lenMax, customLen, q],
   )
-
-  // Log the same session again, dated today, opened for editing rather than
-  // saved behind your back.
-  const repeat = (s) => {
-    const prefill = repeatSessionForm([s], {})
-    if (prefill) navigate('/new', { state: { prefill } })
-  }
 
   // Group filtered sessions by calendar month, newest month first. Sessions
   // arrive already sorted newest-first, so each month's order is preserved.
@@ -266,7 +268,6 @@ export default function Logbook() {
                           open={openId === s.id}
                           onToggle={() => setOpenId((id) => (id === s.id ? null : s.id))}
                           onOpenFull={() => navigate(`/session/${s.id}`)}
-                          onRepeat={() => repeat(s)}
                         />
                       ))}
                     </div>
@@ -281,7 +282,7 @@ export default function Logbook() {
   )
 }
 
-function Entry({ session: s, period, open, onToggle, onOpenFull, onRepeat }) {
+function Entry({ session: s, period, open, onToggle, onOpenFull }) {
   const sport = SPORTS[s.sport]
   const facts = keyFacts(s)
   return (
@@ -309,12 +310,12 @@ function Entry({ session: s, period, open, onToggle, onOpenFull, onRepeat }) {
         </span>
       </button>
 
-      {open && <Expanded session={s} onOpenFull={onOpenFull} onRepeat={onRepeat} />}
+      {open && <Expanded session={s} onOpenFull={onOpenFull} />}
     </div>
   )
 }
 
-function Expanded({ session: s, onOpenFull, onRepeat }) {
+function Expanded({ session: s, onOpenFull }) {
   const tiles = detailTiles(s)
   const grades = s.extra?.grades || []
   return (
@@ -357,18 +358,9 @@ function Expanded({ session: s, onOpenFull, onRepeat }) {
           Delete offline session
         </button>
       ) : (
-        <>
-          {/* Nearly every session is a repeat of one you have already logged,
-              and retyping a hangboard protocol week after week is the friction
-              that starves the coach of data. Opens the form filled in, dated
-              today, so only what differed needs editing. */}
-          <button className="btn btn-primary btn-sm btn-block" onClick={onRepeat}>
-            Log this again today
-          </button>
-          <button className="btn btn-secondary btn-sm btn-block" onClick={onOpenFull}>
-            Open full session ›
-          </button>
-        </>
+        <button className="btn btn-secondary btn-sm btn-block" onClick={onOpenFull}>
+          Open full session ›
+        </button>
       )}
     </div>
   )

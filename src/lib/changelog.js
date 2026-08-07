@@ -5,6 +5,15 @@
 export const CHANGELOG = [
   {
     date: '2026-08-07',
+    title: 'The logbook remembers what you were looking at',
+    changes: [
+      'Filters and the search box used to reset every time you opened a session and came back, which made narrowing the logbook down to, say, your long rides not worth the taps. They stay put now until you change them.',
+      'Opening a screen starts you at the top of it. Tapping a session from halfway down the front page opened the session halfway down too, which looked like the page had loaded crooked. Going back still returns you to where you were.',
+      '“Log this again today” is gone from the logbook. A session is something that happened, not a template.',
+    ],
+  },
+  {
+    date: '2026-08-07',
     title: 'E-bike rides have a place to go',
     changes: [
       'Cycling has a third type next to Road and Gravel: E-bike. It is still a ride, it still counts as training time and it still shows up in your cycling hours and load, but it is marked with a ⚡ everywhere a session is listed so you can tell at a glance which rides had a motor.',
