@@ -1,4 +1,4 @@
-import { SPORTS } from '../lib/constants'
+import { SPORTS, subtypeWord } from '../lib/constants'
 import { formatDay, formatDuration } from '../lib/format'
 import { cycleInfoFor } from '../lib/health'
 import { PendingBadge } from './ui'
@@ -94,7 +94,7 @@ export default function DaySheet({
 
 function labelFor(s) {
   const parts = [SPORTS[s.sport]?.label]
-  if (s.subtype) parts.push(s.subtype)
+  if (s.subtype) parts.push(subtypeWord(s.subtype))
   if (s.sport === 'climbing' && s.location) parts.push(s.location === 'indoor' ? 'indoor' : 'outdoor')
   return parts.filter(Boolean).join(' · ')
 }

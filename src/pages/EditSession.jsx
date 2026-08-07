@@ -142,7 +142,7 @@ export default function EditSession() {
               options={SUBTYPES[form.sport]}
               value={form.subtype}
               onChange={(v) => update({ subtype: v })}
-              columns={form.sport === 'climbing' ? 3 : 2}
+              columns={Math.min(SUBTYPES[form.sport]?.length || 2, 3)}
             />
           </section>
         )}

@@ -33,6 +33,9 @@ export const SUBTYPES = {
   cycling: [
     { key: 'road', label: 'Road' },
     { key: 'gravel', label: 'Gravel' },
+    // A motor doing part of the work is a bigger difference than road vs
+    // gravel, so it is a type of its own rather than a flag on one of them.
+    { key: 'ebike', label: 'E-bike ⚡' },
   ],
   running: [
     { key: 'road', label: 'Road' },
@@ -48,6 +51,21 @@ export const SUBTYPES = {
     { key: 'sport', label: 'Sport' },
     { key: 'trad', label: 'Trad' },
   ],
+}
+
+export const EBIKE = 'ebike'
+
+// A ride with a motor. Still cycling, and it still counts as training time, but
+// the distance and speed came partly from the battery, so anything that ranks
+// rides against each other has to be able to tell them apart.
+export function isEbike(session) {
+  return session?.sport === 'cycling' && session?.subtype === EBIKE
+}
+
+// Session lists print the subtype key as-is ("road", "gravel"). "ebike" is the
+// one that doesn't read as a word, and it carries the bolt everywhere it shows.
+export function subtypeWord(subtype) {
+  return subtype === EBIKE ? 'e-bike ⚡' : subtype
 }
 
 export const LOCATIONS = [

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
-import { SPORTS, FEELING_LABELS, formatGrade } from '../lib/constants'
+import { SPORTS, FEELING_LABELS, formatGrade, subtypeWord } from '../lib/constants'
 import {
   asDate,
   formatDay,
@@ -58,6 +58,8 @@ function matchesQuery(s, q) {
   const hay = [
     s.notes,
     s.subtype,
+    // The stored key is "ebike"; the word on screen is "e-bike". Both match.
+    subtypeWord(s.subtype),
     s.location,
     ...(s.routes || []).flatMap((r) => [r.name, r.grade]),
   ]
@@ -374,7 +376,7 @@ function Expanded({ session: s, onOpenFull, onRepeat }) {
 
 // Sub-label shown beside the sport: subtype + (for climbing) indoor/outdoor.
 function labelFor(s) {
-  const parts = [s.subtype || SPORTS[s.sport]?.label]
+  const parts = [subtypeWord(s.subtype) || SPORTS[s.sport]?.label]
   if (s.sport === 'climbing' && s.location) {
     parts.push(s.location === 'indoor' ? 'indoor' : 'outdoor')
   }

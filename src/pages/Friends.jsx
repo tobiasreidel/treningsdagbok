@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { HBars } from '../components/charts'
-import { SPORTS } from '../lib/constants'
+import { SPORTS, subtypeWord } from '../lib/constants'
 import { lastNDaysRange, inRange, formatDayShort, formatDuration } from '../lib/format'
 import { fetchSessions } from '../lib/sessions'
 import { loadConnections, friendsFeed } from '../lib/friends'
@@ -88,7 +88,7 @@ function summary(s) {
     : grades.length
       ? `${grades.length} grades`
       : null
-  return [s.subtype, formatDuration(d), climbs].filter(Boolean).join(' · ')
+  return [subtypeWord(s.subtype), formatDuration(d), climbs].filter(Boolean).join(' · ')
 }
 
 // Each entry opens the friend's session read-only - RLS only ever returns

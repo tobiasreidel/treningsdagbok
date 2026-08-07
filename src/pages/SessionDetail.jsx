@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { SPORTS, SEND_TYPES, FEELING_LABELS, exerciseLabel, formatGrade } from '../lib/constants'
+import { SPORTS, SEND_TYPES, FEELING_LABELS, exerciseLabel, formatGrade, subtypeWord } from '../lib/constants'
 import { formatDay, formatDuration, pacePerKm, pacePer100m } from '../lib/format'
 import {
   getSession,
@@ -116,7 +116,7 @@ export default function SessionDetail() {
   const isSwimming = session.sport === 'swimming'
   const isEndurance = isCycling || isRunning || isSwimming
 
-  const subtitleParts = [session.subtype]
+  const subtitleParts = [subtypeWord(session.subtype)]
   if (isCycling && e.indoor) subtitleParts.push('indoor')
   if (session.sport === 'climbing' && session.location) subtitleParts.push(session.location)
   const subtitle = subtitleParts.filter(Boolean).join(' · ')

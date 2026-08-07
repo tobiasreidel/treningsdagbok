@@ -10,6 +10,7 @@ import {
   activitySport,
   activityToForm,
   activitySummary,
+  isEbikeActivity,
 } from '../lib/intervals'
 
 export default function ImportRides() {
@@ -160,7 +161,8 @@ export default function ImportRides() {
               <div key={activity.id} className="import-card card">
                 <div className="import-main">
                   <span className="import-name">
-                    {SPORTS[sport]?.emoji}{' '}
+                    {SPORTS[sport]?.emoji}
+                    {isEbikeActivity(activity) && '⚡'}{' '}
                     {activity.name || SPORTS[sport]?.label}
                   </span>
                   <span className="import-meta">

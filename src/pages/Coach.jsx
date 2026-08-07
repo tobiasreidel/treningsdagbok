@@ -30,7 +30,7 @@ import { isProfileComplete, goalKind, saveCoachProfile } from '../lib/coachProfi
 import { getCoachModel, setCoachModel, getSessionPick, setSessionPick } from '../lib/prefs'
 import { formatDayShort, asDate, todayISO } from '../lib/format'
 import { format } from 'date-fns'
-import { SPORTS } from '../lib/constants'
+import { SPORTS, subtypeWord } from '../lib/constants'
 import SignalBlock from '../components/SignalBlock'
 
 // The full training-coach view: today's prescription with a real workout
@@ -813,7 +813,7 @@ function loggedLabel(s) {
   if (named.length === 2) return named.map((e) => e.id).join(' + ') + ` · ${named[0].name} +1`
   if (named.length > 2) return `${named.map((e) => e.id).join(' + ')} · ${named.length} sessions`
   const parts = [SPORTS[s.sport]?.label]
-  if (s.subtype) parts.push(s.subtype)
+  if (s.subtype) parts.push(subtypeWord(s.subtype))
   return parts.filter(Boolean).join(' · ')
 }
 

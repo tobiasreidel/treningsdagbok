@@ -13,7 +13,7 @@ import {
 import { asDate } from './format'
 import { normaliseSession } from './sessionShape'
 import { getBodyweight } from './prefs'
-import { formatGrade } from './constants'
+import { formatGrade, isEbike } from './constants'
 
 const WEEK_OPTS = { weekStartsOn: 1 }
 const num = (v) => Number(v) || 0
@@ -100,6 +100,13 @@ export function avgFeeling(arr) {
 }
 
 export const bySport = (arr, sport) => arr.filter((s) => s.sport === sport)
+
+// Rides under your own power only. Distance, speed and elevation on an e-bike
+// are partly the battery's, so ranking one against an unassisted ride says
+// nothing: the records tiles and the Eddington number read this list. Totals
+// and hours still count every ride, because the time was still training.
+export const unassisted = (arr) => arr.filter((s) => !isEbike(s))
+export const ebikeCount = (arr) => arr.filter(isEbike).length
 
 // Minutes of strength work carved out of another session (an indoor climb, or
 // a finger session with a strength block). The rest of the duration stays with

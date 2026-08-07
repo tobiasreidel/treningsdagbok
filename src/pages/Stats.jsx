@@ -399,9 +399,13 @@ function Cycling({ view }) {
   const speed = S.bucketAvgExtra(buckets, 'cycling', 'avg_speed')
   const power = S.bucketAvgExtra(buckets, 'cycling', 'avg_power')
   const hr = S.bucketAvgExtra(buckets, 'cycling', 'avg_hr')
-  const bestPower = S.maxExtra(cycling, 'avg_power')
-  const maxSpeed = S.maxExtra(cycling, 'max_speed')
-  const biggestClimb = S.maxExtra(cycling, 'elevation_m')
+  // Records are ranked, so they read unassisted rides only. Everything above
+  // and below counts every ride.
+  const solo = S.unassisted(cycling)
+  const ebikes = S.ebikeCount(cycling)
+  const bestPower = S.maxExtra(solo, 'avg_power')
+  const maxSpeed = S.maxExtra(solo, 'max_speed')
+  const biggestClimb = S.maxExtra(solo, 'elevation_m')
 
   return (
     <>
@@ -418,14 +422,21 @@ function Cycling({ view }) {
         <h2 className="section-title">Records this period</h2>
         <Tiles
           items={[
-            { label: 'Longest ride', value: S.round1(S.longestDistanceKm(cycling)), sub: 'km' },
+            { label: 'Longest ride', value: S.round1(S.longestDistanceKm(solo)), sub: 'km' },
             { label: 'Biggest climb', value: Math.round(biggestClimb), sub: 'm' },
             ...(maxSpeed > 0 ? [{ label: 'Top speed', value: S.round1(maxSpeed), sub: 'km/h' }] : []),
             ...(bestPower > 0 ? [{ label: 'Best avg power', value: Math.round(bestPower), sub: 'W' }] : []),
-            { label: 'Eddington', value: S.eddington(cycling), sub: 'km' },
+            { label: 'Eddington', value: S.eddington(solo), sub: 'km' },
             { label: 'Rides', value: cycling.length },
+            ...(ebikes > 0 ? [{ label: 'On the e-bike ⚡', value: ebikes }] : []),
           ]}
         />
+        {ebikes > 0 && (
+          <p className="muted small chart-note">
+            The records leave out your {ebikes} e-bike ride{ebikes === 1 ? '' : 's'}: the
+            motor did part of that distance. The totals and the charts above count them.
+          </p>
+        )}
       </div>
       <SplitHoursCard
         view={view}

@@ -62,12 +62,19 @@ export function authHeader(apiKey) {
 }
 
 const CYCLING_TYPE = /ride/i // Ride, VirtualRide, GravelRide, MountainBikeRide, EBikeRide…
+const EBIKE_TYPE = /^e-?(bike|mtb|mountainbike)/i // EBikeRide, EMountainBikeRide
 const CLIMBING_TYPE = /climb|boulder/i // RockClimbing, Climbing, IndoorClimbing, Bouldering…
 const RUNNING_TYPE = /run/i // Run, VirtualRun, TrailRun, TreadmillRun…
 const SWIMMING_TYPE = /swim/i // Swim, OpenWaterSwim, LapSwimming…
 
 export function isCyclingActivity(a) {
   return CYCLING_TYPE.test(a.type || '')
+}
+
+// A motor-assisted ride. Checked inside cycling so a stray type starting with
+// an E (Elliptical and friends) can never fall in here.
+export function isEbikeActivity(a) {
+  return isCyclingActivity(a) && EBIKE_TYPE.test(a.type || '')
 }
 
 export function isClimbingActivity(a) {
@@ -131,8 +138,11 @@ function round(n, dp = 0) {
   return Math.round(Number(n) * f) / f
 }
 
-function guessCyclingSubtype(type = '') {
-  const t = type.toLowerCase()
+// E-bike first: an EMountainBikeRide is an e-bike before it is a gravel ride,
+// and the motor is the distinction worth keeping.
+function guessCyclingSubtype(a) {
+  if (isEbikeActivity(a)) return 'ebike'
+  const t = (a.type || '').toLowerCase()
   if (t.includes('gravel') || t.includes('mountain')) return 'gravel'
   return 'road'
 }
@@ -187,7 +197,7 @@ function cyclingActivityToForm(a) {
   return {
     date,
     sport: 'cycling',
-    subtype: guessCyclingSubtype(a.type),
+    subtype: guessCyclingSubtype(a),
     location: null,
     feeling: importedFeeling(a),
     rpe: importedRpe(a),
