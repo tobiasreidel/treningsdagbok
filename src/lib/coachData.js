@@ -113,19 +113,24 @@ export function sessionFromSuggestion(suggestion) {
   const ex = suggestion?.chosen ?? suggestion?.exercises?.[0]
   const map = ex && SPORT_FOR_CATEGORY[ex.category]
   if (!map) return null
+  // The whole sheet, not just the main work: the second block and the
+  // finisher are sessions the fingers and shoulders did too, and naming them
+  // is what lets the coach read the day back correctly.
+  const ids = [ex.id, ...(suggestion.sheet?.ids || []).filter((id) => id !== ex.id)]
   const extra = {
     // Pre-answers "was this the planned session?" - it is, by construction.
     // A list, so anything else done in the same session can be added to it.
-    coach: { followed: 'planned', type: suggestion.key, exercises: [ex.id] },
+    coach: { followed: 'planned', type: suggestion.key, exercises: ids },
   }
   const hang = seededHangboard(ex, suggestion.hang)
   if (hang) extra.finger = hang
+  const minutes = suggestion.sheet?.total || ex.minutes
   return {
     sport: map.sport,
     subtype: map.subtype ?? null,
     // Indoor is a guess for board and gym work, and the wrong guess to force -
     // left blank so the wizard still asks.
-    duration: ex.minutes ? String(ex.minutes) : '',
+    duration: minutes ? String(minutes) : '',
     extra,
   }
 }
@@ -137,12 +142,14 @@ function seededHangboard(ex, hang) {
   if (ex?.category !== 'finger' || !ex.intensity || ex.intensity.anchor !== 'pctMaxTotal') return null
   if (!hang || hang.blocked || !(hang.loTotal > 0)) return null
   const v = ex.volume || {}
-  const sets = Math.max(1, Number(v.sets) || 1)
+  // This week's set count, which the block progression may have moved by one.
+  const sets = Math.max(1, Number(hang.sets) || Number(v.sets) || 1)
   const reps = Math.max(1, Number(v.reps) || 1)
   const seconds = Number(v.work_s) || null
-  // The midpoint of the prescribed range, rounded to the nearest kilo: a range
-  // is not something a set row can hold.
-  const kg = Math.round((hang.loTotal + hang.hiTotal) / 2)
+  // The load the progression landed on, which is the number the card shows.
+  // Falls back to the midpoint of the range, rounded to the nearest kilo: a
+  // range is not something a set row can hold.
+  const kg = hang.target?.kg || Math.round((hang.loTotal + hang.hiTotal) / 2)
   return {
     hangboard: [
       {

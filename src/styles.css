@@ -2736,6 +2736,120 @@ textarea {
   font-size: 0.75rem;
 }
 
+/* The block chip in the Today card's header, and the status line under it. */
+.coach-head-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.coach-block-chip {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--primary);
+  background: var(--primary-tint);
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.coach-status {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+/* The session sheet: warm-up, main, then, finish, each with its minutes. */
+.sheet {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sheet-part {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-left: 10px;
+  border-left: 3px solid var(--border);
+}
+.sheet-part-main {
+  border-left-color: var(--primary);
+  padding-left: 0;
+  border-left: none;
+}
+.sheet-part-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.sheet-role {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.sheet-min {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.sheet-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.sheet-name {
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+.sheet-how {
+  line-height: 1.4;
+}
+
+/* Week rows: missed days, and the small "counted as" / "from Mon" notes. */
+.coach-week-day.is-missed {
+  opacity: 0.6;
+  background: transparent;
+  border: 1px dashed var(--border);
+}
+.coach-week-miss {
+  flex: 0 0 auto;
+  font-weight: 700;
+  color: var(--danger);
+}
+.coach-week-as {
+  font-weight: 400;
+}
+.coach-road-mult {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+/* What the coach is still guessing at. */
+.gap-list {
+  margin: 0;
+  padding: 0 0 0 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.88rem;
+}
+
+/* A pain outcome on a session, in the read-back. */
+.route-send.is-pain {
+  color: var(--danger);
+}
+
 /* Daily check-in bottom sheet. */
 .checkin-sheet {
   max-height: min(88dvh, 660px);

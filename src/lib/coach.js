@@ -11,8 +11,8 @@
 //   3. Absence of information is not information of absence. No profile means
 //      no filtering; no history means "unknown", not "fresh".
 import { addDays, differenceInCalendarDays, format, subDays, startOfWeek } from 'date-fns'
-import { asDate, todayISO } from './format'
-import { BOULDER_GRADES, ROUTE_GRADES, formatGrade } from './constants'
+import { asDate, todayISO, formatDayShort } from './format'
+import { BOULDER_GRADES, ROUTE_GRADES, SPORTS, formatGrade } from './constants'
 import { normaliseSession } from './sessionShape'
 import { fitnessSeries, sessionLoad } from './stats'
 import {
@@ -25,6 +25,8 @@ import { primaryGoal, daysUntil } from './coachProfile'
 import { activeProblems } from './wellness'
 import { setIntensity, usableMaxTotal, maxTotalFor, prescribeHang } from './fingerLoad'
 import { painAborts, asymmetries } from './fingerTests'
+import { hangTarget, scaledSets } from './progression'
+import { buildSessionSheet } from './sessionSheet'
 
 const num = (v) => Number(v) || 0
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
@@ -213,6 +215,7 @@ export function experienceLevel(profile) {
   const years = profile?.climbing_since
     ? Math.max(0, new Date().getFullYear() - Number(profile.climbing_since))
     : null
+  const age = profile?.birth_year ? new Date().getFullYear() - Number(profile.birth_year) : null
   const byYears = levelFromYears(years)
   const byGrade = bestGradeLevel(profile)
   // Unknown on either side falls back to the other; unknown on both means a
@@ -221,11 +224,31 @@ export function experienceLevel(profile) {
   return {
     ...LEVELS[key],
     years,
+    age,
+    youth: age != null && age < 18,
     // The tissue ceiling never runs ahead of the years actually trained.
     tissueKey: byYears || 'intermediate',
     known: !!(byGrade || byYears),
     hard: key === 'advanced' || key === 'elite',
+    // Still building a base: the week is mostly climbing, and the hangboard
+    // waits (see fingerFillerKey).
+    isNew: key === 'new',
   }
+}
+
+// Structured injury history, by body area. The free-text field stays for the
+// part a checkbox loses; this is the part the engine can act on.
+export function injuryHistoryRegions(profile) {
+  return Array.isArray(profile?.injury_regions) ? profile.injury_regions.filter(Boolean) : []
+}
+
+// Previous injury is one of the few risk factors that holds up consistently,
+// and finger history is the one this engine can do something about: the
+// chronic hard-day ceiling drops one tissue level, and hangs are prescribed in
+// the lower half of their range (see progression.js). Chosen responses, not
+// findings, and said so in the copy; the direction is the well-supported part.
+export function fingerHistoryConservative(profile) {
+  return injuryHistoryRegions(profile).includes('fingers')
 }
 
 // Chronic finger-day ceilings, scaled by years under load. The guard stays for
@@ -584,7 +607,13 @@ export function fingerRecovery(sessions, limits, profile, tests = []) {
   // plausible route to tendinopathy that a relative measure cannot see.
   const load28 = fingerDayStats(sessions, limits, profile, 28, 0, tests)
   const load56 = fingerDayStats(sessions, limits, profile, 56, 0, tests)
-  const ceiling = CHRONIC_CEILING[experienceLevel(profile).tissueKey]
+  // Finger injury history: the ceiling is judged one tissue level down.
+  const conservative = fingerHistoryConservative(profile)
+  const tissueKey = experienceLevel(profile).tissueKey
+  const ceilingKey = conservative
+    ? LEVEL_ORDER[Math.max(0, LEVEL_ORDER.indexOf(tissueKey) - 1)]
+    : tissueKey
+  const ceiling = CHRONIC_CEILING[ceilingKey]
   let chronicLevel = 'ok'
   if (load28.hardDays >= ceiling.veryHigh) chronicLevel = 'very-high'
   else if (load28.hardDays >= ceiling.high) {
@@ -614,6 +643,7 @@ export function fingerRecovery(sessions, limits, profile, tests = []) {
     // The ceiling this count is being judged against, so a screen can show
     // "12 of 15" and say the 15 is a chosen number rather than a finding.
     chronicCeiling: ceiling,
+    conservative,
     sustainedWeeks,
     everLoaded,
   }
@@ -1263,7 +1293,9 @@ function deloadKeys(hardKey, trainingDays) {
   const slots = [...spreadPositions(trainingDays, days)].sort((a, b) => a - b)
   slots.forEach((slot, i) => {
     if (i === 0) out[slot] = hardKey
-    else if (i === slots.length - 1) out[slot] = 'mobility'
+    // With two days kept, the second is easy climbing, not a stretching
+    // session: a deload week that never touches the wall is a week off.
+    else if (i === slots.length - 1 && slots.length >= 3) out[slot] = 'mobility'
     else out[slot] = 'deload'
   })
   return out
@@ -1496,12 +1528,26 @@ const UNDULATING_WEEK_HARD = {
   6: ['limit', 'fingerStrength', 'power', 'powerEndurance', 'volume', 'technique'],
 }
 
+// A first-years week. Every beginner's guide worth reading says the same
+// thing: climb a lot, on varied terrain, learn to move, and leave the
+// hangboard alone for the first year or two, because a hangboard session
+// spends recovery that the skill sessions need. So the week is mostly
+// mileage and technique. The one hard day stays, because trying hard is also
+// a skill, and its grade band already sits a few grades under the limit.
+const UNDULATING_WEEK_NEW = {
+  2: ['volume', 'technique'],
+  3: ['limit', 'volume', 'technique'],
+  4: ['limit', 'volume', 'technique', 'aerobic'],
+  5: ['limit', 'volume', 'technique', 'powerEndurance', 'aerobic'],
+  6: ['limit', 'volume', 'technique', 'powerEndurance', 'aerobic', 'antagonist'],
+}
+
 // Easy days that are only easy because the athlete is assumed to be new. For
 // an experienced climber the same slot is better spent on real work.
 const HARDER_EASY = { technique: 'volume', aerobic: 'powerEndurance' }
 
 function undulatingWeek(trainingDays, level) {
-  const table = level?.hard ? UNDULATING_WEEK_HARD : UNDULATING_WEEK
+  const table = level?.hard ? UNDULATING_WEEK_HARD : level?.isNew ? UNDULATING_WEEK_NEW : UNDULATING_WEEK
   return table[trainingDays] || table[3]
 }
 
@@ -1511,67 +1557,84 @@ export const MIN_SESSIONS_WEEK = 2
 
 const SECOND_SESSION_TYPES = ['antagonist', 'mobility', 'fingerMaintenance']
 
-export function cyclePosition(sessions) {
-  let earliest = null
-  for (const s of sessions) if (!earliest || s.date < earliest) earliest = s.date
-  if (!earliest) return { week: 0, blockWeek: 0, block: LINEAR_BLOCK[0] }
+// Sessions that fill a slot in a climbing plan. A ride on a planned rest day
+// is training, and it counts toward load, but it is not the limit session the
+// plan was waiting for, and ticking the slot off would hide a missed one.
+export const PLAN_SPORTS = ['climbing', 'finger', 'strength']
+
+// Where the 4-week cycle is anchored. The block start the athlete set wins;
+// without one it counts from the first session ever logged, which is what it
+// always did and which can drop a brand-new user straight into a deload week.
+export function cyclePosition(sessions, profile = null) {
+  let anchor = null
+  if (profile?.plan_started_on) anchor = asDate(profile.plan_started_on)
+  else {
+    let earliest = null
+    for (const s of sessions) if (!earliest || s.date < earliest) earliest = s.date
+    if (earliest) anchor = asDate(earliest)
+  }
+  if (!anchor) return { week: 0, blockWeek: 0, block: LINEAR_BLOCK[0], anchored: false }
   const weeks = Math.floor(
     differenceInCalendarDays(
       startOfWeek(new Date(), { weekStartsOn: 1 }),
-      startOfWeek(asDate(earliest), { weekStartsOn: 1 }),
+      startOfWeek(anchor, { weekStartsOn: 1 }),
     ) / 7,
   )
   const blockWeek = ((weeks % 4) + 4) % 4
-  return { week: weeks, blockWeek, block: LINEAR_BLOCK[blockWeek] }
+  return { week: weeks, blockWeek, block: LINEAR_BLOCK[blockWeek], anchored: !!profile?.plan_started_on }
 }
 
-function sessionsThisWeek(sessions) {
-  const from = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
-  const today = todayISO()
-  const days = new Set()
-  for (const s of sessions) if (s.date >= from && s.date <= today) days.add(s.date)
-  return days.size
-}
+// ---------------------------------------------------------------------------
+// block progression
+// ---------------------------------------------------------------------------
+// Three loading weeks that ramp, then a deload. Volume is what ramps, not
+// intensity: the hang load moves by its own rule (see progression.js) and the
+// grade band is set by the session type, and moving both volume and intensity
+// in the same week is how a block ends in a pulley. The multipliers are chosen
+// (a set more, a set less) and are meant to be felt, not measured: the point
+// is that week three of a block is visibly not week one, which is the part
+// app-generated plans get wrong.
+export const BLOCK_WEEKS = [
+  {
+    idx: 0, key: 'settle', label: 'Settle in', volumeMult: 0.85,
+    note: 'First week of the block: a notch under full volume, so the block starts from fresh rather than from the deload.',
+  },
+  {
+    idx: 1, key: 'build', label: 'Build', volumeMult: 1,
+    note: 'Full volume. The sessions as written.',
+  },
+  {
+    idx: 2, key: 'push', label: 'Push', volumeMult: 1.1,
+    note: 'The biggest week: an extra set, a few more problems. Then a deload to absorb it.',
+  },
+  {
+    idx: 3, key: 'deload', label: 'Deload', volumeMult: PHASE_DURATION.deload,
+    note: 'About half the volume, the same intensity. Recovery is where the last three weeks turn into strength.',
+  },
+]
 
-// Is this a deload week? With a dated goal the countdown decides; otherwise the
-// 4:1 rhythm runs from the first logged session.
-function isDeloadWeek(pos, gp) {
-  if (gp) return gp.isDeloadWeek
-  return pos.blockWeek === 3
-}
-
-function plannedType(sessions, model, daysPerWeek, goals, level) {
-  const pos = cyclePosition(sessions)
-  const gp = goalPhase(goals)
-  const done = sessionsThisWeek(sessions)
-  const emphasis = gp ? null : goalEmphasis(goals)
-  const trainingDays = Math.min(
-    clamp(daysPerWeek, MIN_SESSIONS_WEEK, MAX_SESSIONS_WEEK),
-    MAX_TRAINING_DAYS,
-  )
-  const harder = (k) => (level?.hard ? HARDER_EASY[k] || k : k)
-
-  if (gp && gp.phase.key === 'taper') {
-    const at = phasePlanAt(gp.phase, gp.discipline, gp.style, done)
-    return { key: at.key, pos, gp, discipline: at.discipline }
-  }
-  // A deload week still trains - it keeps the phase's quality session and
-  // sheds volume - so it must resolve to the same keys the week view shows.
-  if (isDeloadWeek(pos, gp)) {
-    const keys = deloadKeys(deloadHardKey(gp, model, pos.blockWeek), trainingDays).filter(Boolean)
-    return { key: keys[done % keys.length] || 'deload', pos, gp, deload: true }
-  }
+// Which week of a block a given week is. In the repeating cycle it is the
+// position in the cycle. In a countdown the deloads sit at 4-week marks from
+// the goal, so the block counts up to the next one: three weeks out from a
+// deload is its settle-in week, one week out is its push. A taper is its own
+// thing and overrides the lot.
+export function blockWeekFor(pos, gp, wk = 0) {
   if (gp) {
-    const at = phasePlanAt(gp.phase, gp.discipline, gp.style, done)
-    return { key: harder(at.key), pos, gp, discipline: at.discipline }
+    if (gp.phase.key === 'taper') {
+      return { ...BLOCK_WEEKS[3], key: 'taper', label: 'Taper', volumeMult: PHASE_DURATION.taper, taper: true, deload: false }
+    }
+    if (gp.isDeloadWeek) return { ...BLOCK_WEEKS[3], deload: true, taper: false }
+    const m = gp.weeks % 4
+    const idx = m === 3 ? 0 : m === 2 ? 1 : m === 1 ? 2 : 1
+    return { ...BLOCK_WEEKS[idx], deload: false, taper: false }
   }
-  if (emphasis) return { key: done % 2 === 0 ? emphasis.key : 'volume', pos, gp, emphasis }
-  if (model === 'linear') {
-    return { key: harder(done % 2 === 0 ? pos.block.hard : pos.block.easy), pos, gp }
-  }
-  const pattern = undulatingWeek(trainingDays, level)
-  return { key: harder(pattern[done % pattern.length]), pos, gp }
+  const blockWeek = (((pos.blockWeek + wk) % 4) + 4) % 4
+  return { ...BLOCK_WEEKS[blockWeek], deload: blockWeek === 3, taper: false }
 }
+
+// ---------------------------------------------------------------------------
+// the week's sessions
+// ---------------------------------------------------------------------------
 
 // Adherence, not learning.
 //
@@ -1614,11 +1677,107 @@ function spreadPositions(n, count) {
   return out
 }
 
+// Which weekdays are training days. Stated days win; otherwise the sessions
+// are spread evenly across the week so the plan still lands on real dates,
+// and the plan says it is guessing.
+function weekLayout(profile, trainingDays, sessions) {
+  const prefs = Array.isArray(profile?.preferred_days)
+    ? [...new Set(profile.preferred_days.filter((d) => d >= 1 && d <= 7))].sort((a, b) => a - b)
+    : null
+  const weekdaysKnown = !!(prefs && prefs.length >= trainingDays)
+  const daySlots = weekdaysKnown
+    ? prefs.slice(0, trainingDays)
+    : [...spreadPositions(7, trainingDays)].sort((a, b) => a - b).map((i) => i + 1)
+  // Training days that have been going unused. Only meaningful when the athlete
+  // told us which days they train: a spread-evenly plan has no promise to keep.
+  const skipped = weekdaysKnown ? skippedWeekdays(sessions, daySlots) : new Set()
+  const avoidHard = new Set(
+    daySlots.map((wd, i) => (skipped.has(wd) ? i : -1)).filter((i) => i >= 0),
+  )
+  return { daySlots, weekdaysKnown, skipped, avoidHard }
+}
+
+// The finger session a week gets when it would otherwise have none.
+//
+// The Norwegian Climbing Federation's line, which this app follows for anyone
+// under 18: at least two years of regular climbing before specific finger
+// training. For adults the first year is climbing too (every beginner's guide
+// agrees, and the reasoning is recovery: a hangboard session spends what the
+// skill sessions need). After that a maintenance dose, and a real session
+// once the level is there. When there is no finger work to give, the slot
+// goes to the push and shoulder work climbers skip instead.
+function fingerFillerKey(level) {
+  if (level?.hard) return 'fingerStrength'
+  const years = level?.years
+  if (level?.youth && (years == null || years < 2)) return 'antagonist'
+  if (level?.isNew && (years == null || years < 1)) return 'antagonist'
+  return 'fingerMaintenance'
+}
+
+// A stated weakness spends the week's spare slot. The session type each maps
+// to, by discipline where it differs: endurance for a boulderer is
+// power-endurance, for a rope climber it is time on the wall.
+const WEAKNESS_KEY = {
+  fingers: { boulder: 'fingerStrength', rope: 'fingerStrength' },
+  power: { boulder: 'power', rope: 'power' },
+  endurance: { boulder: 'powerEndurance', rope: 'aerobic' },
+  technique: { boulder: 'technique', rope: 'technique' },
+  strength: { boulder: 'antagonist', rope: 'antagonist' },
+  mobility: { boulder: 'mobility', rope: 'mobility' },
+  mental: { boulder: 'mental', rope: 'mental' },
+}
+
+export function profileWeaknesses(profile) {
+  return Array.isArray(profile?.weaknesses)
+    ? profile.weaknesses.filter((w) => WEAKNESS_KEY[w])
+    : []
+}
+
+// Swap the week's lowest-priority easy slot for the first stated weakness the
+// week does not already train. One swap, never the hard day, never the finger
+// day, and only from three sessions a week: with two there is no spare slot,
+// and a plan that is all weakness work is a plan with no base under it.
+function weaknessSwap(keys, profile, level, discipline) {
+  if (keys.length < 3) return { keys, swap: null }
+  const d = discipline === 'rope' || discipline === 'route' ? 'rope' : 'boulder'
+  for (const w of profileWeaknesses(profile)) {
+    let key = WEAKNESS_KEY[w][d]
+    if (key === 'fingerStrength' && !level?.hard) key = fingerFillerKey(level)
+    if (key === 'antagonist' && w === 'fingers') continue
+    if (keys.includes(key)) continue
+    // The slot to spend: the last easy key that is neither the hard day nor
+    // the finger day.
+    const idx = [...keys.keys()].reverse().find(
+      (i) =>
+        SESSION_TYPES[keys[i]].fingerCost !== 'high' &&
+        keys[i] !== 'fingerMaintenance' &&
+        keys[i] !== 'fingerStrength' &&
+        i !== 0,
+    )
+    if (idx == null) return { keys, swap: null }
+    const next = [...keys]
+    const from = next[idx]
+    next[idx] = key
+    return { keys: next, swap: { from, to: key, weakness: w } }
+  }
+  return { keys, swap: null }
+}
+
+// Which session the week can least afford to lose. The phase's hard session
+// first, then anything else that loads the fingers hard, then medium, then
+// the easy days. This is the order missed sessions are carried forward in,
+// and the order they are dropped in when the week runs out of days.
+function keyPriority(key, hardKey) {
+  if (key === hardKey) return 0
+  const cost = SESSION_TYPES[key]?.fingerCost
+  return cost === 'high' ? 1 : cost === 'medium' ? 2 : cost === 'low' ? 3 : 4
+}
+
 // The plan's session keys for the week `wk` weeks after the current one, hard
 // days spread across the training slots. Deload and phase are computed per
 // week - next Monday can be a different phase than today, and the plan should
 // show that instead of pretending the current week repeats forever.
-function weekKeys(pos, goal, emphasis, model, trainingDays, wk, level, avoidHard = null) {
+function weekKeys(pos, goal, emphasis, model, trainingDays, wk, level, avoidHard = null, profile = null) {
   let gp = null
   if (goal) {
     const days = daysUntil(goal) - wk * 7
@@ -1636,6 +1795,7 @@ function weekKeys(pos, goal, emphasis, model, trainingDays, wk, level, avoidHard
     }
   }
   const blockWeek = (((pos.blockWeek + wk) % 4) + 4) % 4
+  const block = blockWeekFor(pos, gp, wk)
   const deload = gp ? gp.isDeloadWeek : blockWeek === 3
   const alternate = (hard, easy) =>
     Array.from({ length: trainingDays }, (_, i) => (i % 2 === 0 ? hard : easy))
@@ -1643,40 +1803,73 @@ function weekKeys(pos, goal, emphasis, model, trainingDays, wk, level, avoidHard
   // A deload week is a reduction, not a week off: keep the phase's own quality
   // session, give back the rest of the days.
   if (deload) {
+    const hardKey = deloadHardKey(gp, model, blockWeek)
     return {
-      keys: deloadKeys(deloadHardKey(gp, model, blockWeek), trainingDays),
+      keys: deloadKeys(hardKey, trainingDays),
       disciplines: null,
       deload: true,
+      taper: false,
       phaseLabel: gp ? gp.phase.label : LINEAR_BLOCK[blockWeek].label,
       gp,
+      hardKey,
+      block,
+      swap: null,
+      adherenceMoved: false,
     }
   }
 
   let keys
   let disciplines = null
+  let hardKey
   if (gp) {
     const plans = Array.from({ length: trainingDays }, (_, i) =>
       phasePlanAt(gp.phase, gp.discipline, gp.style, i),
     )
     keys = plans.map((x) => x.key)
     disciplines = plans.map((x) => x.discipline)
-  } else if (emphasis) keys = alternate(emphasis.key, 'volume')
-  else if (model === 'linear') {
-    const block = LINEAR_BLOCK[blockWeek]
-    keys = alternate(block.hard, block.easy)
-  } else keys = undulatingWeek(trainingDays, level).slice(0, trainingDays)
+    hardKey = phaseFor(gp.phase, gp.discipline === 'both' ? null : gp.discipline, gp.style).hard
+  } else if (emphasis) {
+    keys = alternate(emphasis.key, 'volume')
+    hardKey = emphasis.key
+  } else if (model === 'linear') {
+    const blk = LINEAR_BLOCK[blockWeek]
+    keys = alternate(blk.hard, blk.easy)
+    hardKey = blk.hard
+  } else {
+    keys = undulatingWeek(trainingDays, level).slice(0, trainingDays)
+    hardKey = keys[0]
+  }
 
   // Experienced climbers don't get the base-building filler.
   if (level?.hard) keys = keys.map((k) => HARDER_EASY[k] || k)
 
   // Finger strength otherwise disappears for months at a time: Base can run 12+
   // weeks with no finger stimulus at all, and it vanishes again through Power
-  // and Peak. Keep a finger dose in any week that has none - a maintenance one
-  // if the base is still being built, a real one if it is long since built.
+  // and Peak. Keep a finger dose in any week that has none, at the dose the
+  // athlete's years can carry, never in a taper week.
+  //
+  // Only when the week has a slot to spare. Two sessions a week is a hard day
+  // and a climbing day, and neither is the one to give to ten minutes of
+  // no-hangs; and the push-and-shoulder stand-in a beginner gets instead of
+  // finger work displaces climbing they need more, so it waits for a fourth day.
   const hasFingerWork = keys.some((k) => k === 'fingerStrength' || k === 'fingerMaintenance')
-  if (!hasFingerWork && keys.length >= 2 && gp?.phase.key !== 'taper') {
-    const slot = keys.findIndex((k) => SESSION_TYPES[k].fingerCost !== 'high')
-    if (slot >= 0) keys[slot] = level?.hard ? 'fingerStrength' : 'fingerMaintenance'
+  if (!hasFingerWork && gp?.phase.key !== 'taper') {
+    const filler = fingerFillerKey(level)
+    const room = filler === 'antagonist' ? keys.length >= 4 : keys.length >= 3
+    if (room && !keys.includes(filler)) {
+      const slot = keys.findIndex((k) => SESSION_TYPES[k].fingerCost !== 'high')
+      if (slot >= 0) keys[slot] = filler
+    }
+  }
+
+  // A stated weakness spends the spare slot, in the plan's own words. Not in
+  // a countdown: the phases are the specialisation there, and a trip in six
+  // weeks is not the time to fix a lifelong endurance deficit.
+  let swap = null
+  if (!gp && gp?.phase.key !== 'taper') {
+    const r = weaknessSwap(keys, profile, level, disciplines?.[0] || profile?.focus)
+    keys = r.keys
+    swap = r.swap
   }
 
   // Hard sessions on the best-spaced slots rather than just first.
@@ -1699,176 +1892,463 @@ function weekKeys(pos, goal, emphasis, model, trainingDays, wk, level, avoidHard
     }
   }
   const ordered = []
+  const orderedDisciplines = disciplines ? [] : null
   let hi = 0
   let ei = 0
   for (let i = 0; i < trainingDays; i += 1) {
-    ordered.push(
-      hardSlots.has(i) && hi < hardKeys.length
-        ? hardKeys[hi++]
-        : easyKeys[ei++] || hardKeys[hi++] || 'technique',
-    )
+    const useHard = hardSlots.has(i) && hi < hardKeys.length
+    const key = useHard ? hardKeys[hi++] : easyKeys[ei++] || hardKeys[hi++] || 'technique'
+    ordered.push(key)
+    if (orderedDisciplines) orderedDisciplines.push(disciplines[keys.indexOf(key)] || disciplines[i])
   }
 
   return {
     keys: ordered,
-    disciplines,
+    disciplines: orderedDisciplines,
     deload,
     taper: gp?.phase.key === 'taper',
     adherenceMoved,
     phaseLabel: gp ? gp.phase.label : LINEAR_BLOCK[blockWeek].label,
     gp,
+    hardKey,
+    block,
+    swap,
   }
 }
 
-// The next 7 days as an actual plan: real dates, sessions on the days you
-// train, rest days where they fall - and next week's phase visible the moment
-// it is inside the window. Logged sessions tick their day off, and today's
-// slot follows the live suggestion (which reacts to recovery, readiness and
-// check-ins) rather than the raw template.
-export function rollingPlan(sessions, model, sessionsPerWeek, goals, profile, suggestion = null) {
-  const level = experienceLevel(profile)
-  const n = clamp(sessionsPerWeek, MIN_SESSIONS_WEEK, MAX_SESSIONS_WEEK)
-  const trainingDays = Math.min(n, MAX_TRAINING_DAYS)
-  const doubles = n - trainingDays
-  const pos = cyclePosition(sessions)
-  const goal = primaryGoal(goals)
-  const emphasis = goalPhase(goals) ? null : goalEmphasis(goals)
-
-  // Which weekdays are training days. Stated days win; otherwise the sessions
-  // are spread evenly across the week so the plan still lands on real dates.
-  const prefs = Array.isArray(profile?.preferred_days)
-    ? [...new Set(profile.preferred_days.filter((d) => d >= 1 && d <= 7))].sort((a, b) => a - b)
-    : null
-  const weekdaysKnown = !!(prefs && prefs.length >= trainingDays)
-  const daySlots = weekdaysKnown
-    ? prefs.slice(0, trainingDays)
-    : [...spreadPositions(7, trainingDays)].sort((a, b) => a - b).map((i) => i + 1)
-
-  const doubleSlots = [...spreadPositions(trainingDays, doubles)].sort((a, b) => a - b)
-
-  // Training days that have been going unused. Only meaningful when the athlete
-  // told us which days they train: a spread-evenly plan has no promise to keep.
-  const skipped = weekdaysKnown ? skippedWeekdays(sessions, daySlots) : new Set()
-  const avoidHard = new Set(
-    daySlots.map((wd, i) => (skipped.has(wd) ? i : -1)).filter((i) => i >= 0),
-  )
-
-  // Sessions logged in the window, by date.
-  const today = todayISO()
+// One calendar week of the plan against what was logged in it.
+//
+// This is the piece that used to be missing. The template says "limit on
+// Monday"; life says you got to the gym on Wednesday. The old code answered
+// with the Nth session of the pattern, counted from how many days you had
+// trained, while the week view drew the template by weekday, so the two
+// screens disagreed and the day said "swapped from the template" with no
+// reason on the card. Now the week is one object: template keys on their
+// slots, logged days consume a key (the one they said they were, else the
+// slot's, else the earliest still owed), missed slots leave their key owed,
+// and the days still to come get what is owed in order of priority, with the
+// lowest-priority session the one that drops when the week runs out. That is
+// the rule a coach applies by hand: keep the key session, lose the filler,
+// never stack two hard finger days to make up for one.
+//
+//   keys          template session keys per training slot (null = rest slot)
+//   disciplines   per slot, for a combined goal
+//   daySlots      ISO weekdays (1-7) the slots fall on, ascending
+//   weekStart     Monday, ISO
+//   flexible      weekdays were guessed, not stated: no day is called missed,
+//                 and today always gets the next session owed
+export function weekSchedule({
+  sessions, keys, disciplines = null, daySlots, weekStart, today = todayISO(),
+  flexible = false, hardKey = null, activeFrom = null, hardDates = null,
+}) {
   const byDate = new Map()
-  for (const s of sessions) {
-    if (s.date < today) continue
+  const isPlanSession = (s) => PLAN_SPORTS.includes(s.sport)
+  // A day before the plan was being followed cannot have been missed. The
+  // plan is being followed from its stated start, or failing that from the
+  // first plan session ever logged: a new user on a Wednesday has not missed
+  // Monday, they have started on a Wednesday.
+  let firstSession = null
+  for (const s of sessions || []) {
     if (!byDate.has(s.date)) byDate.set(s.date, [])
     byDate.get(s.date).push(s)
+    if (isPlanSession(s) && (!firstSession || s.date < firstSession)) firstSession = s.date
   }
+  const active = activeFrom && (!firstSession || activeFrom < firstSession) ? activeFrom : firstSession
+  const hardCost = (key) => SESSION_TYPES[key]?.fingerCost === 'high'
 
-  const weekCache = new Map()
-  const weekOf = (wk) => {
-    if (!weekCache.has(wk)) {
-      weekCache.set(
-        wk,
-        weekKeys(pos, goal, emphasis, model, trainingDays, wk, level, avoidHard),
-      )
-    }
-    return weekCache.get(wk)
-  }
-
-  const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 })
   const days = []
-  let nextMarked = false
-  for (let off = 0; off < 7; off += 1) {
-    const d = addDays(new Date(), off)
-    const iso = format(d, 'yyyy-MM-dd')
-    const weekday = ((d.getDay() + 6) % 7) + 1 // ISO 1..7
-    const wk = Math.floor(differenceInCalendarDays(d, weekStart) / 7)
-    const week = weekOf(wk)
+  for (let i = 0; i < 7; i += 1) {
+    const date = format(addDays(asDate(weekStart), i), 'yyyy-MM-dd')
+    const weekday = i + 1
     const slotIdx = daySlots.indexOf(weekday)
-    // A deload week hands some of its training slots back as rest, so a slot
-    // with no key is a rest day even though it is one of your training days.
-    const slotKey = slotIdx >= 0 ? week.keys[slotIdx] : null
-    const isTraining = !!slotKey
-    const logged = byDate.get(iso) || []
-    const isToday = off === 0
+    const logged = byDate.get(date) || []
+    days.push({
+      date,
+      weekday,
+      slotIdx,
+      templateKey: slotIdx >= 0 ? keys[slotIdx] || null : null,
+      templateDiscipline: slotIdx >= 0 && disciplines ? disciplines[slotIdx] : null,
+      logged,
+      trained: logged.some(isPlanSession),
+      isToday: date === today,
+      isPast: date < today,
+      key: null,
+      discipline: null,
+      done: false,
+      did: null,
+      missed: false,
+      carriedFrom: null,
+      extra: false,
+    })
+  }
 
+  // What the week owes, in slot order.
+  const owed = keys
+    .map((key, slot) => (key ? { key, slot, discipline: disciplines ? disciplines[slot] : null, date: days.find((d) => d.slotIdx === slot)?.date || null } : null))
+    .filter(Boolean)
+
+  // Days already gone (and today, once it has been trained) consume what they
+  // did. A session that says which plan type it was consumes that; otherwise
+  // the day's own slot; otherwise the earliest thing still owed.
+  const consumed = []
+  for (const d of days) {
+    if (!(d.isPast || (d.isToday && d.trained))) continue
+    if (d.trained) {
+      const stated = d.logged
+        .map((s) => s.extra?.coach?.type)
+        .find((t) => t && owed.some((o) => o.key === t))
+      let idx = stated ? owed.findIndex((o) => o.key === stated) : -1
+      if (idx < 0 && d.templateKey) idx = owed.findIndex((o) => o.key === d.templateKey)
+      if (idx < 0) idx = owed.findIndex((o) => o.slot <= (d.slotIdx >= 0 ? d.slotIdx : Infinity))
+      if (idx < 0 && owed.length) idx = 0
+      const took = idx >= 0 ? owed.splice(idx, 1)[0] : null
+      d.done = true
+      d.did = took?.key || null
+      d.key = took?.key || null
+      d.discipline = took?.discipline || null
+      d.extra = !took
+      if (took) consumed.push(took)
+    } else if (d.templateKey && d.isPast && !flexible && active && d.date > active) {
+      d.missed = true
+    }
+  }
+
+  // The days still to come, and what they get. When everything owed still
+  // fits, the week keeps the order it was laid out in: the hard days were
+  // spaced on purpose. Only when a missed day has left more owed than there
+  // are days does priority decide, most important first, and the least
+  // important session is the one that drops. Either way a hard finger day
+  // never lands straight after another one when something else is owed.
+  const ahead = days.filter(
+    (d) => !d.done && (d.date > today || d.isToday) && (d.slotIdx >= 0 || (flexible && d.isToday)),
+  )
+  const short = owed.length > ahead.length
+  const queue = [...owed].sort((a, b) =>
+    short
+      ? keyPriority(a.key, hardKey) - keyPriority(b.key, hardKey) || a.slot - b.slot
+      : a.slot - b.slot,
+  )
+  // Was a day hard on the fingers: by what is planned for it, by what the
+  // logged session said it was, or by what the dose model made of it (a
+  // session logged without a plan type is still a maximal one if its sets
+  // were).
+  const hardOn = (date) => {
+    if (hardDates?.has(date)) return true
+    const d = days.find((x) => x.date === date)
+    if (!d) return false
+    if (d.key) return hardCost(d.key)
+    return d.logged.some((s) => hardCost(s.extra?.coach?.type))
+  }
+  for (const d of ahead) {
+    if (!queue.length) break
+    const prev = format(addDays(asDate(d.date), -1), 'yyyy-MM-dd')
+    let pick = queue.findIndex((o) => !(hardCost(o.key) && hardOn(prev)))
+    if (pick < 0) pick = 0
+    const [take] = queue.splice(pick, 1)
+    d.key = take.key
+    d.discipline = take.discipline
+    if (take.date && take.date !== d.date && take.date < d.date) {
+      const from = days.find((x) => x.date === take.date)
+      if (from?.missed) d.carriedFrom = take.date
+    }
+  }
+
+  const todayDay = days.find((d) => d.isToday) || null
+  const nextUp = days.find((d) => d.key && !d.done && d.date > today) || null
+  const missed = days.filter((d) => d.missed)
+  return {
+    days,
+    todayDay,
+    todayKey: todayDay?.done ? null : todayDay?.key || null,
+    todayDone: !!todayDay?.done,
+    restDay: !!todayDay && !todayDay.done && !todayDay.key,
+    nextUp,
+    // Still owed with nowhere to go: the sessions the week loses. Only worth
+    // saying when a missed day is why; a week joined on a Wednesday has not
+    // lost Monday's session, it never had it.
+    dropped: missed.length ? queue.map((o) => o.key) : [],
+    missed,
+    planned: keys.filter(Boolean).length,
+    done: days.filter((d) => d.done && !d.extra).length,
+    extra: days.filter((d) => d.extra).length,
+    flexible,
+  }
+}
+
+// Dates in the current week (and the day before it) with a hard or maximal
+// finger dose, so the schedule can keep hard days apart on what actually
+// happened, not only on what was planned.
+function hardFingerDates(sessions, limits, profile, fingerTests, weekStart) {
+  const from = format(addDays(asDate(weekStart), -1), 'yyyy-MM-dd')
+  const out = new Set()
+  for (const s of sessions || []) {
+    if (s.date < from) continue
+    const d = fingerDose(s, limits, profile, fingerTests)
+    if (d.tier === 'hard' || d.tier === 'maximal') out.add(s.date)
+  }
+  return out
+}
+
+// Today's planned session, from the week it sits in.
+function plannedType(sessions, model, daysPerWeek, goals, level, profile, { limits = null, fingerTests = [] } = {}) {
+  const pos = cyclePosition(sessions, profile)
+  const gp = goalPhase(goals)
+  const goal = primaryGoal(goals)
+  const emphasis = gp ? null : goalEmphasis(goals)
+  const n = clamp(daysPerWeek, MIN_SESSIONS_WEEK, MAX_SESSIONS_WEEK)
+  const trainingDays = Math.min(n, MAX_TRAINING_DAYS)
+  const layout = weekLayout(profile, trainingDays, sessions)
+  const week = weekKeys(pos, goal, emphasis, model, trainingDays, 0, level, layout.avoidHard, profile)
+  const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
+  const schedule = weekSchedule({
+    sessions,
+    keys: week.keys,
+    disciplines: week.disciplines,
+    daySlots: layout.daySlots,
+    weekStart,
+    flexible: !layout.weekdaysKnown,
+    hardKey: week.hardKey,
+    activeFrom: profile?.plan_started_on || null,
+    hardDates: limits ? hardFingerDates(sessions, limits, profile, fingerTests, weekStart) : null,
+  })
+
+  // What today is, and therefore what the card is about:
+  //   training  a session is owed today: the card is that session
+  //   done      today's is logged: the card previews the next one owed
+  //   rest      a rest day: the card previews the next one, for the athlete
+  //             who is going anyway
+  //   complete  nothing left owed this week: easy movement, and say so
+  let key = schedule.todayKey
+  let discipline = schedule.todayDay?.discipline || null
+  let dayStatus = 'training'
+  const nextUp = schedule.nextUp
+  if (!key) {
+    if (!nextUp) {
+      dayStatus = 'complete'
+      key = 'mobility'
+    } else {
+      dayStatus = schedule.todayDone ? 'done' : 'rest'
+      key = nextUp.key
+      discipline = nextUp.discipline
+    }
+  }
+  return {
+    key,
+    pos,
+    gp,
+    discipline,
+    deload: week.deload,
+    taper: week.taper,
+    emphasis,
+    dayStatus,
+    restDay: dayStatus === 'rest',
+    doneToday: schedule.todayDone,
+    weekDone: dayStatus === 'complete',
+    nextUp: nextUp ? { date: nextUp.date, key: nextUp.key } : null,
+    carriedFrom: dayStatus === 'training' ? schedule.todayDay?.carriedFrom || null : null,
+    dropped: schedule.dropped,
+    block: week.block,
+    swap: week.swap,
+    // Everything the week view needs, so it cannot disagree with the card.
+    planner: { schedule, layout, week, weekStart, trainingDays, sessions: n },
+  }
+}
+
+// The current week as a plan: Mon to Sun on real dates, what was logged, what
+// was missed and where it went, what is still to come, plus the block the
+// week sits in and a look at next week. Built from the same schedule the
+// daily suggestion used, so the two cannot disagree.
+export function weekPlan(sessions, model, goals, profile, suggestion) {
+  const { planner, block } = suggestion
+  const { schedule, layout, week, weekStart, trainingDays } = planner
+  const n = planner.sessions
+  const doubles = n - trainingDays
+  const doubleSlots = [...spreadPositions(trainingDays, doubles)].sort((a, b) => a - b)
+  const today = todayISO()
+
+  const days = schedule.days.map((d) => {
+    const isTraining = !!d.key
     // Today shows what the coach actually says today, not the raw template -
     // that is where check-ins and recovery bend the plan.
-    let key = slotKey
+    let key = d.key
     let adjusted = false
-    if (isToday && isTraining && suggestion && !logged.length) {
-      adjusted = suggestion.key !== key
+    if (d.isToday && isTraining && !d.done && suggestion.key !== key) {
+      adjusted = true
       key = suggestion.key
     }
-
-    const di = doubleSlots.indexOf(slotIdx)
+    const di = doubleSlots.indexOf(d.slotIdx)
     // No doubles in a deload or taper week - both cut total work, and a taper
     // that keeps its doubles is not a taper.
     const secondKey =
-      isTraining && di >= 0 && !week.deload && !week.taper
+      isTraining && !d.done && di >= 0 && !week.deload && !week.taper
         ? SECOND_SESSION_TYPES[di % SECOND_SESSION_TYPES.length]
         : null
-
-    const next = !nextMarked && isTraining && !logged.length
-    if (next) nextMarked = true
-
-    days.push({
-      date: iso,
-      weekday,
-      isToday,
-      rest: !isTraining,
+    return {
+      ...d,
       key,
       type: key ? SESSION_TYPES[key] : null,
+      didType: d.did ? SESSION_TYPES[d.did] : null,
+      rest: !isTraining && !d.done,
       adjusted,
-      discipline: isTraining && week.disciplines ? week.disciplines[slotIdx] : null,
       second: secondKey ? { key: secondKey, type: SESSION_TYPES[secondKey] } : null,
-      logged,
-      next,
+      next: false,
       deload: week.deload,
       taper: week.taper,
       // A real session at reduced volume: same intensity, less of it. True in
       // a taper week (every session) and in a deload week for the quality
       // session it keeps. The mobility/easy slots are already light.
-      reduced:
-        (week.taper || week.deload) && !!key && key !== 'mobility' && key !== 'deload',
-      durationMult: week.taper
-        ? PHASE_DURATION.taper
-        : week.deload
-          ? PHASE_DURATION.deload
-          : 1,
+      reduced: (week.taper || week.deload) && !!key && key !== 'mobility' && key !== 'deload',
+      durationMult: block.volumeMult,
       phaseLabel: week.phaseLabel,
-      // What the week reads as on a timeline. A deload week keeps its phase
-      // label (weeks-to-goal still says "Power") but must not be treated as
-      // the same block - comparing phase labels alone is how a deload week
-      // once appeared with no divider and no explanation at all.
       blockLabel: week.deload ? 'Deload' : week.phaseLabel,
-    })
-  }
+    }
+  })
+  const next = days.find((d) => d.key && !d.done && d.date >= today)
+  if (next) next.next = true
 
-  // Smallest gap between consecutive hard finger days inside the window.
+  // Smallest gap between consecutive hard finger days still ahead.
   let minHardGap = null
   const hardIdx = days
-    .map((d, i) => (d.type?.fingerCost === 'high' ? i : -1))
+    .map((d, i) => (d.type?.fingerCost === 'high' && !d.done ? i : -1))
     .filter((i) => i >= 0)
   if (hardIdx.length >= 2) {
     minHardGap = Math.min(...hardIdx.slice(1).map((v, i) => v - hardIdx[i]))
   }
 
-  // Where the block changes inside the window, for a divider row in the UI.
-  const phaseChange = days.find((d, i) => i > 0 && d.blockLabel !== days[0].blockLabel) || null
+  // Next week, in one line: the block it is and whether it is a reduction.
+  const goal = primaryGoal(goals)
+  const emphasis = goalPhase(goals) ? null : goalEmphasis(goals)
+  const level = experienceLevel(profile)
+  const nextWeek = weekKeys(suggestion.cycle, goal, emphasis, model, trainingDays, 1, level, layout.avoidHard, profile)
+  const nextStart = format(addDays(asDate(weekStart), 7), 'yyyy-MM-dd')
 
   return Object.assign(days, {
+    weekStart,
     trainingDays,
     restDays: 7 - trainingDays,
     doubles,
     sessions: n,
-    weekdaysKnown,
+    weekdaysKnown: layout.weekdaysKnown,
     minHardGap,
-    deloadNow: days[0]?.deload || false,
-    phaseChange,
+    deloadNow: week.deload,
+    taperNow: week.taper,
+    block,
+    phaseLabel: week.phaseLabel,
+    swap: week.swap,
+    planned: schedule.planned,
+    done: schedule.done,
+    extra: schedule.extra,
+    missed: schedule.missed.map((d) => ({ date: d.date, key: d.templateKey })),
+    dropped: schedule.dropped,
     // Days the plan has stopped putting hard sessions on, because nothing has
     // been logged on them for a month.
-    skippedWeekdays: [...skipped],
-    adherenceMoved: !!weekOf(0).adherenceMoved,
+    skippedWeekdays: [...layout.skipped],
+    adherenceMoved: !!week.adherenceMoved,
+    nextWeek: {
+      from: nextStart,
+      label: nextWeek.deload ? 'Deload' : nextWeek.taper ? 'Taper' : nextWeek.phaseLabel,
+      block: nextWeek.block,
+      deload: nextWeek.deload,
+      taper: nextWeek.taper,
+      goalEnds: goal ? daysUntil(goal) < 14 : false,
+    },
   })
+}
+
+// Last week, planned against done. A coach's Monday message: what you did,
+// what you missed, and what that means for this week. Nothing here learns
+// anything; it counts.
+export function weekReview(sessions, model, daysPerWeek, goals, profile, limits, fingerTests = []) {
+  const level = experienceLevel(profile)
+  const pos = cyclePosition(sessions, profile)
+  const goal = primaryGoal(goals)
+  const emphasis = goalPhase(goals) ? null : goalEmphasis(goals)
+  const n = clamp(daysPerWeek, MIN_SESSIONS_WEEK, MAX_SESSIONS_WEEK)
+  const trainingDays = Math.min(n, MAX_TRAINING_DAYS)
+  const layout = weekLayout(profile, trainingDays, sessions)
+  const week = weekKeys(pos, goal, emphasis, model, trainingDays, -1, level, layout.avoidHard, profile)
+  const thisMonday = startOfWeek(new Date(), { weekStartsOn: 1 })
+  const weekStart = format(addDays(thisMonday, -7), 'yyyy-MM-dd')
+  const schedule = weekSchedule({
+    sessions,
+    keys: week.keys,
+    disciplines: week.disciplines,
+    daySlots: layout.daySlots,
+    weekStart,
+    today: format(thisMonday, 'yyyy-MM-dd'),
+    flexible: !layout.weekdaysKnown,
+    hardKey: week.hardKey,
+  })
+  const mondayISO = format(thisMonday, 'yyyy-MM-dd')
+  const inWeek = (sessions || []).filter((s) => s.date >= weekStart && s.date < mondayISO)
+  // Was the plan being followed at all last week: any plan session before
+  // this Monday, or a block start before it. A first week reads as nothing to
+  // review, not as three sessions missed.
+  const followed =
+    (profile?.plan_started_on && profile.plan_started_on < mondayISO) ||
+    (sessions || []).some((s) => PLAN_SPORTS.includes(s.sport) && s.date < mondayISO)
+  let minutes = 0
+  const hardDays = new Set()
+  for (const s of inWeek) {
+    minutes += num(s.duration)
+    const d = fingerDose(s, limits, profile, fingerTests)
+    if (d.tier === 'hard' || d.tier === 'maximal') hardDays.add(s.date)
+  }
+  const missedKeys = schedule.missed.map((d) => d.templateKey).filter(Boolean)
+  return {
+    weekStart,
+    planned: schedule.planned,
+    done: schedule.done,
+    extra: schedule.extra,
+    missedKeys,
+    missedHard: missedKeys.some((k) => SESSION_TYPES[k]?.fingerCost === 'high'),
+    sessions: inWeek.length,
+    minutes,
+    hardFingerDays: hardDays.size,
+    block: week.block,
+    deload: week.deload,
+    flexible: !layout.weekdaysKnown,
+    // Nothing logged and no plan yet is a week that has not started, not a
+    // week failed.
+    empty: !followed || (inWeek.length === 0 && schedule.planned === 0),
+  }
+}
+
+// The block the current week sits in, week by week, for the plan tab. In the
+// repeating cycle that is the four weeks of the cycle. In a countdown it is
+// the run of weeks up to the next deload (or the goal), which is what the
+// athlete is actually in the middle of.
+export function currentBlock(goals, sessions, profile) {
+  const gp = goalPhase(goals)
+  const pos = cyclePosition(sessions, profile)
+  const thisMonday = startOfWeek(new Date(), { weekStartsOn: 1 })
+  const weekOf = (wk) => ({
+    from: format(addDays(thisMonday, wk * 7), 'yyyy-MM-dd'),
+    to: format(addDays(thisMonday, wk * 7 + 6), 'yyyy-MM-dd'),
+  })
+  const rows = []
+  if (gp) {
+    // Walk back to the start of this block and forward to its end.
+    const bw = blockWeekFor(pos, gp, 0)
+    const startOffset = bw.taper || bw.deload ? 0 : -bw.idx
+    for (let wk = startOffset; wk <= 3 + startOffset; wk += 1) {
+      const days = gp.days - wk * 7
+      if (days < 0) break
+      const weeks = Math.floor(days / 7)
+      const phase = GOAL_PHASES.find((p) => weeks >= p.minWeeks) || GOAL_PHASES[GOAL_PHASES.length - 1]
+      const g = { ...gp, phase, weeks, isDeloadWeek: isGoalDeloadWeek(gp.goal, weeks) }
+      const b = blockWeekFor(pos, g, wk)
+      rows.push({ ...b, ...weekOf(wk), current: wk === 0, past: wk < 0, phaseLabel: phase.label })
+      if (b.deload || b.taper) break
+    }
+    return { mode: 'goal', rows, anchored: true }
+  }
+  for (let w = 0; w < 4; w += 1) {
+    const wk = w - pos.blockWeek
+    const b = blockWeekFor(pos, null, wk)
+    rows.push({ ...b, ...weekOf(wk), current: wk === 0, past: wk < 0, phaseLabel: LINEAR_BLOCK[w].label })
+  }
+  return { mode: 'cycle', rows, anchored: pos.anchored }
 }
 
 // ---------------------------------------------------------------------------
@@ -1912,8 +2392,11 @@ function categoryOverused(sessions, typeKey, discipline) {
   return n >= YOUTH_CATEGORY_CAP
 }
 
-// "80-90% of max" as kilos on a hangboard today, including the assisted case.
-function hangPrescription(exercise, profile, tests) {
+// "80-90% of max" as kilos on a hangboard today, including the assisted case,
+// plus the one number inside that range this session should use, worked out
+// from how the last sessions went (progression.js), and the set count for
+// this week of the block.
+export function hangPrescription(exercise, profile, tests, sessions = [], { volumeMult = 1 } = {}) {
   const int = exercise?.intensity
   if (!int || int.anchor !== 'pctMaxTotal') return null
   const grip = int.grip && int.grip !== 'rotating' ? int.grip : 'halfcrimp'
@@ -1922,8 +2405,41 @@ function hangPrescription(exercise, profile, tests) {
     return { blocked: true, reason: max.reason || 'no-test', pct: int }
   }
   if (max.stale) return { blocked: true, reason: 'stale', weeks: max.weeks, pct: int }
-  const p = prescribeHang(int, max.kg, Number(profile?.bodyweight_kg) || 0)
-  return p ? { ...p, grip, edge_mm: int.edge_mm ?? max.edge_mm, derived: max.derived } : null
+  const bw = Number(profile?.bodyweight_kg) || 0
+  const p = prescribeHang(int, max.kg, bw)
+  if (!p) return null
+  const target = hangTarget(exercise, sessions, profile, max.kg, {
+    conservative: fingerHistoryConservative(profile),
+  })
+  const targetAdded = target && bw > 0 ? target.kg - bw : null
+  return {
+    ...p,
+    grip,
+    edge_mm: int.edge_mm ?? max.edge_mm,
+    derived: max.derived,
+    maxKg: max.kg,
+    target,
+    targetAdded,
+    targetAddedText:
+      targetAdded == null
+        ? null
+        : targetAdded < 0
+          ? `${Math.abs(Math.round(targetAdded))} kg assisted`
+          : `${targetAdded > 0 ? '+' : ''}${Math.round(targetAdded)} kg added`,
+    sets: scaledSets(exercise, volumeMult),
+  }
+}
+
+// Which session categories each stated weakness is trained by, so the
+// alternatives list puts the relevant session first.
+const WEAKNESS_CATS = {
+  fingers: ['fingerStrength'],
+  power: ['hardBoulder'],
+  endurance: ['pump', 'volumeRope'],
+  technique: ['lowIntBoulder'],
+  strength: ['strength'],
+  mobility: ['mobility'],
+  mental: ['mental'],
 }
 
 export function pickExercises(typeKey, profile, rotate = 0, discipline = null, style = null, ctx = {}) {
@@ -1966,7 +2482,16 @@ export function pickExercises(typeKey, profile, rotate = 0, discipline = null, s
   // type it sits under - campus work surfaces under several type keys. 'blocked'
   // is removed outright; 'allowed_reduced' stays and is prescribed at reduced
   // parameters (see youthAdjust).
-  if (age != null && age < 18) list = list.filter((e) => e.youth !== 'blocked')
+  if (age != null && age < 18) {
+    list = list.filter((e) => e.youth !== 'blocked')
+    // The federation's threshold for a growing climber: two years of regular
+    // climbing before specific finger training of any kind, the sub-maximal
+    // stuff included. Unknown years reads as not yet.
+    if (yearsClimbing == null || yearsClimbing < 2) {
+      const noBoard = list.filter((e) => !(e.needs || []).includes('hangboard') && e.category !== 'finger')
+      list = noBoard
+    }
+  }
 
   // Route around an active problem: drop anything that loads the affected
   // region, but keep exercises that are rehab *for* it.
@@ -1993,6 +2518,21 @@ export function pickExercises(typeKey, profile, rotate = 0, discipline = null, s
   if (style) {
     const rank = (e) => (e.style === style ? 0 : !e.style ? 1 : 2)
     ordered = [...ordered].sort((a, b) => rank(a) - rank(b))
+  }
+  // Injury history is a preference here, not a gate: with elbow history the
+  // campus-flavoured option goes to the back of the list, not off it. An
+  // active problem is the gate, and it ran above.
+  const history = injuryHistoryRegions(profile)
+  if (history.length) {
+    const loadsHistory = (e) => ((e.loads || []).some((r) => history.includes(r)) ? 1 : 0)
+    ordered = [...ordered].sort((a, b) => loadsHistory(a) - loadsHistory(b))
+  }
+  // A stated weakness moves the session that trains it to the front, among
+  // sessions that fit the tier equally well (the tier sort below is stable).
+  const weakCats = new Set(profileWeaknesses(profile).flatMap((w) => WEAKNESS_CATS[w] || []))
+  if (weakCats.size) {
+    const hits = (e) => (weakCats.has(e.sessionCat) ? 0 : 1)
+    ordered = [...ordered].sort((a, b) => hits(a) - hits(b))
   }
   // Tier fit wins over rotation. Rotating for variety is right, but it must not
   // reorder a tier-1 maintenance session ahead of the tier-5 session that was
@@ -2045,7 +2585,13 @@ export function gradeRange(typeKey, limits, exercise, tierDrop = 0) {
   }
   if (!limit) return null
 
-  const [lo, hi] = type.grades
+  // The offsets were written for the dense part of the scale, where 7A to 6A
+  // is six steps. Below 6A the steps are coarse (5+, 5, 4, 3) and "six grades
+  // under your limit" runs off the bottom for everyone who climbs there, so
+  // the offsets are halved once the limit is down in that part of the scale.
+  const dense = limit.subtype === 'bouldering' ? BOULDER_GRADES.indexOf('6A') : ROUTE_GRADES.indexOf('6a')
+  const squeeze = (o) => (limit.idx <= dense ? -Math.round(Math.abs(o) / 2) : o)
+  const [lo, hi] = type.grades.map(squeeze)
   const low = gradeAt(limit, lo + shift)
   const high = gradeAt(limit, hi + shift)
   const label =
@@ -2080,7 +2626,7 @@ export function gradeRange(typeKey, limits, exercise, tierDrop = 0) {
 // interrupt a phase at 4-week boundaries, which is exactly the part that looks
 // like a bug when you can't see it coming. Without a goal it is the 4-week
 // cycle. Dates are ISO; `current` marks the block containing today.
-export function phaseTimeline(goals, sessions, model) {
+export function phaseTimeline(goals, sessions, model, profile = null) {
   const gp = goalPhase(goals)
   const today = todayISO()
 
@@ -2128,7 +2674,7 @@ export function phaseTimeline(goals, sessions, model) {
   }
 
   // No dated goal: the repeating 4-week cycle, current week marked.
-  const pos = cyclePosition(sessions)
+  const pos = cyclePosition(sessions, profile)
   const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 })
   const blocks = []
   for (let w = 0; w < 4; w += 1) {
@@ -2176,7 +2722,7 @@ export function suggestSession(sessions, ctx) {
     recovery, readinessState, trend, monotony, injuries, problems, limits,
     model, daysPerWeek, goals, profile, level, fingerTests = [], pick = null,
   } = ctx
-  const plan = plannedType(sessions, model, daysPerWeek, goals, level)
+  const plan = plannedType(sessions, model, daysPerWeek, goals, level, profile, { limits, fingerTests })
   const planned = SESSION_TYPES[plan.key]
   // Reasons carry whether they actually changed the prescription. A chip that
   // describes a signal which did not influence today's session is decoration,
@@ -2232,6 +2778,13 @@ export function suggestSession(sessions, ctx) {
   // else's child.
   const varietyCapped = youth && categoryOverused(sessions, plan.key, plan.discipline)
 
+  // The federation's two-year line for growing climbers, applied to the day's
+  // key as well as to the exercise list: a finger day for a fifteen-year-old
+  // in their first year becomes the push and shoulder work instead, and the
+  // card says why rather than silently offering a different session.
+  const fingerDay = plan.key === 'fingerStrength' || plan.key === 'fingerMaintenance'
+  const fingersLater = youth && fingerDay && (yearsClimbing == null || yearsClimbing < 2)
+
   const cost = SESSION_TYPES[plan.key].fingerCost
   const costly = cost === 'high'
   const anyFingerCost = cost === 'high' || cost === 'medium'
@@ -2261,6 +2814,11 @@ export function suggestSession(sessions, ctx) {
     tone = 'moderate'
     headline = 'Vary the stimulus'
     addReason('Under 18: max 2 of a kind per week', true)
+  } else if (fingersLater) {
+    key = 'antagonist'
+    tone = 'moderate'
+    headline = 'Fingers come later'
+    addReason('Under 18 and under two years climbing: climbing first, finger training later', true)
   } else if (recovery.key === 'unknown' && costly) {
     key = 'fingerMaintenance'
     tone = 'moderate'
@@ -2338,6 +2896,12 @@ export function suggestSession(sessions, ctx) {
         // A note, not a cliff: the count is climbing but nothing has changed.
         addReason(`${recovery.days28} hard finger days in 28d`)
       }
+      // The run of hard weeks is worth saying even on a day that is already
+      // easy: the easy day is the answer to it, and the athlete should know
+      // that is what it is.
+      if (recovery.sustainedWeeks >= 8 && !anyFingerCost) {
+        addReason(`${recovery.sustainedWeeks} weeks straight of hard finger days, so an easy finger day`)
+      }
       if (recovery.key === 'unknown') {
         addReason('No finger history yet')
       } else if (recovery.daysSinceMax != null) {
@@ -2351,6 +2915,41 @@ export function suggestSession(sessions, ctx) {
 
   if (monotony?.enough && monotony.flag && key !== 'deload') {
     addReason('Monotony high, so vary the stimulus')
+  }
+
+  // Where today sits in the week, said as a coach would: the session moved
+  // from a missed day, the one the week loses for it, the rest day that today
+  // is, the session already logged. None of these change the prescription and
+  // none of them outranks a rule above: "back off, something is brewing" is
+  // the headline whether or not today's session is already in the log. They
+  // only replace the neutral headline, and they never touch the tone.
+  if (plan.carriedFrom) {
+    addReason(`Moved here from ${formatDayShort(plan.carriedFrom)}, which was missed`)
+  }
+  if (plan.dropped.length && plan.dayStatus === 'training') {
+    addReason(
+      `${plan.dropped.map((k) => SESSION_TYPES[k].label).join(', ')} drops this week: not enough days left`,
+    )
+  }
+  const neutral = headline === 'Following the plan'
+  if (plan.dayStatus === 'rest') {
+    if (neutral) {
+      headline = 'Rest day'
+      tone = 'planned'
+    }
+    addReason('A rest day in your plan. If you train anyway, this is the next session owed')
+  } else if (plan.dayStatus === 'done') {
+    if (neutral) {
+      headline = 'Logged for today'
+      tone = 'planned'
+    }
+    addReason('Today is logged. This is what comes next')
+  } else if (plan.dayStatus === 'complete') {
+    if (neutral) {
+      headline = 'Week complete'
+      tone = 'planned'
+    }
+    addReason('Every planned session this week is logged. Move, stretch, and let it sink in')
   }
 
   const discipline = plan.discipline || plan.emphasis?.goal?.discipline || null
@@ -2377,6 +2976,28 @@ export function suggestSession(sessions, ctx) {
   const exercises = offered
   const chosen = offered[chosenIndex] || null
 
+  // How much of the session this week of the block asks for. A taper or a
+  // deload is a reduction; the loading weeks ramp.
+  const volumeMult = plan.taper
+    ? PHASE_DURATION.taper
+    : plan.deload
+      ? PHASE_DURATION.deload
+      : plan.block?.volumeMult ?? 1
+  const hang = hangPrescription(chosen, profile, fingerTests, sessions, { volumeMult })
+  // The whole session, fitted to the time the athlete has.
+  const sheet = buildSessionSheet({
+    typeKey: key,
+    main: chosen,
+    minutes: Number(profile?.session_minutes) || null,
+    durationMult: volumeMult,
+    reduced: !!(plan.taper || plan.deload),
+    sets: hang?.sets ?? scaledSets(chosen, volumeMult),
+    profile,
+    discipline,
+    injuredRegions,
+    age,
+  })
+
   return {
     type: SESSION_TYPES[key],
     key,
@@ -2400,18 +3021,34 @@ export function suggestSession(sessions, ctx) {
     pickedByYou: at > 0,
     coachPick: offered[0]?.id || null,
     // What "80-90% of max" actually means today, in kilos, including the
-    // assisted case. Null when there is no usable max or no bodyweight.
-    hang: hangPrescription(chosen, profile, fingerTests),
+    // assisted case, and the load inside that range this session should use.
+    // Null when there is no usable max or no bodyweight.
+    hang,
+    // The session start to finish: warm-up, main, what follows, the finisher,
+    // fitted to the athlete's time.
+    sheet,
+    volumeMult,
+    block: plan.block,
     emphasis: plan.emphasis || null,
     plannedKey: plan.key,
     plannedLabel: planned.label,
-    adjusted: key !== plan.key,
+    adjusted: key !== plan.key && !plan.weekDone,
     deloadWeek: !!plan.deload,
+    taperWeek: !!plan.taper,
+    dayStatus: plan.dayStatus,
+    restDay: !!plan.restDay,
+    doneToday: !!plan.doneToday,
+    weekDone: !!plan.weekDone,
+    nextUp: plan.nextUp ? { ...plan.nextUp, type: SESSION_TYPES[plan.nextUp.key] } : null,
+    carriedFrom: plan.carriedFrom,
+    dropped: plan.dropped,
+    swap: plan.swap,
     cycle: plan.pos,
     goalPhase: plan.gp,
     youth,
     youthWatch,
     injuredRegions,
+    planner: plan.planner,
   }
 }
 
@@ -2453,7 +3090,7 @@ export function coachReadout(sessions, injuries, icuWellness, opts = {}) {
     fromTest: t.label,
     week_start: t.tested_on,
   }))
-  const problems = [...activeProblems(ostrc), ...aborts]
+  const problems = [...activeProblems(ostrc), ...aborts, ...painOutcomes(sessions)]
 
   const suggestion = suggestSession(sessions, {
     recovery, readinessState, trend, monotony, injuries, problems, limits,
@@ -2466,5 +3103,35 @@ export function coachReadout(sessions, injuries, icuWellness, opts = {}) {
     hangTest: hangTestAge(profile),
     maxTotal: maxTotalFor(profile, fingerTests),
     asymmetry: asymmetries(fingerTests, physicalTests),
+    week: weekPlan(sessions, model, goals, profile, suggestion),
+    block: currentBlock(goals, sessions, profile),
+    review: weekReview(sessions, model, daysPerWeek, goals, profile, limits, fingerTests),
   }
+}
+
+// A session that ended in pain is a problem for the week that follows, the
+// same way a test stopped for pain is. Before the outcome question existed the
+// only way the log could say "that hurt" was the weekly questionnaire, which
+// arrives days later; a coach who is told at the door acts at the door.
+export const PAIN_OUTCOME_DAYS = 7
+
+export function painOutcomes(sessions, days = PAIN_OUTCOME_DAYS) {
+  const today = new Date()
+  const out = []
+  for (const s of sessions || []) {
+    const ago = differenceInCalendarDays(today, asDate(s.date))
+    if (ago < 0 || ago >= days) continue
+    const n = normaliseSession(s)
+    if (n.outcome !== 'pain') continue
+    const named = sessionExercises(s)[0]
+    const what = named ? `${named.id} · ${named.name}` : SPORTS[s.sport]?.label || 'Session'
+    out.push({
+      area: n.painArea || 'fingers',
+      severity: 25,
+      substantial: true,
+      fromSession: `${what}, ${formatDayShort(s.date)}`,
+      week_start: s.date,
+    })
+  }
+  return out
 }

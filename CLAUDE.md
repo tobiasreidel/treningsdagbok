@@ -67,7 +67,17 @@ There is also a dev-only bench at `/coach/simulator` for watching signals move.
   a readout. Never call `coachReadout` directly from a component: assemble
   inputs with `loadCoachInputs()` and derive with `readoutFrom()` from
   `lib/coachData.js`, so every screen reads the same signals. The exercise
-  library is data in `lib/exercises.js`.
+  library is data in `lib/exercises.js`. Two more pure modules hang off it:
+  `lib/progression.js` (the hangboard load for today, from how the last
+  sessions went) and `lib/sessionSheet.js` (the whole session fitted to the
+  athlete's minutes). The week the Today card sits in is `readout.week`;
+  never rebuild it in a component, because the card and the week view used to
+  disagree exactly that way.
+- **The tests pin the clock.** The fixture and plan tests set a fake `Date`
+  (a Wednesday in September 2026) at module level, because the engine's cycle
+  position, weekday slots and rolling windows all move with the calendar and
+  the snapshots drifted red within weeks on the real one. Build fixtures
+  relative to `new Date()` and they land on the pinned day.
 - **Never read `sessions.extra` directly.** `lib/sessionShape.js` is the only
   place that interprets it: `normaliseSession(row, { bodyweight })` returns
   hangboard loads resolved to total kilos (or an explicit null), `campus` as the

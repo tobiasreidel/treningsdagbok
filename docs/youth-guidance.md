@@ -7,11 +7,23 @@ Norwegian Climbing Federation (Norges Klatreforbund) no longer advises against
 dead-hangs for growing athletes. What it does still advise against is campus
 training and a one-sided training focus.
 
-**Status: NOT independently verified. Recorded 2026-07-28.**
+**Status: verified against skadefri.no (Senter for idrettsskadeforskning, the
+climbing section "Fingertrening", which carries the federation's position),
+retrieved 2026-09-26.** The page states that the federation, based on newer
+knowledge, "vil ... ikke lenger kategorisk fraråde dødhengtrening for denne
+utøvergruppen", that it "vil fremdeles fraråde campustrening", and that
+specific finger training should wait until the athlete has **at least two years
+of regular climbing** behind them. It gives no age threshold, and it says
+finger pain in a young climber should be examined by qualified health
+personnel, ideally with an X-ray and a hand surgeon.
 
-This is load-bearing and it needs checking against the federation's current
-published wording, because it is the claim that lets the app override what a
-naive reading of youth guidance would say.
+The two-year line was not in the app's summary before this check, and it
+changed the engine (see below). The page carries no date of its own, so the
+retrieval date above is the date to re-check from.
+
+This is load-bearing, and it should be re-checked against the federation's
+current published wording from time to time, because it is the claim that lets
+the app override what a naive reading of youth guidance would say.
 
 ## Why it is load-bearing
 
@@ -26,6 +38,12 @@ It is doing real work in the engine, not just sitting in copy:
   instead of 90% and takes a set off (`youthAdjust`).
 - A variety cap allows at most two sessions of the same category in a rolling
   seven days, which is the enforceable reading of "not a one-sided focus".
+- **Two years first.** For anyone under 18 with fewer than two years of
+  climbing (or an unknown start year), `pickExercises` drops every hangboard
+  entry, the sub-maximal no-hangs included, the week's finger slot becomes push
+  and shoulder work (`fingerFillerKey`), and a finger day that reaches the
+  daily decision is swapped with the reason "climbing first, finger training
+  later" (`suggestSession`). Added 2026-09-26 from the verified wording.
 - The Coach page states the reasoning to the user in `src/pages/Coach.jsx`, so a
   parent or a coach can read what the app believes and why.
 

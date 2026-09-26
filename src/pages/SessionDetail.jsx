@@ -17,7 +17,9 @@ import { normalizeHang } from '../lib/formState'
 import { hasUnreadableHangs } from '../lib/fingerLoad'
 import { testMeta } from '../lib/fingerTests'
 import { getBodyweight } from '../lib/prefs'
-import { pumpLabel } from '../lib/exercises'
+import { pumpLabel, EXERCISE_MAP } from '../lib/exercises'
+import { SESSION_TYPES } from '../lib/coach'
+import { areaLabel } from '../lib/wellness'
 // Leaflet and the charts are the heaviest thing the app bundles, and only a
 // ride or run ever shows them - so they load with the session that needs them
 // rather than with every launch.
@@ -225,6 +227,12 @@ export default function SessionDetail() {
   const hasFinger = finger.campus || hangs.length > 0
   const unreadableHangs = hasFinger && hasUnreadableHangs(session, getBodyweight())
   const testIds = e.test_session?.ids || []
+  // What the session was in the plan's terms, and how it went. The outcome is
+  // what the next prescription is built from, so it belongs where the
+  // session is read back.
+  const coach = e.coach || null
+  const coachIds = Array.isArray(coach?.exercises) ? coach.exercises : coach?.exercise ? [coach.exercise] : []
+  const hasPlan = !!coach && (coachIds.length > 0 || coach.followed)
   const warmupMin = Number(e.warmup_minutes) || 0
   const warmupNote = (e.warmup_note || '').trim()
   const rehabMin = Number(e.rehab_minutes) || 0
@@ -430,6 +438,36 @@ export default function SessionDetail() {
         </div>
       )}
 
+      {hasPlan && (
+        <div className="detail-block">
+          <h2 className="section-title">The plan</h2>
+          <div className="stack">
+            <div className="route-line">
+              <span className="route-line-name">
+                {coach.followed === 'planned'
+                  ? `As planned${coach.type && SESSION_TYPES[coach.type] ? `: ${SESSION_TYPES[coach.type].emoji} ${SESSION_TYPES[coach.type].label}` : ''}`
+                  : 'Something else'}
+              </span>
+              {coach.outcome && (
+                <span className="route-line-meta">
+                  <span className={`route-send ${coach.outcome === 'pain' ? 'is-pain' : ''}`}>
+                    {outcomeLabel(coach.outcome)}
+                    {coach.outcome === 'pain' && coach.pain_area ? ` · ${areaLabel(coach.pain_area)}` : ''}
+                  </span>
+                </span>
+              )}
+            </div>
+            {coachIds.map((id) => (
+              <div className="route-line" key={id}>
+                <span className="route-line-name">
+                  <span className="ex-id">{id}</span> {EXERCISE_MAP[id]?.name || 'No longer in the library'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Logged from the coach's Tests tab. Without this the diary entry is an
           unexplained 45-minute finger session. */}
       {testIds.length > 0 && (
@@ -507,6 +545,10 @@ export default function SessionDetail() {
 
 function sendLabel(key) {
   return SEND_TYPES.find((s) => s.key === key)?.label || key
+}
+
+function outcomeLabel(key) {
+  return { nailed: 'Nailed it', done: 'As planned', short: 'Cut short', pain: 'Pain' }[key] || key
 }
 
 // "3 × 10" plus a weight suffix when one was logged.

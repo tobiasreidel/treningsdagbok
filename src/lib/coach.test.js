@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterAll, vi } from 'vitest'
 import { format, subDays } from 'date-fns'
 import { fingerDose, fingerRecovery, buildLimits } from './coach'
 import { sessionExercises } from './exercises'
@@ -9,6 +9,15 @@ import { sessionsToCsv } from './exportData'
 // inspection, and the one place a silent regression costs the most: it decides
 // whether you are told to train hard today. These cover the behaviours that
 // have actually gone wrong, not the whole surface.
+
+// Pinned clock, for the same reason as the fixtures: the recovery window and
+// the test-staleness cut-offs are measured from today.
+vi.useFakeTimers({ toFake: ['Date'] })
+vi.setSystemTime(new Date(2026, 8, 23, 12, 0, 0))
+
+afterAll(() => {
+  vi.useRealTimers()
+})
 
 const profile = { bodyweight_kg: 70, sessions_week: 3, max_boulder_indoor: '7A' }
 

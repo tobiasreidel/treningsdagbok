@@ -12,9 +12,13 @@ import {
   GOAL_KINDS,
   GOAL_DISCIPLINES,
   GOAL_STYLES,
+  SESSION_LENGTHS,
+  WEAKNESSES,
+  INJURY_REGIONS,
   goalKind,
   daysUntil,
   hasOldSchema,
+  profileGaps,
 } from '../lib/coachProfile'
 import { todayISO, formatDayShort } from '../lib/format'
 import { MAX_TRAINING_DAYS } from '../lib/coach'
@@ -125,9 +129,11 @@ export default function CoachSetup() {
         )}
 
         <p className="muted small">
-          The coach can’t give you a real session without knowing what you climb and what
-          you have access to. Nothing here is shared with anyone.
+          The questions a coach asks in the first conversation. Every answer changes the
+          plan, and the plan tab says what it is still guessing at. Nothing here is shared
+          with anyone.
         </p>
+        <GapsNote gaps={profileGaps(form)} />
 
         {/* ---- grades ---- */}
         <section className="card settings-card stack">
@@ -240,8 +246,20 @@ export default function CoachSetup() {
           </p>
 
           <Field
+            label="How long is a session?"
+            hint="Door to door, warm-up included. The session sheet is built to fit it and says what it cut when it could not. A plan written for two and a half hours is a plan you skip."
+          >
+            <Segmented
+              options={SESSION_LENGTHS.map((m) => ({ key: String(m), label: m >= 150 ? `${m}+` : String(m) }))}
+              value={form.session_minutes ? String(form.session_minutes) : null}
+              onChange={(v) => commit({ session_minutes: Number(v) })}
+              columns={5}
+            />
+          </Field>
+
+          <Field
             label="Which days do you train?"
-            hint="Without this the plan can order your sessions but not space them, and hard/easy alternation means nothing if you train three days in a row."
+            hint="Without this the plan can order your sessions but not space them, and a missed day can only be called missed when the coach knew you meant to train it."
             optional
           >
             <div className="chips">
@@ -284,6 +302,40 @@ export default function CoachSetup() {
               />
             </Field>
           </div>
+        </section>
+
+        {/* ---- weaknesses ---- */}
+        <section className="card settings-card stack">
+          <h2 className="step-q">What holds you back</h2>
+          <p className="muted small">
+            Your own read. The spare slot in the week goes to the first one, and when two
+            sessions fit a day equally well, the one that trains it comes first. It never
+            takes the hard day or the finger day.
+          </p>
+          <div className="chips">
+            {WEAKNESSES.map((w) => {
+              const on = (form.weaknesses || []).includes(w.key)
+              return (
+                <button
+                  key={w.key}
+                  type="button"
+                  className={`chip ${on ? 'is-active' : ''}`}
+                  onClick={() => {
+                    const cur = form.weaknesses || []
+                    const next = on ? cur.filter((x) => x !== w.key) : [...cur, w.key]
+                    commit({ weaknesses: next.length ? next : null })
+                  }}
+                >
+                  {w.emoji} {w.label}
+                </button>
+              )
+            })}
+          </div>
+          {(form.weaknesses || []).length > 1 && (
+            <p className="muted small">
+              In order: the first one gets the slot. Tap to remove and re-add to reorder.
+            </p>
+          )}
         </section>
 
         {/* ---- facilities ---- */}
@@ -368,9 +420,32 @@ export default function CoachSetup() {
         <section className="card settings-card stack">
           <h2 className="step-q">Injury history</h2>
           <p className="muted small">
-            Anything that flares up: old pulley injuries, elbows, shoulders. Previous
-            injury is one of the few risk factors that holds up consistently, so the coach
-            stays more conservative when there’s history here.
+            Previous injury is one of the few risk factors that holds up consistently. With
+            fingers on this list the coach judges your hard finger days against a lower
+            ceiling and keeps hangs in the lower half of their range; any area here sends
+            the sessions that load it to the back of the list.
+          </p>
+          <div className="chips">
+            {INJURY_REGIONS.map((a) => {
+              const on = (form.injury_regions || []).includes(a.key)
+              return (
+                <button
+                  key={a.key}
+                  type="button"
+                  className={`chip ${on ? 'is-active' : ''}`}
+                  onClick={() => {
+                    const cur = form.injury_regions || []
+                    const next = on ? cur.filter((x) => x !== a.key) : [...cur, a.key]
+                    commit({ injury_regions: next.length ? next : null })
+                  }}
+                >
+                  {a.emoji} {a.label}
+                </button>
+              )
+            })}
+          </div>
+          <p className="muted small">
+            And the part a checkbox loses: what it was, when, and what still sets it off.
           </p>
           <textarea
             rows={4}
@@ -427,7 +502,21 @@ function emptyProfile() {
     has_hangboard: false, has_campus: false, has_spraywall: false, has_gym: false,
     hang_max_kg: null, hang_edge_mm: null, hang_tested_on: null, bodyweight_kg: null,
     preferred_days: null, injury_history: null, focus: 'both',
+    session_minutes: null, weaknesses: null, injury_regions: null, plan_started_on: null,
   }
+}
+
+// What the coach is still guessing at, in one line. The full list with reasons
+// lives on the plan tab; here it is a nudge, not a lecture.
+function GapsNote({ gaps }) {
+  if (!gaps.length) {
+    return <p className="muted small">The coach has everything it asks for.</p>
+  }
+  return (
+    <p className="muted small">
+      Still guessing at: {gaps.map((g) => g.label.toLowerCase()).join(', ')}.
+    </p>
+  )
 }
 
 function GradeSelect({ grades, value, onChange }) {

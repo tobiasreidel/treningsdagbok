@@ -5,8 +5,9 @@
 // Every read degrades to "not set up yet" when the tables are missing, so the
 // app still runs before supabase/migrations/20260725000000_coach.sql has been applied.
 import { supabase, currentUserId, isMissingTable } from './supabase'
-import { differenceInCalendarDays } from 'date-fns'
+import { differenceInCalendarDays, format, startOfWeek } from 'date-fns'
 import { asDate, todayISO } from './format'
+import { BODY_AREAS } from './wellness'
 
 // The table exists but is missing a column - an older version of coach.sql was
 // run and the file has gained fields since. Re-running it fixes this, and the
@@ -54,6 +55,7 @@ const NEWER_PROFILE_COLUMNS = [
   'max_boulder_outdoor', 'max_boulder_indoor', 'max_boulder_board',
   'max_route_outdoor', 'max_route_indoor', 'board_type',
   'hang_tested_on', 'preferred_days',
+  'session_minutes', 'weaknesses', 'injury_regions', 'plan_started_on',
 ]
 
 // True when the row came back without fields this version writes - i.e. the
@@ -84,6 +86,82 @@ export function isProfileComplete(profile) {
     profile.max_boulder, profile.max_route,
   ].some(Boolean)
   return !!(profile.sessions_week && anyGrade)
+}
+
+// ---- the intake --------------------------------------------------------------
+// What a coach asks in the first conversation, and what each answer changes.
+// Listed here rather than in the form so the plan tab can say what it is
+// still guessing at, with the reason, instead of a generic "complete your
+// profile".
+
+// How long a session can be. The session sheet is built to fit it.
+export const SESSION_LENGTHS = [45, 60, 90, 120, 150]
+
+// What the athlete thinks holds them back. The plan spends its spare slot on
+// the first one and orders the alternatives by them; it never gates anything.
+export const WEAKNESSES = [
+  { key: 'fingers', label: 'Finger strength', emoji: '🤏' },
+  { key: 'power', label: 'Power', emoji: '⚡' },
+  { key: 'endurance', label: 'Endurance', emoji: '🫁' },
+  { key: 'technique', label: 'Technique', emoji: '🎨' },
+  { key: 'strength', label: 'Pull and push strength', emoji: '💪' },
+  { key: 'mobility', label: 'Mobility', emoji: '🧘' },
+  { key: 'mental', label: 'Head game', emoji: '🧠' },
+]
+
+export function weaknessLabel(key) {
+  return WEAKNESSES.find((w) => w.key === key)?.label || key
+}
+
+// Injury history by body area: the same vocabulary as the injury log and the
+// weekly questionnaire, so one word means one thing everywhere.
+export const INJURY_REGIONS = BODY_AREAS
+
+// The questions the coach has not had answered, each with what the answer
+// would change. Order is by how much the plan moves without it.
+export function profileGaps(profile) {
+  const p = profile && !profile.missingTable ? profile : {}
+  const gaps = []
+  const anyGrade = [
+    p.max_boulder_outdoor, p.max_boulder_indoor, p.max_boulder_board,
+    p.max_route_outdoor, p.max_route_indoor, p.max_boulder, p.max_route,
+  ].some(Boolean)
+  if (!anyGrade) {
+    gaps.push({ key: 'grades', label: 'Your grades', why: 'Every grade band on a session is scaled from these. Without them the card describes effort instead.' })
+  }
+  if (!p.sessions_week) {
+    gaps.push({ key: 'sessions_week', label: 'Sessions a week', why: 'Decides how many sessions the week holds. Three is assumed.' })
+  }
+  if (!Array.isArray(p.preferred_days) || p.preferred_days.length < Math.min(p.sessions_week || 3, 6)) {
+    gaps.push({ key: 'preferred_days', label: 'Which days you train', why: 'Lets the plan land on your real days, call a missed one missed, and keep hard days apart. Until then it spreads sessions evenly and guesses.' })
+  }
+  if (!p.session_minutes) {
+    gaps.push({ key: 'session_minutes', label: 'How long a session is', why: 'The session sheet is built to fit it. Ninety minutes is assumed.' })
+  }
+  if (!p.climbing_since) {
+    gaps.push({ key: 'climbing_since', label: 'When you started climbing', why: 'Sets how much hard finger work your tendons are assumed to tolerate, and whether the hangboard is in the plan at all.' })
+  }
+  if (!p.birth_year) {
+    gaps.push({ key: 'birth_year', label: 'Birth year', why: 'Under 18 changes what is prescribed: no campus, hangs capped, and no finger training before two years of climbing.' })
+  }
+  if (!Array.isArray(p.weaknesses) || !p.weaknesses.length) {
+    gaps.push({ key: 'weaknesses', label: 'What holds you back', why: 'The spare slot in the week goes to it, and the alternatives are ordered by it.' })
+  }
+  if (!p.bodyweight_kg) {
+    gaps.push({ key: 'bodyweight_kg', label: 'Bodyweight', why: 'Turns a hang prescription from a percentage into kilos on the harness, or off it.' })
+  }
+  const facilities = ['has_hangboard', 'has_campus', 'has_spraywall', 'has_gym']
+  if (!facilities.some((k) => p[k] != null && p[k] !== undefined) || Object.keys(p).length === 0) {
+    gaps.push({ key: 'facilities', label: 'What you have access to', why: 'Filters the library to sessions you can actually do.' })
+  }
+  return gaps
+}
+
+// Start a new 4-week block from this Monday. The cycle otherwise counts from
+// the first session ever logged, which puts a brand-new user wherever that
+// happens to fall.
+export async function startNewBlock(weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')) {
+  await saveCoachProfile({ plan_started_on: weekStart })
 }
 
 // ---- goals -----------------------------------------------------------------

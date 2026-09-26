@@ -3,12 +3,12 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { Field, PillRow, Segmented, useBack } from '../components/ui'
 import CoachTests from '../components/CoachTests'
 import {
-  rollingPlan,
   phaseTimeline,
   pickExercises,
   gradeRange,
+  hangPrescription,
   COACH_MODELS,
-  hangTestAge,
+  SESSION_TYPES,
   readinessGateHint,
 } from '../lib/coach'
 import {
@@ -17,6 +17,7 @@ import {
   sessionFromSuggestion,
   EMPTY_COACH_INPUTS,
 } from '../lib/coachData'
+import { buildSessionSheet } from '../lib/sessionSheet'
 import { hasLoggedToday, areaLabel } from '../lib/wellness'
 import { writeSignalSnapshot, sharesWithAnyone } from '../lib/squad'
 import {
@@ -26,16 +27,25 @@ import {
   sessionExercises,
 } from '../lib/exercises'
 import { maxTotalFor, prescribeHang } from '../lib/fingerLoad'
-import { isProfileComplete, goalKind, saveCoachProfile } from '../lib/coachProfile'
+import {
+  isProfileComplete,
+  goalKind,
+  saveCoachProfile,
+  profileGaps,
+  startNewBlock,
+  weaknessLabel,
+} from '../lib/coachProfile'
 import { getCoachModel, setCoachModel, getSessionPick, setSessionPick } from '../lib/prefs'
-import { formatDayShort, asDate, todayISO } from '../lib/format'
+import { formatDayShort, formatDuration, asDate, todayISO } from '../lib/format'
 import { format } from 'date-fns'
 import { SPORTS, subtypeWord } from '../lib/constants'
 import SignalBlock from '../components/SignalBlock'
 
-// The full training-coach view: today's prescription with a real workout
-// attached, the signals behind it, the goal it's building toward, and this
-// week's shape. The dashboard card is the summary; this is the detail.
+// The full training-coach view: today's session start to finish, the signals
+// behind it, the week it sits in against what was logged, the block that week
+// is part of, and the goal it is all building toward. The dashboard card is
+// the summary; this is the detail.
+//
 // Three tabs rather than one nine-section scroll. Today is what you came for
 // on a training day; the plan and the tests are things you look at now and
 // then, and having them all in one column meant the answer to "what do I do
@@ -62,6 +72,7 @@ export default function Coach() {
   // themselves when something wants looking at: a warning must never be one
   // tap further away than it used to be.
   const [signalsOpen, setSignalsOpen] = useState(null)
+  const [blockBusy, setBlockBusy] = useState(false)
 
   const load = useCallback(async () => {
     setInputs(await loadCoachInputs())
@@ -74,19 +85,14 @@ export default function Coach() {
     return () => window.removeEventListener('coach:changed', load)
   }, [load])
 
-
   const { sessions, goals, profile, fingerTests } = inputs
   const readout = useMemo(
     () => readoutFrom(inputs, { model, pick }),
     [inputs, model, pick],
   )
-  const week = useMemo(
-    () => rollingPlan(sessions, model, readout.daysPerWeek, goals, profile, readout.suggestion),
-    [sessions, model, readout, goals, profile],
-  )
   const timeline = useMemo(
-    () => phaseTimeline(goals, sessions, model),
-    [goals, sessions, model],
+    () => phaseTimeline(goals, sessions, model, profile),
+    [goals, sessions, model, profile],
   )
 
   // If any coach has been granted signal access, leave them today's derived
@@ -129,6 +135,13 @@ export default function Coach() {
     setPick(next)
   }
 
+  const newBlock = async () => {
+    setBlockBusy(true)
+    await startNewBlock().catch(() => {})
+    setBlockBusy(false)
+    load()
+  }
+
   if (loading) {
     return (
       <div className="splash">
@@ -137,12 +150,14 @@ export default function Coach() {
     )
   }
 
-  const { suggestion, recovery, readiness, trend, monotony, goalPhase, problems } = readout
+  const { suggestion, recovery, readiness, trend, monotony, goalPhase, problems, week, block, review } = readout
   const setUp = isProfileComplete(profile)
+  const gaps = profileGaps(profile)
   // Null for the handful of library entries the diary has no sport for.
   const logPrefill = sessionFromSuggestion(suggestion)
   const primaryReason = suggestion.reasons.find((r) => r.changed) || suggestion.reasons[0] || null
   const otherReasons = suggestion.reasons.filter((r) => r !== primaryReason)
+  const sheet = suggestion.sheet
 
   // How many signals are worth a look, so the section can say so in one line
   // instead of four blocks that mostly read "steady".
@@ -170,6 +185,10 @@ export default function Coach() {
   // Untouched (null) means "decide for me": open when there is something to
   // see, folded when there is not.
   const signalsShown = signalsOpen == null ? attention > 0 : signalsOpen
+
+  const blockLabel = goalPhase
+    ? `${goalPhase.phase.label} phase · ${week.block.label}`
+    : `Week ${week.block.idx + 1} of 4 · ${week.block.label}`
 
   return (
     <div className="page">
@@ -230,17 +249,25 @@ export default function Coach() {
             <h2 className="step-q">Something to work around</h2>
             {problems.map((p) => (
               <SignalBlock
-                key={p.fromTest || p.area}
-                // A pain-stopped test says exactly which test it was. "Other"
-                // is what the questionnaire's area vocabulary can offer, and
-                // it isn't what you'd want to read here.
-                title={`⚠️ ${p.fromTest ? `${p.fromTest}: stopped by pain` : areaLabel(p.area)}`}
+                key={p.fromTest || p.fromSession || p.area}
+                // A pain-stopped test or session says exactly which it was.
+                // "Other" is what the questionnaire's area vocabulary can
+                // offer, and it isn't what you'd want to read here.
+                title={`⚠️ ${
+                  p.fromTest
+                    ? `${p.fromTest}: stopped by pain`
+                    : p.fromSession
+                      ? `${p.fromSession}: ended in pain`
+                      : areaLabel(p.area)
+                }`}
                 state={`${p.severity}/100${p.substantial ? ' · substantial' : ''}`}
                 tone={p.substantial ? 'warn' : 'ok'}
                 hint={
-                  p.substantial
-                    ? 'You reported a moderate-or-worse effect on training or performance this week. The coach is routing around it, but a problem at this level is worth a professional’s opinion, not an app’s.'
-                    : 'Reported this week. The coach avoids sessions that load this area.'
+                  p.fromSession
+                    ? `You said the session hurt your ${areaLabel(p.area).toLowerCase()}. The coach routes around that area for a week, and the load comes back lighter. Pain that persists is worth a professional’s opinion, not an app’s.`
+                    : p.substantial
+                      ? 'You reported a moderate-or-worse effect on training or performance this week. The coach is routing around it, but a problem at this level is worth a professional’s opinion, not an app’s.'
+                      : 'Reported this week. The coach avoids sessions that load this area.'
                 }
               />
             ))}
@@ -251,8 +278,14 @@ export default function Coach() {
         <section className="card settings-card stack">
           <div className="coach-head">
             <span className="coach-title">🧭 Today</span>
-            <span className={`coach-dot coach-dot-${suggestion.tone}`} aria-hidden="true" />
+            <span className="coach-head-right">
+              <span className="coach-block-chip">{blockLabel}</span>
+              <span className={`coach-dot coach-dot-${suggestion.tone}`} aria-hidden="true" />
+            </span>
           </div>
+
+          <DayStatus suggestion={suggestion} />
+
           <strong className="coach-suggest-title">
             {suggestion.type.emoji} {suggestion.type.label}
           </strong>
@@ -303,6 +336,18 @@ export default function Coach() {
               lose the adaptation you just built.
             </p>
           )}
+          {suggestion.taperWeek && (
+            <p className="muted small">
+              Taper: <strong>same sessions, half the time</strong>. Nothing you do now makes
+              you fitter; plenty can make you tired.
+            </p>
+          )}
+          {!suggestion.deloadWeek && !suggestion.taperWeek && suggestion.volumeMult !== 1 && (
+            <p className="muted small">
+              {week.block.label} week of the block: volume at about{' '}
+              {Math.round(suggestion.volumeMult * 100)}%. {week.block.note}
+            </p>
+          )}
 
           <div className="coach-spec">
             {suggestion.grades && (
@@ -323,7 +368,11 @@ export default function Coach() {
             <SpecRow label="Target RPE" value={suggestion.type.rpe} />
           </div>
 
-          {logPrefill && (
+          {/* The primary action is logging the session on the card. Once
+              today is logged the card is a preview of the next session, and
+              prefilling a log with it would write tomorrow's session onto
+              today. */}
+          {logPrefill && suggestion.dayStatus !== 'done' && suggestion.dayStatus !== 'complete' && (
             <button
               type="button"
               className="btn btn-primary btn-block"
@@ -332,42 +381,84 @@ export default function Coach() {
               Log this session
             </button>
           )}
+          {(suggestion.dayStatus === 'done' || suggestion.dayStatus === 'complete') && (
+            <button
+              type="button"
+              className="btn btn-secondary btn-block"
+              onClick={() => navigate('/new')}
+            >
+              Log something else today
+            </button>
+          )}
 
-          {suggestion.exercises.length > 0 && (
+          {/* ---- the session, start to finish ---- */}
+          {sheet.parts.length > 0 && (
             <>
               <h3 className="coach-sub">
-                {suggestion.key === 'mobility' ? 'The routine' : 'What to do'}
+                {suggestion.key === 'mobility' ? 'The routine' : `The session · about ${sheet.total} min`}
               </h3>
               {suggestion.key === 'mobility' ? (
                 <p className="muted small">{STRETCH_PROTOCOL}</p>
               ) : (
                 <p className="muted small">
-                  {suggestion.pickedByYou
-                    ? 'Your choice for today. Tap the coach’s pick at the top to hand the choice back.'
-                    : 'Tap another to swap to it. Same session type, so the grades and load above still apply.'}
+                  {profile?.session_minutes
+                    ? `Built to fit your ${profile.session_minutes} minutes.`
+                    : 'Built for ninety minutes. Tell the coach how long your sessions are and it fits them instead.'}
+                  {sheet.cut ? ` ${sheet.cutNote}` : ''}
                 </p>
               )}
-              {/* The chosen session is spelled out and the rest sit as one line
-                  each: three full cards was most of the page, and the choice is
-                  easier to make when you can see all of it at once.
+              <ol className="sheet">
+                {sheet.parts.map((part, i) => (
+                  <li className={`sheet-part sheet-part-${part.role}`} key={`${part.role}-${part.id}-${i}`}>
+                    <div className="sheet-part-head">
+                      <span className="sheet-role">{part.label}</span>
+                      <span className="sheet-min">~{part.minutes} min</span>
+                    </div>
+                    {part.role === 'main' ? (
+                      <ExerciseCard
+                        ex={part.exercise}
+                        primary={suggestion.key !== 'mobility'}
+                        youPicked={suggestion.pickedByYou}
+                        onPick={suggestion.key === 'mobility' ? null : () => choosePick(part.exercise.id)}
+                        profile={profile}
+                        tests={fingerTests}
+                        hang={suggestion.hang}
+                        sets={part.sets}
+                        durationMult={part.reducedBy || 1}
+                        minutesOverride={part.minutes}
+                      />
+                    ) : (
+                      <div className="sheet-body">
+                        <span className="sheet-name">
+                          {part.exercises ? part.exercises.map((e) => (
+                            <span key={e.id}><span className="ex-id">{e.id}</span> {e.name}{' '}</span>
+                          )) : (
+                            <><span className="ex-id">{part.id}</span> {part.name}{part.required ? ' · required' : ''}</>
+                          )}
+                        </span>
+                        {part.how && <span className="muted small sheet-how">{part.how}</span>}
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </>
+          )}
 
-                  Choosing one does NOT move it to the top. The order is the
-                  coach's ranking, so it stays put and the selection moves
-                  instead: a list that rearranges itself under your thumb makes
-                  you re-find what you were just looking at. */}
+          {suggestion.exercises.length > 1 && suggestion.key !== 'mobility' && (
+            <>
+              <h3 className="coach-sub">Or, for the main part</h3>
+              <p className="muted small">
+                {suggestion.pickedByYou
+                  ? 'Your choice for today. Tap the coach’s pick to hand the choice back.'
+                  : 'Same session type, so the grades and load above still apply. Tap one to swap.'}
+              </p>
+              {/* The order is the coach's ranking, so it stays put and the
+                  selection moves instead: a list that rearranges itself under
+                  your thumb makes you re-find what you were just looking at. */}
               <div className="stack">
                 {suggestion.exercises.map((ex, i) =>
-                  i === suggestion.chosenIndex || suggestion.key === 'mobility' ? (
-                    <ExerciseCard
-                      key={ex.id}
-                      ex={ex}
-                      primary={suggestion.key !== 'mobility'}
-                      youPicked={suggestion.pickedByYou}
-                      onPick={suggestion.key === 'mobility' ? null : () => choosePick(ex.id)}
-                      profile={profile}
-                      tests={fingerTests}
-                    />
-                  ) : (
+                  i === suggestion.chosenIndex ? null : (
                     <AlternativeRow
                       key={ex.id}
                       ex={ex}
@@ -378,6 +469,13 @@ export default function Coach() {
                 )}
               </div>
             </>
+          )}
+          {suggestion.key === 'mobility' && suggestion.exercises.length > 1 && (
+            <div className="stack">
+              {suggestion.exercises.slice(1).map((ex) => (
+                <ExerciseCard key={ex.id} ex={ex} profile={profile} tests={fingerTests} />
+              ))}
+            </div>
           )}
         </section>
 
@@ -600,28 +698,18 @@ export default function Coach() {
           )}
         </section>
 
-        {/* ---- the plan ---- */}
+        {/* ---- this week ---- */}
         <section className="card settings-card stack">
-          <h2 className="step-q">Your week</h2>
+          <h2 className="step-q">This week</h2>
           <p className="muted small">
-            {goalPhase
-              ? `${goalPhase.phase.label} phase · ${readout.daysPerWeek} sessions a week.`
-              : `Week ${suggestion.cycle.blockWeek + 1} of 4${
-                  model === 'linear' ? ` · ${suggestion.cycle.block.label} block` : ''
-                } · ${readout.daysPerWeek} sessions a week.`}
-            {week.deloadNow &&
-              ' A deload week: planned recovery is the best-supported part of any training cycle.'}
+            <strong>{blockLabel}</strong> · {week.sessions} session{week.sessions === 1 ? '' : 's'} a week
+            {week.done > 0 || week.planned > 0 ? ` · ${week.done} of ${week.planned} done` : ''}.
+            {' '}{week.block.note}
           </p>
-          <p className="muted small">Tap a session to see what it involves.</p>
+          <p className="muted small">Tap a session to see what it involves. Logged days open the session.</p>
           <ol className="coach-week">
             {week.map((d) => (
               <li key={d.date} className="coach-week-item">
-                {week.phaseChange && week.phaseChange.date === d.date && (
-                  <div className="coach-week-divider">
-                    {d.deload ? 'Deload week' : `${d.phaseLabel} ${goalPhase ? 'phase' : 'block'}`}{' '}
-                    from here
-                  </div>
-                )}
                 <PlanDay
                   d={d}
                   profile={profile}
@@ -629,12 +717,28 @@ export default function Coach() {
                   suggestion={suggestion}
                   goalStyle={goalPhase?.style || null}
                   tests={fingerTests}
+                  sessions={sessions}
                   onOpenSession={(id) => navigate(`/session/${id}`)}
                 />
               </li>
             ))}
           </ol>
-          {(week.phaseChange?.deload || week.deloadNow) && (
+          {week.swap && (
+            <p className="muted small">
+              <strong>{SESSION_TYPES[week.swap.to].label}</strong> replaces{' '}
+              {SESSION_TYPES[week.swap.from].label.toLowerCase()} this week: you said{' '}
+              {weaknessLabel(week.swap.weakness).toLowerCase()} is what holds you back.
+            </p>
+          )}
+          {week.dropped.length > 0 && (
+            <p className="muted small">
+              {week.dropped.map((k) => SESSION_TYPES[k].label).join(' and ')} drop
+              {week.dropped.length === 1 ? 's' : ''} this week: a missed day means fewer days left, and the
+              least important session is the one that goes. Two hard days back to back to
+              make up for one is how people get hurt.
+            </p>
+          )}
+          {week.deloadNow && (
             <p className="muted small">
               A deload is <strong>less volume, not less intensity</strong>. It keeps the
               phase’s quality session at about half the usual sets and attempts, gives the
@@ -653,8 +757,9 @@ export default function Coach() {
           </p>
           {!week.weekdaysKnown && (
             <p className="muted small">
-              Tell the coach which days you train and the plan can land on your real days. Right
-              now it spreads your {week.trainingDays} sessions evenly across the week.
+              Tell the coach which days you train and the plan can land on your real days, and
+              call a missed one missed. Right now it spreads your {week.trainingDays} sessions
+              evenly across the week and gives you the next one whenever you open it.
             </p>
           )}
           {week.skippedWeekdays.length > 0 && (
@@ -673,20 +778,135 @@ export default function Coach() {
               the days out would serve you better.
             </p>
           )}
+          <div className="coach-finger coach-finger-planned">
+            <div className="coach-finger-row">
+              <span className="coach-finger-label">Next week</span>
+              <span className="coach-finger-state">
+                {week.nextWeek.label}
+                {week.nextWeek.deload || week.nextWeek.taper ? '' : ` · ${week.nextWeek.block.label}`}
+              </span>
+            </div>
+            <p className="muted small coach-finger-hint">
+              From {formatDayShort(week.nextWeek.from)}.{' '}
+              {week.nextWeek.deload
+                ? 'A deload: half the volume, same intensity.'
+                : week.nextWeek.taper
+                  ? 'The taper: same sessions, half the time.'
+                  : week.nextWeek.block.note}
+            </p>
+          </div>
         </section>
 
-        {/* ---- the cycle (only without a dated goal; with one, the blocks
-             live in the Goal card) ---- */}
-        {timeline.mode === 'cycle' && (
+        {/* ---- the block ---- */}
+        <section className="card settings-card stack">
+          <h2 className="step-q">The block</h2>
+          <p className="muted small">
+            Three loading weeks that build, then a deload. Volume is what climbs across
+            them: an extra set, a few more problems. The hang load moves by its own rule,
+            from how the last sessions went, and the intensity of a session never moves
+            with the week.
+          </p>
+          <ol className="coach-road">
+            {block.rows.map((b, i) => (
+              <li
+                key={`${b.from}-${i}`}
+                className={`coach-road-row ${b.current ? 'is-now' : ''} ${b.past ? 'is-past' : ''}`}
+              >
+                <span className="coach-week-emoji">{b.deload ? '🌱' : b.taper ? '🎯' : '📈'}</span>
+                <span className="coach-road-label">{b.label}</span>
+                <span className="coach-road-mult">{Math.round(b.volumeMult * 100)}%</span>
+                <span className="coach-road-dates">
+                  {formatDayShort(b.from)}–{formatDayShort(b.to)}
+                </span>
+                {b.current && <span className="coach-week-tag">now</span>}
+              </li>
+            ))}
+          </ol>
+          {block.mode === 'cycle' && (
+            <>
+              {!block.anchored && (
+                <p className="muted small">
+                  Counted from your first logged session. Start a new block and it counts
+                  from this Monday instead, which is what you want after a break, an injury,
+                  or a change of plan.
+                </p>
+              )}
+              <button
+                type="button"
+                className="btn btn-secondary btn-block"
+                onClick={newBlock}
+                disabled={blockBusy}
+              >
+                {blockBusy ? 'Starting…' : 'Start a new block from this Monday'}
+              </button>
+            </>
+          )}
+        </section>
+
+        {/* ---- last week ---- */}
+        {!review.empty && (
           <section className="card settings-card stack">
-            <h2 className="step-q">The cycle</h2>
-            <BlockTimeline blocks={timeline.blocks} />
+            <h2 className="step-q">Last week</h2>
+            <div className="coach-spec">
+              <SpecRow
+                label="Sessions"
+                value={`${review.done} of ${review.planned} planned${review.extra ? ` · ${review.extra} extra` : ''}`}
+              />
+              <SpecRow label="Time" value={formatDuration(review.minutes)} />
+              <SpecRow label="Hard finger days" value={review.hardFingerDays} />
+              {review.missedKeys.length > 0 && (
+                <SpecRow
+                  label="Missed"
+                  value={review.missedKeys.map((k) => SESSION_TYPES[k]?.label || k).join(', ')}
+                />
+              )}
+            </div>
             <p className="muted small">
-              Four weeks, repeating: three of training, then a deload so it can sink in.
-              Add a dated goal and this turns into a countdown that peaks on the date.
+              {review.deload
+                ? 'That was a deload week, so fewer sessions was the point. '
+                : review.planned > 0 && review.done >= review.planned
+                  ? 'Every planned session done. '
+                  : review.missedHard
+                    ? 'The hard session was the one that went missing. That is the one to protect: when a week gets short, drop the filler first. '
+                    : review.missedKeys.length
+                      ? 'Missing a filler session is fine. Consistency over months beats a perfect week. '
+                      : ''}
+              This week is a {week.block.label.toLowerCase()} week
+              {week.deloadNow ? '' : `, volume at about ${Math.round(week.block.volumeMult * 100)}%`}.
+              {suggestion.hang?.target?.rule === 'progress' ? ' The hangboard load goes up 2.5%.' : ''}
             </p>
           </section>
         )}
+
+        {/* ---- what the coach knows ---- */}
+        <section className="card settings-card stack">
+          <h2 className="step-q">What the coach is still guessing at</h2>
+          {gaps.length === 0 ? (
+            <p className="muted small">Nothing. It has every answer it asks for.</p>
+          ) : (
+            <>
+              <p className="muted small">
+                Each of these changes the plan. Without an answer the coach assumes
+                something ordinary, and says so here rather than pretending.
+              </p>
+              <ul className="gap-list">
+                {gaps.map((g) => (
+                  <li key={g.key}>
+                    <strong>{g.label}.</strong> <span className="muted small">{g.why}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          <button
+            type="button"
+            className="btn btn-secondary btn-block settings-link-row"
+            onClick={() => navigate('/coach/setup')}
+          >
+            <span>About you &amp; goals</span>
+            <span className="settings-link-arrow">›</span>
+          </button>
+        </section>
 
         {/* ---- settings ---- */}
         <section className="card settings-card stack">
@@ -699,13 +919,14 @@ export default function Coach() {
           />
           {suggestion.youth && (
             <p className="muted small">
-              Under 18: campus and feet-off dynamic board work are off the list, and no more
-              than two of the same kind of session land in a week. Controlled finger training
-              is <em>not</em> blocked. The Norwegian Climbing Federation no longer advises
-              against dead-hangs for growing climbers, on the reasoning that a controlled hang
-              loads the fingers less than finger-heavy bouldering does. Hangs are capped at
-              80% and a set shorter. Any finger pain should be assessed by qualified health
-              personnel.
+              Under 18: campus and feet-off dynamic board work are off the list, no more
+              than two of the same kind of session land in a week, and there is no finger
+              training of any kind before two years of regular climbing. That last line is
+              the Norwegian Climbing Federation’s, which no longer advises against
+              controlled dead-hangs for growing climbers after that point, on the reasoning
+              that a controlled hang loads the fingers less than finger-heavy bouldering
+              does. Hangs are capped at 80% and a set shorter. Any finger pain should be
+              assessed by qualified health personnel.
             </p>
           )}
           {goalPhase ? (
@@ -733,14 +954,6 @@ export default function Coach() {
           <button
             type="button"
             className="btn btn-secondary btn-block settings-link-row"
-            onClick={() => navigate('/coach/setup')}
-          >
-            <span>About you &amp; goals</span>
-            <span className="settings-link-arrow">›</span>
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary btn-block settings-link-row"
             onClick={() => navigate('/coach/library')}
           >
             <span>📚 Exercise library</span>
@@ -751,9 +964,11 @@ export default function Coach() {
         <section className="card settings-card stack">
           <h2 className="step-q">How much to trust this</h2>
           <p className="muted small">
-            The finger-recovery window and the idea of a load baseline are reasonably well
-            established. The exact numbers (how many points a signal moves the score, where a
-            “sharp” ramp begins) are starting points, not findings.
+            The finger-recovery window, the idea of a load baseline, ramping volume across a
+            block before a deload, and adding load only after sessions have gone to plan are
+            reasonably well established. The exact numbers (how many points a signal moves
+            the score, where a “sharp” ramp begins, 2.5% a step) are starting points, not
+            findings.
           </p>
           <p className="muted small">
             There is deliberately no injury-risk percentage here. Predicting injury for one
@@ -782,6 +997,43 @@ export default function Coach() {
   )
 }
 
+// What today is in the week, before what to do about it. A rest day that
+// reads as a training day is the plan contradicting the calendar.
+function DayStatus({ suggestion }) {
+  if (suggestion.dayStatus === 'training') {
+    if (!suggestion.carriedFrom) return null
+    return (
+      <p className="coach-status">
+        Moved here from {formatDayShort(suggestion.carriedFrom)}, which was missed.
+      </p>
+    )
+  }
+  if (suggestion.dayStatus === 'rest') {
+    return (
+      <p className="coach-status">
+        😴 A rest day in your plan. If you train anyway, this is the next session owed
+        {suggestion.nextUp ? `, otherwise it waits for ${formatDayShort(suggestion.nextUp.date)}` : ''}.
+      </p>
+    )
+  }
+  if (suggestion.dayStatus === 'done') {
+    return (
+      <p className="coach-status">
+        ✓ Today’s session is logged.
+        {suggestion.nextUp
+          ? ` Next up: ${formatDayShort(suggestion.nextUp.date)}, ${suggestion.nextUp.type.label.toLowerCase()}. This is a preview of it.`
+          : ''}
+      </p>
+    )
+  }
+  return (
+    <p className="coach-status">
+      ✓ Every planned session this week is logged. Anything more is a bonus, and easy is
+      the right kind.
+    </p>
+  )
+}
+
 // What the level actually changes, said plainly - it decides how hard the week
 // is pitched, so it should never be a number the app keeps to itself.
 function levelNote(level) {
@@ -789,9 +1041,13 @@ function levelNote(level) {
     ? `From your grades${level.years != null ? ` and ${level.years} years climbing` : ''}.`
     : 'Add your grades and when you started climbing in “About you”. Without them the plan is pitched down the middle.'
   if (!level.known) return from
-  return level.hard
-    ? `${from} You get the harder weeks: no technique-and-mileage filler, a real finger session in every week that lacks one, and a higher ceiling on hard finger days before the coach starts backing you off.`
-    : `${from} The plan keeps technique and volume days in the week; they build the base that hard sessions are spent from.`
+  if (level.hard) {
+    return `${from} You get the harder weeks: no technique-and-mileage filler, a real finger session in every week that lacks one, and a higher ceiling on hard finger days before the coach starts backing you off.`
+  }
+  if (level.isNew) {
+    return `${from} The first years are for climbing: the week is mostly mileage and technique with one hard day, and the hangboard waits until the tendons have a year or two of climbing behind them.`
+  }
+  return `${from} The plan keeps technique and volume days in the week; they build the base that hard sessions are spent from.`
 }
 
 function SpecRow({ label, value }) {
@@ -817,9 +1073,9 @@ function loggedLabel(s) {
   return parts.filter(Boolean).join(' · ')
 }
 
-// The countdown (or cycle) as consecutive blocks, current one marked. This is
-// the answer to "what stage am I in and what comes next" - including the
-// deload weeks that would otherwise ambush the 7-day view unexplained.
+// The countdown as consecutive blocks, current one marked. This is the answer
+// to "what stage am I in and what comes next" - including the deload weeks
+// that would otherwise ambush the week view unexplained.
 function BlockTimeline({ blocks }) {
   return (
     <ol className="coach-road">
@@ -841,17 +1097,18 @@ function BlockTimeline({ blocks }) {
   )
 }
 
-// One row of the rolling plan: a real date carrying either what was logged
-// (ticked off - tap to open the session), the planned session (tap to see
-// what it involves), or rest.
-function PlanDay({ d, profile, limits, suggestion, goalStyle, tests, onOpenSession }) {
+// One row of the week: a real date carrying what was logged (ticked off, tap to
+// open the session), what was missed, the planned session (tap to see what it
+// involves), or rest.
+function PlanDay({ d, profile, limits, suggestion, goalStyle, tests, sessions, onOpenSession }) {
   const [open, setOpen] = useState(false)
   const logged = d.logged.length > 0
-  const expandable = !logged && !d.rest && !!d.type
+  const expandable = !d.done && !d.rest && !!d.type && !d.missed
   const cls = [
     'coach-week-day',
     d.rest && !logged ? 'is-rest' : '',
-    logged ? 'is-logged' : '',
+    d.done ? 'is-logged' : '',
+    d.missed ? 'is-missed' : '',
     d.next && !d.isToday ? 'is-next' : '',
     d.isToday ? 'is-today' : '',
   ]
@@ -868,6 +1125,10 @@ function PlanDay({ d, profile, limits, suggestion, goalStyle, tests, onOpenSessi
           <span className="coach-week-emoji">{SPORTS[d.logged[0].sport]?.emoji || '✓'}</span>
           <span className="coach-week-label">
             {d.logged.map((s) => loggedLabel(s)).join(' + ')}
+            {d.done && d.didType && !sessionExercises(d.logged[0]).length ? (
+              <span className="muted small coach-week-as"> · counted as {d.didType.label.toLowerCase()}</span>
+            ) : null}
+            {d.extra && <span className="muted small coach-week-as"> · extra</span>}
           </span>
           <span className="coach-week-check" aria-label="Logged">
             ✓
@@ -875,6 +1136,15 @@ function PlanDay({ d, profile, limits, suggestion, goalStyle, tests, onOpenSessi
           <span className="coach-week-caret" aria-hidden="true">
             ›
           </span>
+        </>
+      ) : d.missed ? (
+        <>
+          <span className="coach-week-emoji">{SESSION_TYPES[d.templateKey]?.emoji || '·'}</span>
+          <span className="coach-week-label">
+            {SESSION_TYPES[d.templateKey]?.label || 'Session'}
+            <span className="muted small coach-week-as"> · missed</span>
+          </span>
+          <span className="coach-week-miss" aria-label="Missed">✗</span>
         </>
       ) : d.rest ? (
         <>
@@ -884,7 +1154,12 @@ function PlanDay({ d, profile, limits, suggestion, goalStyle, tests, onOpenSessi
       ) : (
         <>
           <span className="coach-week-emoji">{d.type.emoji}</span>
-          <span className="coach-week-label">{d.type.label}</span>
+          <span className="coach-week-label">
+            {d.type.label}
+            {d.carriedFrom && (
+              <span className="muted small coach-week-as"> · from {format(asDate(d.carriedFrom), 'EEE')}</span>
+            )}
+          </span>
         </>
       )}
       {d.next && !logged && <span className="coach-week-tag">next</span>}
@@ -926,12 +1201,13 @@ function PlanDay({ d, profile, limits, suggestion, goalStyle, tests, onOpenSessi
           suggestion={suggestion}
           goalStyle={goalStyle}
           tests={tests}
+          sessions={sessions}
         />
       )}
       {d.adjusted && !logged && (
         <div className="coach-week-second">
           <span className="muted small">
-            Swapped from the template for today. The Today card says why.
+            Swapped from the plan for today: {suggestion.headline.toLowerCase()}.
           </span>
         </div>
       )}
@@ -947,19 +1223,37 @@ function PlanDay({ d, profile, limits, suggestion, goalStyle, tests, onOpenSessi
 }
 
 // What a planned day actually involves: the session's shape, grades scaled to
-// you, and the library sessions that fit. Today reuses the live suggestion
+// you, and the sheet the day would get. Today reuses the live suggestion
 // (which already reacted to recovery and readiness); future days show the
 // template's answer.
-function PlanDayDetail({ d, profile, limits, suggestion, goalStyle, tests }) {
+function PlanDayDetail({ d, profile, limits, suggestion, goalStyle, tests, sessions }) {
   const isMobility = d.key === 'deload' || d.key === 'mobility'
   const age = profile?.birth_year ? new Date().getFullYear() - profile.birth_year : null
+  const yearsClimbing = profile?.climbing_since
+    ? Math.max(0, new Date().getFullYear() - Number(profile.climbing_since))
+    : null
   const exercises = d.isToday
     ? suggestion.exercises
     : pickExercises(d.key, profile, suggestion.cycle.week, d.discipline, goalStyle, {
         age,
+        yearsClimbing,
         injuredRegions: suggestion.injuredRegions,
       })
   const grades = d.isToday ? suggestion.grades : gradeRange(d.key, limits, exercises[0])
+  const sheet = d.isToday
+    ? suggestion.sheet
+    : buildSessionSheet({
+        typeKey: d.key,
+        main: exercises[0],
+        minutes: Number(profile?.session_minutes) || null,
+        durationMult: d.durationMult,
+        reduced: d.reduced,
+        sets: exercises[0] ? hangPrescription(exercises[0], profile, tests, sessions, { volumeMult: d.durationMult })?.sets ?? null : null,
+        profile,
+        discipline: d.discipline,
+        injuredRegions: suggestion.injuredRegions,
+        age,
+      })
 
   return (
     <div className="coach-week-detail">
@@ -977,21 +1271,25 @@ function PlanDayDetail({ d, profile, limits, suggestion, goalStyle, tests }) {
           value={
             d.reduced
               ? `${d.type.volume}, at about ${Math.round((d.durationMult || 0.5) * 100)}%, ${d.taper ? 'this is the taper' : "it's a deload"}`
-              : d.type.volume
+              : d.durationMult !== 1
+                ? `${d.type.volume}, at about ${Math.round(d.durationMult * 100)}% this week`
+                : d.type.volume
           }
         />
         <SpecRow label="Rest" value={d.type.rest} />
         <SpecRow label="Target RPE" value={d.type.rpe} />
       </div>
-      {exercises.length > 0 && (
+      {sheet.parts.length > 0 && (
         <>
           <p className="muted small coach-week-detail-fit">
-            {isMobility ? 'Routine:' : 'Sessions that fit:'}
+            {isMobility ? 'Routine:' : `The session, about ${sheet.total} min:`}
           </p>
           <ul className="coach-week-exlist">
-            {exercises.slice(0, 3).map((ex) => (
-              <li key={ex.id}>
-                <span className="ex-id">{ex.id}</span> {ex.name}
+            {sheet.parts.map((p, i) => (
+              <li key={`${p.role}-${p.id}-${i}`}>
+                <span className="sheet-role">{p.label}</span>{' '}
+                {p.exercises ? p.name : <><span className="ex-id">{p.id}</span> {p.name}</>}
+                <span className="muted small"> · ~{p.minutes} min</span>
               </li>
             ))}
           </ul>
@@ -1026,12 +1324,25 @@ function AlternativeRow({ ex, onPick, isCoachPick }) {
   )
 }
 
+const RULE_LABELS = {
+  start: 'starting load',
+  progress: 'up 2.5%',
+  repeat: 'same as last time',
+  backoff: 'backed off',
+  capped: 'top of the range',
+}
+
 // One prescribed workout. Max hangs turn into real kilos once the athlete has
 // entered a hang max, but only while that test is recent enough to mean
 // anything. A percentage of a number from six months ago is a number nobody
 // knows, so past the staleness cut-off it goes back to describing the effort.
+//
+// With a `hang` prescription passed in (the Today card), the load is the one
+// number the progression landed on, with the range beside it and the reason
+// under it. Without one (the library) it is the range, resolved to kilos.
 export function ExerciseCard({
   ex, primary, profile, tests = [], durationMult = 1, onPick = null, youPicked = false,
+  hang = null, sets = null, minutesOverride = null,
 }) {
   // Any exercise anchored on a percentage of max total load gets a real number
   // in kilos, including the assisted case (negative added weight is the normal
@@ -1040,12 +1351,17 @@ export function ExerciseCard({
   const max = ex.intensity?.anchor === 'pctMaxTotal' ? maxTotalFor(profile, tests, grip) : null
   const bw = Number(profile?.bodyweight_kg) || 0
   const rx = max?.kg && !max.stale ? prescribeHang(ex.intensity, max.kg, bw) : null
+  const target = hang && !hang.blocked && hang.target && ex.intensity?.anchor === 'pctMaxTotal' ? hang.target : null
 
-  const load = rx
-    ? `${rx.pctText} · ${rx.totalText}${rx.addedText ? ` (${rx.addedText})` : ''}`
-    : ex.load
+  const load = target
+    ? `${target.kg} kg total${hang.targetAddedText ? ` (${hang.targetAddedText})` : ''} · ${RULE_LABELS[target.rule]}`
+    : rx
+      ? `${rx.pctText} · ${rx.totalText}${rx.addedText ? ` (${rx.addedText})` : ''}`
+      : ex.load
   const edge = ex.intensity?.edge_mm ? `${ex.intensity.edge_mm} mm` : ex.edge
-  const minutes = ex.minutes ? Math.round(ex.minutes * durationMult) : null
+  const minutes = minutesOverride ?? (ex.minutes ? Math.round(ex.minutes * durationMult) : null)
+  const librarySets = Number(String(ex.sets ?? '').match(/\d+/)?.[0]) || null
+  const setsText = sets != null && librarySets && sets !== librarySets ? `${sets} (${librarySets} as written)` : ex.sets
 
   let note = null
   if (max?.stale) {
@@ -1087,7 +1403,16 @@ export function ExerciseCard({
       {ex.how && <p className="muted small ex-how">{ex.how}</p>}
       {ex.margin && <p className="muted small ex-how"><strong>Margin:</strong> {ex.margin}</p>}
       {note && <p className="auth-error small">{note}</p>}
-      {rx?.assisted && (
+      {target && (
+        <p className="muted small ex-how">
+          <strong>Load:</strong> {target.note}
+          {target.last?.kg
+            ? ` Last time, ${formatDayShort(target.last.date)}: ${Math.round(target.last.kg)} kg × ${target.last.setsDone}${target.last.outcome ? `, ${outcomeWord(target.last.outcome)}` : ''}.`
+            : ''}
+          {' '}Range for this session: {rx?.totalText || `${Math.round(target.loKg)}–${Math.round(target.hiKg)} kg total`}.
+        </p>
+      )}
+      {(target ? hang.targetAdded != null && hang.targetAdded < 0 : rx?.assisted) && (
         <p className="muted small">
           That is below your bodyweight, so it is an assisted hang: pulley, band, or feet
           on the floor. This is the normal shape of submaximal finger work.
@@ -1097,7 +1422,7 @@ export function ExerciseCard({
         {ex.time && <Meta label="Time" value={ex.time} />}
         {ex.hold && <Meta label="Hold" value={ex.hold} />}
         {ex.reps && <Meta label="Reps" value={ex.reps} />}
-        {ex.sets && <Meta label="Sets" value={ex.sets} />}
+        {setsText && <Meta label="Sets" value={setsText} />}
         {ex.rest && <Meta label="Rest" value={ex.rest} />}
         {load && <Meta label="Load" value={load} />}
         {edge && <Meta label="Edge" value={edge} />}
@@ -1125,6 +1450,10 @@ export function ExerciseCard({
       )}
     </div>
   )
+}
+
+function outcomeWord(key) {
+  return { nailed: 'nailed it', done: 'as planned', short: 'cut short', pain: 'ended in pain' }[key] || key
 }
 
 function Meta({ label, value }) {

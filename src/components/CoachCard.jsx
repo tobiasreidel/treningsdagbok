@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { loadCoachInputs, readoutFrom, EMPTY_COACH_INPUTS } from '../lib/coachData'
 import { isProfileComplete } from '../lib/coachProfile'
 import { hasLoggedToday } from '../lib/wellness'
+import { formatDayShort } from '../lib/format'
 import SignalBlock from './SignalBlock'
 
 // Dashboard card shown when the Training coach is on (Settings → Training
@@ -31,7 +32,7 @@ export default function CoachCard({ sessions, injuries }) {
     }
   }, [])
 
-  const { recovery, suggestion, readiness, goalPhase } = useMemo(
+  const { recovery, suggestion, readiness, goalPhase, week } = useMemo(
     () => readoutFrom({ ...inputs, sessions, injuries }),
     [inputs, sessions, injuries],
   )
@@ -60,8 +61,30 @@ export default function CoachCard({ sessions, injuries }) {
         <span className="coach-title">
           🧭 Today <span className="beta-tag">beta</span>
         </span>
-        <span className={`coach-dot coach-dot-${suggestion.tone}`} aria-hidden="true" />
+        <span className="coach-head-right">
+          {setUp && week?.block && (
+            <span className="coach-block-chip">
+              {goalPhase ? week.block.label : `Week ${week.block.idx + 1} · ${week.block.label}`}
+            </span>
+          )}
+          <span className={`coach-dot coach-dot-${suggestion.tone}`} aria-hidden="true" />
+        </span>
       </div>
+
+      {/* What today is before what to do: a rest day, a logged day, a week
+          already complete. Same words as the Coach page, shorter. */}
+      {suggestion.dayStatus === 'rest' && (
+        <p className="coach-status">😴 Rest day in your plan. If you train anyway:</p>
+      )}
+      {suggestion.dayStatus === 'done' && (
+        <p className="coach-status">
+          ✓ Today is logged.
+          {suggestion.nextUp ? ` Next up, ${formatDayShort(suggestion.nextUp.date)}:` : ''}
+        </p>
+      )}
+      {suggestion.dayStatus === 'complete' && (
+        <p className="coach-status">✓ Every planned session this week is logged.</p>
+      )}
 
       <strong className="coach-suggest-title">
         {suggestion.type.emoji} {suggestion.type.label}
@@ -71,6 +94,7 @@ export default function CoachCard({ sessions, injuries }) {
           ? `${suggestion.chosen.id} · ${suggestion.chosen.name}`
           : suggestion.type.goal}
         {suggestion.grades ? ` · around ${suggestion.grades.text}` : ''}
+        {suggestion.sheet?.total ? ` · about ${suggestion.sheet.total} min` : ''}
       </p>
       {goalPhase && (
         <p className="muted small coach-detail">

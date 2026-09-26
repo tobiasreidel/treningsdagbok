@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { format, subDays } from 'date-fns'
 import { Field, Scale, Segmented, PillRow, useBack } from '../components/ui'
 import SignalBlock from '../components/SignalBlock'
-import { coachReadout, rollingPlan } from '../lib/coach'
+import { coachReadout } from '../lib/coach'
 import { SPORTS } from '../lib/constants'
 
 // A dev-only bench for the coach engine.
@@ -155,12 +155,7 @@ export default function CoachSimulator() {
       }),
     [sessions, profile, wellness, tests],
   )
-  const week = useMemo(
-    () => rollingPlan(sessions, 'undulating', readout.daysPerWeek, [], profile, readout.suggestion),
-    [sessions, readout, profile],
-  )
-
-  const { suggestion, recovery, readiness, trend, monotony } = readout
+  const { suggestion, recovery, readiness, trend, monotony, week } = readout
 
   return (
     <div className="page">
@@ -234,6 +229,7 @@ export default function CoachSimulator() {
             {suggestion.headline}
             {suggestion.tierDrop > 0 ? ` · eased ${suggestion.tierDrop} tier${suggestion.tierDrop === 1 ? '' : 's'}` : ''}
             {suggestion.adjusted ? ` · planned was ${suggestion.plannedLabel}` : ''}
+            {` · ${suggestion.dayStatus} · ${week.block.label}`}
           </p>
           <div className="coach-reasons">
             {suggestion.reasons.map((r) => (
@@ -247,6 +243,14 @@ export default function CoachSimulator() {
             <Row label="Session" value={suggestion.key} />
             <Row label="Exercises" value={suggestion.exercises.map((e) => e.id).join(', ') || 'none'} />
             <Row label="Grades" value={suggestion.grades?.text || '-'} />
+            <Row
+              label="Sheet"
+              value={`${suggestion.sheet.parts.map((p) => `${p.id} ${p.minutes}m`).join(' · ')} = ${suggestion.sheet.total}/${suggestion.sheet.budget}${suggestion.sheet.cut ? ' (cut)' : ''}`}
+            />
+            <Row
+              label="Target"
+              value={suggestion.hang?.target ? `${suggestion.hang.target.kg} kg · ${suggestion.hang.target.rule}` : '-'}
+            />
             <Row
               label="Hang"
               value={
@@ -308,8 +312,9 @@ export default function CoachSimulator() {
                     <span className="coach-week-date">{format(new Date(d.date), 'EEE d')}</span>
                     <span className="coach-week-emoji">{d.rest ? '😴' : d.type.emoji}</span>
                     <span className="coach-week-label">
-                      {d.rest ? 'Rest' : d.type.label}
+                      {d.done ? `✓ ${d.didType?.label || 'logged'}` : d.missed ? '✗ missed' : d.rest ? 'Rest' : d.type.label}
                       {d.reduced ? ' (reduced)' : ''}
+                      {d.carriedFrom ? ' (carried)' : ''}
                     </span>
                   </div>
                 </div>

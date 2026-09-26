@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterAll, vi } from 'vitest'
 import { format, subDays } from 'date-fns'
 import {
   coachReadout,
@@ -23,6 +23,23 @@ import { ALL_EXERCISES } from './exercises'
 //
 // Snapshots are deliberately a *summary* of the readout, not the whole object:
 // a snapshot nobody can read is a snapshot nobody checks.
+
+// Every fixture is built relative to "today", and the engine's cycle position,
+// weekday slots and rolling windows all move with the calendar. Left on the real
+// clock, the snapshots drifted red within weeks of being taken, and a red diff
+// that is mostly the calendar hides the constant change it was meant to show.
+// So the clock is pinned: a Wednesday, mid-block, mid-week.
+//
+// Pinned at module level, not in beforeAll: the fixtures below are built at
+// import time, so a clock set any later would build "yesterday" on the real
+// calendar and then judge it on the fake one.
+export const FIXTURE_TODAY = new Date(2026, 8, 23, 12, 0, 0)
+vi.useFakeTimers({ toFake: ['Date'] })
+vi.setSystemTime(FIXTURE_TODAY)
+
+afterAll(() => {
+  vi.useRealTimers()
+})
 
 const iso = (daysAgo) => format(subDays(new Date(), daysAgo), 'yyyy-MM-dd')
 
@@ -144,14 +161,20 @@ function wellness(days, { sleep = 3, fatigue = 3, soreness = 3, stress = 3, ever
   return out
 }
 
-// Sessions on a weekly pattern of ISO weekdays, for `weeks` back.
-function weekly(weekdays, weeks, make) {
+// Sessions on a weekly pattern of ISO weekdays, for `weeks` back, up to
+// yesterday. Today is left out on purpose: the readout worth snapshotting is
+// what the coach says before today's session, not the preview of the next
+// one it shows once today is logged. `skip` drops named dates, for a week
+// with a hole in it.
+function weekly(weekdays, weeks, make, { skip = [] } = {}) {
   const out = []
   for (let w = 0; w < weeks; w += 1) {
     for (const wd of weekdays) {
       const daysAgo = w * 7 + ((new Date().getDay() + 6) % 7) - (wd - 1)
-      if (daysAgo < 0) continue
-      out.push(make(iso(daysAgo), w, wd))
+      if (daysAgo < 1) continue
+      const date = iso(daysAgo)
+      if (skip.includes(date)) continue
+      out.push(make(date, w, wd))
     }
   }
   return out
@@ -161,15 +184,26 @@ function weekly(weekdays, weeks, make) {
 // constant change anywhere in the engine.
 function summarise(readout) {
   const s = readout.suggestion
+  const w = readout.week
   return {
     session: `${s.key} · tier ${s.tier}${s.tierDrop ? ` (eased ${s.tierDrop})` : ''}`,
     headline: s.headline,
     tone: s.tone,
+    day: s.dayStatus,
     planned: s.plannedKey,
     grades: s.grades?.text ?? null,
     hangKg: s.hang?.totalText ?? (s.hang?.blocked ? `blocked: ${s.hang.reason}` : null),
+    // The load the progression landed on and the rule that put it there.
+    hangTarget: s.hang?.target ? `${s.hang.target.kg} kg · ${s.hang.target.rule}` : null,
     exercises: s.exercises.map((e) => e.id),
+    // The whole session, part by part, and whether it fitted the budget.
+    sheet: s.sheet.parts.map((p) => `${p.role} ${p.id} ${p.minutes}m`).join(' | ') + ` = ${s.sheet.total}/${s.sheet.budget}${s.sheet.cut ? ' cut' : ''}`,
     reasons: s.reasons.map((r) => `${r.changed ? '*' : '-'} ${r.text}`),
+    // The week as planned against logged: one letter per day, Mon to Sun.
+    //   done ✓, missed ✗, today !, planned session ·, rest _
+    week: `${w.block.label} · ` + w.map((d) =>
+      d.done ? '✓' : d.missed ? '✗' : d.isToday ? (d.key ? '!' : '_') : d.key ? '·' : '_',
+    ).join('') + ` · ${w.map((d) => d.key || (d.done ? d.did : null) || '-').join(',')}`,
     recovery: {
       state: readout.recovery.key,
       days7: readout.recovery.days7,
@@ -414,6 +448,93 @@ const FIXTURES = [
     profile: PROFILES.indoor3,
     wellness: [],
     tests: [],
+  },
+  // --- the plan as a coach would run it ---------------------------------------
+  {
+    // Trains Mon/Wed/Sat, and this week Monday did not happen. The hard session
+    // should move to today, and the week should lose its lowest-priority day,
+    // not stack two hard days to make up for it.
+    name: 'missed Monday, opened the app on Wednesday',
+    sessions: weekly([1, 3, 6], 10, (d) => indoorBoulder(d), { skip: [iso(2)] }),
+    profile: PROFILES.indoor3,
+    wellness: wellness(60),
+    tests: [maxHangTest()],
+  },
+  {
+    // Eight months in, 6A. Mileage and technique, no hangboard, one hard day.
+    name: 'beginner, two sessions a week',
+    sessions: weekly([2, 5], 6, (d) => indoorBoulder(d, { fingerRpe: 5, rpe: 6, grades: ['5+', '6A'] })),
+    profile: {
+      sessions_week: 2, max_boulder_indoor: '6A', has_hangboard: true,
+      bodyweight_kg: 68, climbing_since: new Date().getFullYear(), preferred_days: [2, 5],
+    },
+    wellness: wellness(60),
+    tests: [],
+  },
+  {
+    // Fifteen, one year in, a hangboard at home. The federation's line is
+    // climbing first: no finger training of any kind before two years.
+    name: 'junior in their first year, hangboard at home',
+    sessions: weekly([1, 3, 5], 6, (d) => indoorBoulder(d, { fingerRpe: 5, rpe: 6 })),
+    profile: {
+      sessions_week: 3, max_boulder_indoor: '6B+', has_hangboard: true, has_gym: true,
+      bodyweight_kg: 52, birth_year: new Date().getFullYear() - 15,
+      climbing_since: new Date().getFullYear() - 1, preferred_days: [1, 3, 5],
+    },
+    wellness: wellness(60),
+    tests: [],
+  },
+  {
+    // Says endurance is the problem: the spare slot goes to it.
+    name: 'four sessions a week, endurance as the stated weakness',
+    sessions: weekly([1, 2, 4, 6], 10, (d) => indoorBoulder(d)),
+    profile: { ...PROFILES.indoor3, sessions_week: 4, preferred_days: [1, 2, 4, 6], weaknesses: ['endurance'] },
+    wellness: wellness(60),
+    tests: [maxHangTest()],
+  },
+  {
+    // An hour, door to door. The sheet has to fit it and say what it cut.
+    name: 'hangboard day with sixty minutes to train',
+    sessions: weekly([1, 3], 6, (d, w, wd) => (wd === 3 ? hangSession(d, { kg: 82 }) : indoorBoulder(d))),
+    profile: { ...PROFILES.indoor3, sessions_week: 2, preferred_days: [1, 3], session_minutes: 60, climbing_since: new Date().getFullYear() - 8, max_boulder_indoor: '7B+' },
+    wellness: wellness(60),
+    tests: [maxHangTest()],
+  },
+  {
+    // Two max-hang sessions at the same load that both went to plan: the
+    // third adds 2.5%.
+    name: 'max hangs progressing after two sessions to plan',
+    sessions: [
+      ...weekly([3], 3, (d) => ({ ...hangSession(d, { kg: 82 }), extra: { ...hangSession(d, { kg: 82 }).extra, coach: { followed: 'planned', type: 'fingerStrength', exercises: ['F1'], outcome: 'nailed' } } })),
+      ...weekly([1, 6], 6, (d) => indoorBoulder(d)),
+    ],
+    profile: { ...PROFILES.indoor3, climbing_since: new Date().getFullYear() - 8, max_boulder_indoor: '7B+', preferred_days: [1, 3, 6] },
+    wellness: wellness(60),
+    tests: [maxHangTest()],
+  },
+  {
+    // Last session ended in pain: a problem for the week, and the load backs
+    // off when the session returns.
+    name: 'a planned session that ended in pain three days ago',
+    sessions: [
+      { ...indoorBoulder(iso(3), { fingerRpe: 8, rpe: 8 }), extra: { ...indoorBoulder(iso(3)).extra, coach: { followed: 'planned', type: 'limit', exercises: ['B8'], outcome: 'pain', pain_area: 'fingers' } } },
+      ...weekly([1, 3, 6], 6, (d) => indoorBoulder(d), { skip: [iso(3)] }),
+    ],
+    profile: PROFILES.indoor3,
+    wellness: wellness(60),
+    tests: [maxHangTest()],
+  },
+  {
+    // Old pulley injury on file: the chronic ceiling drops a step and hangs
+    // stay in the lower half of the range.
+    name: 'finger injury history on file',
+    sessions: [
+      ...weekly([1, 4], 6, (d) => hangSession(d, { kg: 85 })),
+      ...weekly([2, 6], 6, (d) => indoorBoulder(d, { fingerRpe: 7 })),
+    ],
+    profile: { ...PROFILES.indoor3, sessions_week: 4, preferred_days: [1, 2, 4, 6], injury_regions: ['fingers'], climbing_since: new Date().getFullYear() - 8, max_boulder_indoor: '7B+' },
+    wellness: wellness(60),
+    tests: [maxHangTest()],
   },
 ]
 

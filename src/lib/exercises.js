@@ -967,12 +967,17 @@ export const GYM_EXERCISES = build(
     {
       id: 'S12', name: 'Shoulder external rotations', reps: '5–10', sets: '3–5',
       load: 'Light: this is prehab, not a lift', rest: '2–3 min',
+      // A band, not a gym: this is the finisher on every hard day, and gating
+      // it on weights access would drop it for exactly the people training at
+      // home.
+      needs: [], durationTarget_min: 10,
       rehabFor: ['shoulder'], tier: 1, expectedDose: 0, youth: 'allowed',
       how: 'Climbing is overwhelmingly pull-dominant, and low external-rotation strength relative to internal is one of the more consistent shoulder-injury associations. Worth keeping in year-round.',
     },
     {
       id: 'S15', name: 'Wrist extensor & flexor eccentrics', reps: '10–15', sets: '3',
       load: 'Light dumbbell or a rubber bar', rest: '2 min',
+      needs: [], durationTarget_min: 10,
       rehabFor: ['elbow', 'wrist'], tier: 1, expectedDose: 0, youth: 'allowed',
       how: 'Forearm supported, lower the weight slowly (3–4 s) and help it back up with the other hand. Extensors for lateral elbow pain, flexors for medial "climber\'s elbow". Slow and light; the eccentric is the point, load is not.',
     },

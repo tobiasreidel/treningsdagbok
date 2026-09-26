@@ -8,6 +8,20 @@
 // line, not a paragraph of its own. One entry per date.
 export const CHANGELOG = [
   {
+    date: '2026-09-26',
+    title: 'A plan a coach could have written',
+    changes: [
+      'Today is a whole session: warm-up, the main work, what follows it and a ten-minute finisher, fitted to how long your sessions are.',
+      'Hangboard loads move by rule: two sessions to plan at a load and the next adds 2.5%, a cut-short one holds it, pain drops it.',
+      'The week runs Monday to Sunday against what you logged. A missed hard session moves to your next day and the least important one drops.',
+      'Blocks ramp: settle in, build, push, deload. Rest days say so, a logged day previews the next session, and you can start a new block from the plan tab.',
+      'Logging asks how it went: nailed it, as planned, cut short, or pain.',
+      'About you asks how long a session is, what holds you back and where you have been injured. The plan tab lists what the coach is still guessing at.',
+      'Beginners get a climbing week with no hangboard, and under-18s no finger training before two years of climbing.',
+      'Bug fixes: the week view and the Today card no longer disagree, and injury history is read rather than only stored.',
+    ],
+  },
+  {
     date: '2026-08-07',
     title: 'E-bike rides, and a tidier logbook',
     changes: [

@@ -213,7 +213,11 @@ number. Five tones map onto three colours:
       sets: [ { load_total_kg, time, edge } ]   // kg TOTAL, seconds, mm
     } ]
   },
-  coach: { followed: 'planned'|'other', type, exercises: ['B5','F1'] },
+  coach: {
+    followed: 'planned'|'other', type, exercises: ['B5','F1'],
+    outcome: 'nailed'|'done'|'short'|'pain',   // how it went (v5)
+    pain_area: 'fingers'|'elbow'|...           // only with outcome 'pain'
+  },
   test_session: { ids: ['max_hang', ...] }
 }
 ```
@@ -236,7 +240,11 @@ bodyweight exists, and the UI says when a set cannot be read at all.
 `has_hangboard|has_campus|has_spraywall|has_gym`, `hang_max_kg` (legacy,
 added kg), `hang_edge_mm`, `hang_tested_on`, `preferred_days` (ISO weekdays
 1-7 array), `bodyweight_kg`, `injury_history` (free text),
-`focus` (`boulder|route|both`).
+`focus` (`boulder|route|both`), and since v5 (`20260926000000_coach_v5.sql`):
+`session_minutes` (how long a session can be; the sheet is built to fit it),
+`weaknesses` (ordered array from `fingers|power|endurance|technique|strength|
+mobility|mental`), `injury_regions` (array of body areas, alongside the free
+text) and `plan_started_on` (the Monday the current 4-week block started).
 
 Note the deliberate omission: **there is no bodyweight history and no weight
 chart.** Climbing has a documented problem with disordered eating and RED-S,
@@ -282,6 +290,12 @@ step list is dynamic:
   or **strength + finger** if indoor, then notes
 
 `[plan]` only appears when the coach is on.
+
+The plan step also asks **"How did it go?"** once a library session is named:
+Nailed it / As planned / Cut short / Pain, and where it hurt when it did. This
+is the answer a coach asks for at the door, and it is what the next hangboard
+prescription is built from (section 7.12). A pain answer is a problem for the
+week that follows, like a pain-stopped test.
 
 ### Step 1, "What did you do?"
 
@@ -397,17 +411,24 @@ Free text plus one optional photo.
 3. **"Something to work around"**, only when there is an active problem. One
    `SignalBlock` per problem: `⚠️ Fingers` or `⚠️ half-crimp test: stopped by
    pain`, state `47/100 · substantial`, tone amber or red.
-4. **The 🧭 Today card**: session emoji and label as the headline, the
-   session's goal underneath, then reason chips (short phrases like "Fingers
-   recovered · 27d", "Readiness 58", "Monotony high, so vary the stimulus").
-   Then a spec grid: Intensity (`Tier 5 · Hard`), Grades, Effort, Volume,
-   Rest, Target RPE. Then a "Log this session" primary button that opens the
-   wizard prefilled.
-5. **"What to do"**: the chosen session as a full `ExerciseCard` with a `pick`
-   tag, and the alternatives as one-line `AlternativeRow`s with a `Swap`
-   button. Tapping an alternative promotes it for the rest of the day; tapping
-   the top one hands the choice back to the coach. Only the choice is spelled
-   out in full, because three full cards was most of the page.
+4. **The 🧭 Today card**: a block chip in the header (`Week 2 of 4 · Build`),
+   then a status line when today is not an ordinary training day (a rest day
+   in the plan, today's session already logged with the next one previewed, or
+   the week complete), then session emoji and label as the headline, the
+   session's goal underneath, then the reason line and chips (short phrases
+   like "Fingers recovered · 27d", "Moved here from 21 Sep, which was
+   missed", "Finger maintenance drops this week: not enough days left"). Then a
+   spec grid: Intensity (`Tier 5 · Hard`), Grades, Effort, Volume, Rest,
+   Target RPE. Then a "Log this session" primary button that opens the wizard
+   prefilled with the whole sheet, hidden once today is logged.
+5. **"The session · about N min"**: the sheet (section 7.12): warm-up parts,
+   the main work as a full `ExerciseCard` with a `pick` tag and the load line
+   ("84 kg total (+14 kg added) · up 2.5%" with the reason and last time's
+   numbers), a second block when there is room, and the finisher. A line says
+   which minutes it was built for and what it cut. The alternatives for the
+   main part follow as one-line `AlternativeRow`s with a `Swap` button.
+   Tapping an alternative promotes it for the rest of the day; tapping the
+   coach's pick hands the choice back.
 6. **"Where you're at"**: four `SignalBlock`s, each tappable through to its
    history: 🤏 Finger tissue, 🔋 Readiness (with a row of per-signal z-score
    chips underneath), 📈 Load trend, 🔁 Monotony. Plus ⚖️ Side-to-side when
@@ -421,19 +442,29 @@ Free text plus one optional photo.
    then an explanation of where deloads land. Without a goal: "No goal yet.
    Add a competition or a trip and the plan stops being a loop and starts
    counting down to it."
-2. **Your week**: a header line (`Power phase · 3 sessions a week`), then the
-   next 7 days as a list. Each row is a weekday label, an emoji, a session
-   name, and a state: `TODAY`, `NEXT`, a checkmark when logged, or `Rest`.
-   Training days expand on tap to show that day's spec and the library
-   sessions that fit. A divider row appears mid-list when the block changes
-   ("Deload week from here"). Second sessions show as a sub-row tagged
-   `2nd · 6 h later`.
-3. **The cycle** (only without a dated goal): the repeating four-week
-   timeline.
-4. **How the plan is built**: a Level signal block; the under-18 note when it
+2. **This week**: a header line (`Week 2 of 4 · Build · 3 sessions a week · 1
+   of 3 done`) with the block week's note, then Monday to Sunday as a list.
+   Each row is a weekday label, an emoji, a session name, and a state: a
+   checkmark with what was logged (and "counted as volume" when the session
+   did not name itself), `✗ missed` for a planned day that passed with nothing
+   logged, `TODAY`, `NEXT`, "from Mon" on a session carried forward, or
+   `Rest`. Planned days expand on tap to show that day's spec and its sheet.
+   Under the list: the weakness swap, what dropped this week and why, the
+   deload note, doubles, the unknown-weekdays note, skipped weekdays, the
+   back-to-back warning, and a "Next week" block (`Deload, from 5 Oct`).
+3. **The block**: the four weeks of the current block with their volume
+   (`Settle in 85%`, `Build 100%`, `Push 110%`, `Deload 60%`) and dates, the
+   current one marked, and, without a dated goal, a "Start a new block from
+   this Monday" button.
+4. **Last week**: sessions done of planned (plus extras), time, hard finger
+   days, what was missed, and one line on what that means for this week.
+   Hidden until the plan has been followed for a week.
+5. **What the coach is still guessing at**: the intake questions without an
+   answer, each with what the answer would change (from `profileGaps`).
+6. **How the plan is built**: a Level signal block; the under-18 note when it
    applies; a Periodisation choice (Undulating / Linear) with the model's
-   description; links to "About you & goals" and "📚 Exercise library".
-5. **How much to trust this**: three short paragraphs. What is well
+   description; a link to "📚 Exercise library".
+7. **How much to trust this**: three short paragraphs. What is well
    established, what is a chosen number, that there is deliberately no
    injury-risk percentage, and the medical disclaimer.
 
@@ -912,6 +943,30 @@ For an experienced climber the filler changes, not the count:
 | 5 | + volume |
 | 6 | + technique |
 
+For a climber still building a base (below 6C / 6c, or under two years) the
+week is mostly climbing, with one hard day and no hangboard:
+
+| Days | Week |
+|---|---|
+| 2 | volume, technique |
+| 3 | limit, volume, technique |
+| 4 | limit, volume, technique, aerobic |
+| 5 | + powerEndurance |
+| 6 | + antagonist |
+
+A week with no finger work gets one inserted, at the dose the athlete's years
+can carry: a real session for an advanced climber, maintenance (F4) for an
+intermediate, and for a beginner in their first year, or anyone under 18 with
+under two years of climbing, push and shoulder work instead. Only from three
+sessions a week for a finger session and four for the stand-in, so it never
+displaces a climbing day a two-day week needs more.
+
+A stated weakness (profile `weaknesses`) spends the week's spare slot: the
+lowest-priority easy key that is neither the hard day nor the finger day is
+swapped for the session type that trains it (endurance is power-endurance for
+a boulderer and ARC for a rope climber). One swap, never in a goal countdown,
+and the week view says what replaced what.
+
 *Linear*: a repeating four-week block cycle. Capacity (volume / technique) →
 Strength (fingerStrength / volume) → Power (limit / powerEndurance) → Deload.
 
@@ -974,13 +1029,20 @@ one for an experienced climber, never in a taper week.
 
 ### 7.10 The daily decision
 
+What today's planned session *is* comes from the week schedule (section 7.12)
+before any rule runs: the session owed today, or, on a rest day or once
+today's is logged, the next one owed, or easy movement once the week is
+complete. The card says which of those today is. The rules below then act on
+that session.
+
 In order. The first hard rule that matches wins, and it **changes the session
 category**:
 
 | # | Condition | Becomes | Headline |
 |---|---|---|---|
 | 0 | Under 18 and this session category already used twice in 7 days | technique | (variety note) |
-| 1 | A substantial OSTRC problem this week | mobility | Back off, something is brewing |
+| 0b | Under 18 with under two years climbing and a finger day planned | antagonist | Fingers come later |
+| 1 | A substantial OSTRC problem this week, or a session that ended in pain in the last 7 days | mobility | Back off, something is brewing |
 | 2 | An open injury in the log | mobility | Rehab or easy day |
 | 3 | No finger history and the plan wants a costly session | fingerMaintenance | Start easy |
 | 4 | Inside the rebuild window and the plan wants a high-cost finger day | rotating low-finger type | Spare the fingers |
@@ -1027,11 +1089,16 @@ From the grid cell, in order:
 4. Filter by `minYearsClimbing`, at any age. Tendon adaptation is measured in
    years.
 5. Under 18: drop `youth: 'blocked'` entries (campus, one-arm work). Keep
-   `allowed_reduced` ones but cap them (see below).
+   `allowed_reduced` ones but cap them (see below). Under 18 with fewer than
+   two years of climbing (or an unknown start): drop every hangboard entry,
+   the sub-maximal no-hangs included (the federation's two-year line, see
+   `docs/youth-guidance.md`).
 6. Route around injured regions: drop anything that loads the affected
    structure, but keep exercises that are rehab *for* it.
 7. Prefer the goal's discipline.
-8. Sort so tier fit beats rotation, with rotation as the tie-break. Take 3.
+8. Sort so tier fit beats rotation, with rotation as the tie-break; within
+   equal tier fit, sessions that load an area in the injury history go last
+   and sessions that train a stated weakness go first. Take 3.
 
 **Under-18 handling** deserves its own note, because the app deliberately
 departs from what a naive reading of youth guidance would give. The Norwegian
@@ -1047,6 +1114,66 @@ category may appear more than **twice in a rolling 7 days**. Ages 18-20 get a
 note rather than a restriction, because 18 is a chronological proxy for
 skeletal maturity and late maturers exist. The copy adds that any finger pain
 should be assessed by qualified health personnel.
+
+### 7.12 The plan as a coach runs it (v5)
+
+Four pieces added in September 2026, after a review of what people say about
+app-generated plans (identical sessions whatever you enter, two-and-a-half-hour
+workouts for someone with an hour, nothing happening when you miss a day) and
+what beginner and youth guidance actually says.
+
+**The week against the log** (`weekSchedule` in `coach.js`). The week is one
+object: template session keys on their weekday slots, logged days consume a
+key (the one the session said it was, else the slot's, else the earliest still
+owed), a planned day that passed with nothing logged is *missed* and its key
+stays owed, and the days still to come get what is owed in order of priority:
+the phase's hard session, then anything else that loads the fingers hard, then
+medium, then the easy days. What does not fit drops, and the card says so
+("Finger maintenance drops this week: not enough days left"). A hard finger
+day is never placed straight after another one, judged on the dose model as
+well as the plan. Only climbing, finger and strength sessions fill a slot: a
+ride on a rest day is load, not the limit session the plan was waiting for. A
+day is only called missed once the plan is being followed (a block start, or a
+plan session logged earlier), and never when the weekdays were guessed rather
+than stated. The Today card and the week view are built from the same object,
+which is why they can no longer disagree.
+
+**Block progression** (`BLOCK_WEEKS`, `blockWeekFor`). The three loading weeks
+ramp volume, not intensity: settle in at 85%, build at 100%, push at 110%,
+then a deload at 60% (a taper at 50% overrides). The multiplier scales the
+main work's minutes and hangboard set counts (F1 goes 3 / 4 / 4 sets, F2 4 / 5
+/ 6). In a countdown the block counts up to the next deload. The cycle is
+anchored to `plan_started_on` when set ("Start a new block" on the plan tab),
+otherwise to the first logged session as before.
+
+**Hangboard progression** (`lib/progression.js`). For a session anchored on a
+percentage of max, the load for today is one number inside the range, from
+the last logged sessions of the same exercise (named, or an unnamed two-hand
+block on the same grip within 3 s of the prescribed hang time) in the last 56
+days. Each prior session scores +1 nailed, 0 as planned, -1 cut short or
+finger RPE two above the target, -2 pain; unanswered outcomes are read from
+the set count. Rules: nothing logged → the low end; last ended in pain → 10%
+off, floored at the low end; last cut short → hold; two sessions to plan at
+the same load (or three steady ones) → +2.5% of max, capped at the top of the
+range and then "retest"; the max moved → the range moved, start again. With
+finger injury history the top half of the range is off the table. The card
+shows the number, the rule, and last time's load, sets and outcome.
+
+**The session sheet** (`lib/sessionSheet.js`). Warm-up (WU1 always for
+physical sessions, WU2 before any `finger_full` session and never cut, WU3
+before strength), the main work at the block week's minutes, a second block
+when there is room and the week is not a reduction (easy climbing after hangs;
+nothing after a hard day), and a finisher (S12 + S15 prehab after a day that
+loaded the fingers, three stretches after an easy one). Fitted to
+`session_minutes` (90 assumed): the second block goes first, then the finisher
+shrinks to 5 minutes, then the main work is cut and the card says by how much.
+Logging from the card names every part of the sheet.
+
+**Chosen numbers in all of this:** 85 / 100 / 110 / 60%, 2.5% a step, 10% off
+after pain, 56 days of history, 3 s of hang-time tolerance, 7 days for a
+session-pain problem, the finisher's 10 minutes, and the 90-minute default.
+The ordering (missed key session first, filler dropped, hard days apart) and
+the direction of every rule are the well-supported part.
 
 ---
 
@@ -1374,11 +1501,11 @@ checking facts, this is the list.
 - The Norwegian Climbing Federation no longer advises against controlled
   dead-hangs for growing climbers, on the reasoning that a controlled hang
   loads the fingers less than finger-heavy bouldering does; it does still
-  advise against campus training and a one-sided focus. **This one is dated and
-  unverified**: it is a live position that can move and it decides what a junior
-  is prescribed, so it is recorded with its status in
-  [docs/youth-guidance.md](youth-guidance.md) and needs checking against the
-  federation's current published wording.
+  advise against campus training and a one-sided focus, and it puts specific
+  finger training after at least two years of regular climbing. Verified
+  against skadefri.no on 2026-09-26 and recorded with its source in
+  [docs/youth-guidance.md](youth-guidance.md); a live position that can move,
+  so it is dated and worth re-checking.
 - Climbing has a documented problem with disordered eating and RED-S. Hence no
   weight history and no weight chart.
 
@@ -1446,6 +1573,13 @@ Everything below is chosen:
 | Level grade thresholds | 6C / 7B+ / 8A+ boulder; 6c / 7b+ / 8a+ route | |
 | Level year thresholds | 2 / 5 / 10 | |
 | `expectedDose` per exercise | 0-55 | hand-assigned per entry |
+| Block volume multipliers | 0.85 / 1.0 / 1.1 / 0.6 | settle in / build / push / deload |
+| Hang progression step / back-off | 2.5% / 10% of max | after two sessions to plan / after pain |
+| Progression history | 56 days, ±3 s hang time | which sessions count as the same one |
+| Session-pain problem | 7 days | a session that ended in pain |
+| Session sheet | 90 min default, 10-min finisher, 20-min minimum block | fitting to `session_minutes` |
+| Finger history | ceiling one tissue level down, hangs in the lower half of the range | `injury_regions` includes fingers |
+| Youth finger training | none before 2 years climbing | the federation's stated threshold |
 
 **Form is partly double-counted in readiness.** Form (CTL − ATL) carries weight
 0.20 and is derived from RPE, which also drives the subjective fatigue item at
@@ -1510,9 +1644,11 @@ at `/coach/simulator`.
   only. An athlete who knows their coach reads the stress field stops filling in
   the stress field, and then readiness stops working for the athletes it matters
   most for.
-- **No feedback loop from "did the session go well" into plan content.** At one
-  athlete you cannot learn what worked, so `coach.followed` is read for dose and
-  for the diary, not for adapting the plan.
+- **No feedback loop from "did the session go well" into plan *content*.** At
+  one athlete you cannot learn what worked, so `coach.followed` is read for dose
+  and for the diary, not for choosing different sessions. The outcome does move
+  the hangboard *load* by fixed rules (section 7.12), which is progression, not
+  learning: the same rules a coach applies by hand, applied consistently.
 - **Adherence is not that, and is allowed.** Noticing what *happens* needs no
   science: if a training weekday has had nothing logged on it for four complete
   weeks, hard sessions move off it. That is the difference between a plan you

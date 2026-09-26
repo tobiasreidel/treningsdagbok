@@ -10,6 +10,7 @@ import {
   EXERCISE_MAP,
 } from '../../lib/exercises'
 import { todayISO } from '../../lib/format'
+import { BODY_AREAS } from '../../lib/wellness'
 
 // Sports the plan's library covers - the question isn't asked on a bike ride.
 export const COACH_SPORTS = ['climbing', 'finger', 'strength']
@@ -98,20 +99,23 @@ export default function CoachPlanField({ form, updateExtra }) {
   // library sessions it was, which is the part the coach can actually use.
   if (!isToday) {
     return (
-      <Field
-        label="Which sessions were these?"
-        hint="You can name more than one. A max hangboard day and easy mileage load the fingers very differently."
-        optional
-      >
-        <ExercisePicker
-          value={chosen}
-          onChange={(ids) =>
-            ids.length
-              ? setCoach({ followed: 'other', type: null, exercises: ids })
-              : setCoach(null)
-          }
-        />
-      </Field>
+      <div className="stack">
+        <Field
+          label="Which sessions were these?"
+          hint="You can name more than one. A max hangboard day and easy mileage load the fingers very differently."
+          optional
+        >
+          <ExercisePicker
+            value={chosen}
+            onChange={(ids) =>
+              ids.length
+                ? setCoach({ ...(coach || {}), followed: coach?.followed || 'other', type: coach?.type ?? null, exercises: ids })
+                : setCoach(null)
+            }
+          />
+        </Field>
+        {coach && chosen.length > 0 && <OutcomeField coach={coach} setCoach={setCoach} />}
+      </div>
     )
   }
 
@@ -147,8 +151,60 @@ export default function CoachPlanField({ form, updateExtra }) {
           <ExercisePicker
             value={chosen}
             onChange={setChosen}
-            suggested={coach.followed === 'planned' ? plan?.exercises : null}
+            suggested={coach.followed === 'planned' ? plan?.sheet?.parts?.filter((p) => p.role !== 'warmup' && p.exercise).map((p) => p.exercise) ?? plan?.exercises : null}
           />
+        </Field>
+      )}
+
+      {coach && chosen.length > 0 && <OutcomeField coach={coach} setCoach={setCoach} />}
+    </div>
+  )
+}
+
+// How the session went, in four words. This is the answer a coach asks for at
+// the door, and it is what moves the next prescription: two sessions to plan
+// at a load earn the next step, a cut-short one holds it, pain drops it and
+// routes the week around the area. Optional, because a session without an
+// answer still counts; but the hangboard load cannot progress from a blank.
+const OUTCOMES = [
+  { key: 'nailed', label: 'Nailed it', hint: 'Every set, with something in reserve. Two of these at a load and it goes up.' },
+  { key: 'done', label: 'As planned', hint: 'Did what it said. The load holds until it has gone to plan twice.' },
+  { key: 'short', label: 'Cut short', hint: 'Stopped early, or dropped sets. The load stays where it is next time.' },
+  { key: 'pain', label: 'Pain', hint: 'Stopped, or should have, for pain. The coach routes around the area for a week and the load comes back lighter.' },
+]
+
+function OutcomeField({ coach, setCoach }) {
+  const current = OUTCOMES.find((o) => o.key === coach.outcome) || null
+  return (
+    <div className="stack">
+      <Field
+        label="How did it go?"
+        hint={current ? current.hint : 'What the next prescription is built from.'}
+        optional
+      >
+        <ChipSelect
+          options={OUTCOMES.map((o) => ({ key: o.key, label: o.label }))}
+          value={coach.outcome ?? null}
+          onChange={(v) =>
+            setCoach({
+              ...coach,
+              outcome: v || undefined,
+              pain_area: v === 'pain' ? coach.pain_area : undefined,
+            })
+          }
+        />
+      </Field>
+      {coach.outcome === 'pain' && (
+        <Field label="Where?" hint="Fingers is assumed if you leave it blank.">
+          <ChipSelect
+            options={BODY_AREAS.map((a) => ({ key: a.key, label: `${a.emoji} ${a.label}` }))}
+            value={coach.pain_area ?? null}
+            onChange={(v) => setCoach({ ...coach, pain_area: v || undefined })}
+          />
+          <span className="auth-error small">
+            Pain is the real signal. Persistent pain is a reason to see a professional, not
+            to adjust a plan.
+          </span>
         </Field>
       )}
     </div>

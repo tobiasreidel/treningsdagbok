@@ -25,6 +25,10 @@ import { formatGrade } from './constants'
 
 export const SCHEMA_VERSION = 4
 
+// The answers to "how did it go?" on a planned session. Stored as
+// extra.coach.outcome; anything else reads as unanswered.
+export const OUTCOMES = ['nailed', 'done', 'short', 'pain']
+
 const num = (v) => Number(v) || 0
 const finite = (v) => Number.isFinite(Number(v)) && v !== '' && v !== null
 
@@ -132,6 +136,11 @@ export function normaliseSession(row, { bodyweight = 0 } = {}) {
     fingerMinutes: num(e.finger_minutes) || null,
     coach: e.coach || null,
     exerciseIds: exerciseIdsOf(e.coach),
+    // How the planned session went, in the athlete's own words (nailed / done
+    // / short / pain), and where it hurt when it did. Feeds progression and
+    // the problem list; nothing else in the log can say a session hurt.
+    outcome: OUTCOMES.includes(e.coach?.outcome) ? e.coach.outcome : null,
+    painArea: e.coach?.outcome === 'pain' ? e.coach?.pain_area || null : null,
     testIds: e.test_session?.ids || [],
   }
   shape.hasUnreadableHangs = shape.hangboard.some((h) => h.sets.some((s) => s.unreadable))
@@ -154,7 +163,7 @@ function emptyShape() {
     grades: [], nearLimitAttempts: null, timeOfDay: null, hour: null,
     campus: '', pockets: false, hangboard: [], strength: [],
     strengthMinutes: null, fingerMinutes: null, coach: null,
-    exerciseIds: [], testIds: [],
+    exerciseIds: [], testIds: [], outcome: null, painArea: null,
     hasUnreadableHangs: false, hasFingerWork: false,
   }
 }
