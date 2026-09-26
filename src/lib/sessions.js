@@ -70,6 +70,10 @@ function buildItem(form, kind = 'create') {
     grade: r.grade || null,
     send_type: r.send_type || null,
     position: i,
+    // Only a session with more than one discipline marks its routes, so an
+    // install without routes.subtype (20260926130000) still saves every other
+    // session.
+    ...(r.subtype ? { subtype: r.subtype } : {}),
   }))
   return {
     kind,

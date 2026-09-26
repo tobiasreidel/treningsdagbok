@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { format } from 'date-fns'
+import { format, differenceInCalendarDays } from 'date-fns'
 import { Field, Segmented } from '../components/ui'
 import { SPORTS } from '../lib/constants'
 import Avatar from '../components/Avatar'
@@ -34,8 +34,15 @@ import {
   endInjury,
   deleteInjury,
   injuryDays,
+  fetchIllnesses,
+  addIllness,
+  deleteIllness,
+  illnessDays,
+  symptomInfo,
+  ILLNESS_SYMPTOMS,
 } from '../lib/health'
-import { formatDayShort, todayISO } from '../lib/format'
+import IllnessPanel from '../components/IllnessPanel'
+import { formatDayShort, todayISO, asDate } from '../lib/format'
 import {
   getLogPeriod,
   getAvatarEmoji,
@@ -369,6 +376,8 @@ export default function Profile() {
           )}
 
           <InjuriesCard />
+
+          <IllnessCard />
         </section>
 
         <GearCard sessions={sessions} onSaved={showFlash} />
@@ -1423,6 +1432,178 @@ function InjuriesCard() {
               + Add
             </button>
           </div>
+        </div>
+      </Field>
+    </div>
+  )
+}
+
+const spanDays = (r) => differenceInCalendarDays(asDate(r.ended), asDate(r.started)) + 1
+
+// Illness log: the episode you are in now (how it is, and when it is over),
+// the ones before it, and a form for one you forgot to log at the time. The
+// coach reads all of it: the current one decides today, a finished one sets
+// how gradually you come back, and the days you were ill are not counted as
+// missed sessions. Owner-only, like injuries.
+function IllnessCard() {
+  const [rows, setRows] = useState(null) // null = loading
+  const [loadErr, setLoadErr] = useState(false)
+  const [kind, setKind] = useState('')
+  const [started, setStarted] = useState('')
+  const [ended, setEnded] = useState('')
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState(null)
+
+  const load = () =>
+    fetchIllnesses()
+      .then((r) => {
+        setRows(r)
+        setLoadErr(false)
+      })
+      .catch(() => {
+        setRows([])
+        setLoadErr(true)
+      })
+
+  useEffect(() => {
+    load()
+  }, [])
+
+  const add = async () => {
+    setBusy(true)
+    setErr(null)
+    try {
+      await addIllness({ started, ended, symptoms: kind, note })
+      setKind('')
+      setStarted('')
+      setEnded('')
+      setNote('')
+      await load()
+    } catch (e) {
+      setErr(e.message || 'Could not save')
+    }
+    setBusy(false)
+  }
+
+  const remove = async (id) => {
+    setBusy(true)
+    try {
+      await deleteIllness(id)
+      await load()
+    } catch (e) {
+      setErr(e.message || 'Could not delete')
+    }
+    setBusy(false)
+  }
+
+  const past = (rows || []).filter((r) => r.ended)
+  const year = String(new Date().getFullYear())
+  const daysThisYear = [...illnessDays(rows || [])].filter((d) => d.startsWith(year)).length
+  const timesThisYear = (rows || []).filter((r) => r.started.startsWith(year)).length
+  const valid = kind && started && ended && ended >= started
+
+  return (
+    <div className="stack">
+      <span className="field-label">Illness</span>
+      {loadErr && (
+        <p className="auth-error">Couldn’t load the illness log. Have the migrations been applied?</p>
+      )}
+
+      {rows !== null && rows.length > 0 && (
+        <div className="tile-grid tile-grid-compact">
+          <div className="tile">
+            <span className="tile-label">Times this year</span>
+            <span className="tile-value">{timesThisYear}</span>
+          </div>
+          <div className="tile">
+            <span className="tile-label">Days this year</span>
+            <span className="tile-value">{daysThisYear}</span>
+          </div>
+        </div>
+      )}
+
+      {rows !== null && <IllnessPanel illnesses={rows} onChanged={load} />}
+
+      {past.length > 0 && (
+        <div className="toggle-list">
+          {past.map((r) => {
+            const info = symptomInfo(r.worst || r.symptoms)
+            return (
+              <div className="injury-row" key={r.id}>
+                <span className="injury-main">
+                  <span className="injury-note muted">
+                    {info.emoji} {r.note || info.noun}
+                  </span>
+                  <span className="muted small">
+                    {r.ended === r.started
+                      ? formatDayShort(r.started)
+                      : `${formatDayShort(r.started)} – ${formatDayShort(r.ended)}`}
+                    {` · ${spanDays(r)} day${spanDays(r) === 1 ? '' : 's'}`}
+                    {r.note ? ` · ${info.label.toLowerCase()}` : ''}
+                  </span>
+                </span>
+                <span className="injury-actions">
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    aria-label="Delete illness"
+                    disabled={busy}
+                    onClick={() => remove(r.id)}
+                  >
+                    ✕
+                  </button>
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      <Field label="Log an earlier illness" optional>
+        <div className="stack" style={{ gap: 8 }}>
+          <select value={kind} onChange={(e) => setKind(e.target.value)}>
+            <option value="">What kind? At its worst</option>
+            {ILLNESS_SYMPTOMS.map((s) => (
+              <option key={s.key} value={s.key}>{s.emoji} {s.label}</option>
+            ))}
+          </select>
+          <div className="two-col">
+            <input
+              type="date"
+              value={started}
+              max={todayISO()}
+              aria-label="First day ill"
+              onChange={(e) => setStarted(e.target.value)}
+            />
+            <input
+              type="date"
+              value={ended}
+              min={started || undefined}
+              max={todayISO()}
+              aria-label="Last day ill"
+              onChange={(e) => setEnded(e.target.value)}
+            />
+          </div>
+          <span className="field-hint">The first and the last day you were ill.</span>
+          <div className="wr-row">
+            <input
+              type="text"
+              value={note}
+              maxLength={500}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="e.g. Flu, stomach bug"
+            />
+            <button
+              type="button"
+              className="btn btn-secondary"
+              disabled={!valid || busy}
+              onClick={add}
+            >
+              + Add
+            </button>
+          </div>
+          {err && <p className="auth-error">{err}</p>}
         </div>
       </Field>
     </div>

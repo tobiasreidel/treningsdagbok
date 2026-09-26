@@ -9,6 +9,8 @@ import {
   predictedPeriodDays,
   fetchInjuries,
   injuryDays,
+  fetchIllnesses,
+  illnessDays,
 } from '../lib/health'
 import {
   getLogPeriod,
@@ -51,6 +53,9 @@ export default function Dashboard() {
   const [periodDays, setPeriodDays] = useState([])
   // Injury log (always on - see Profile). Logged injuries badge their days.
   const [injuries, setInjuries] = useState([])
+  // Illness log, likewise always on. Also handed to the check-in sheet, which
+  // asks after an illness that is still open.
+  const [illnesses, setIllnesses] = useState([])
   // Top-left profile button: photo → emoji → initials. A dot on it flags
   // friend and coaching requests waiting on the profile page.
   const [me, setMe] = useState({ url: null, name: '', emoji: getAvatarEmoji() })
@@ -120,6 +125,20 @@ export default function Dashboard() {
     setLoading(false)
   }, [periodEnabled])
 
+  // Illness writes come from the check-in, the coach card and the profile, and
+  // all of them dispatch coach:changed.
+  const loadIllnesses = useCallback(() => {
+    fetchIllnesses()
+      .then(setIllnesses)
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    loadIllnesses()
+    window.addEventListener('coach:changed', loadIllnesses)
+    return () => window.removeEventListener('coach:changed', loadIllnesses)
+  }, [loadIllnesses])
+
   const periodSet = useMemo(() => new Set(periodDays), [periodDays])
   const cycle = useMemo(
     () => (periodEnabled ? analyzeCycle(periodDays) : null),
@@ -130,6 +149,7 @@ export default function Dashboard() {
     [cycle],
   )
   const injurySet = useMemo(() => injuryDays(injuries), [injuries])
+  const illnessSet = useMemo(() => illnessDays(illnesses), [illnesses])
 
   // Optimistic toggle from the day sheet; reverted (with a hint) on failure -
   // e.g. when supabase/migrations/20260101000500_health.sql hasn't been run yet.
@@ -252,6 +272,7 @@ export default function Dashboard() {
             periodDays={periodEnabled ? periodSet : null}
             predictedDays={periodEnabled ? predictedSet : null}
             injuryDays={injurySet}
+            illnessDays={illnessSet}
             onPrev={() => setMonthRef((m) => addMonths(m, -1))}
             onNext={() => setMonthRef((m) => addMonths(m, 1))}
             onSelectDay={(date) => setDayView(date)}
@@ -270,6 +291,7 @@ export default function Dashboard() {
 
       {checkinOpen && (
         <CheckInSheet
+          illnesses={illnesses}
           onClose={dismissCheckin}
           onSaved={() => setToast('Checked in for today')}
         />
@@ -281,6 +303,7 @@ export default function Dashboard() {
           sessions={sessions}
           periodEnabled={periodEnabled}
           isPeriodDay={periodSet.has(dayView)}
+          isSickDay={illnessSet.has(dayView)}
           cycle={cycle}
           onTogglePeriod={togglePeriod}
           onClose={() => setDayView(null)}

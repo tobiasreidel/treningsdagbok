@@ -1,15 +1,21 @@
 import { useState } from 'react'
 import { Field, NumberField, Segmented } from '../ui'
-import { SPORTS, STRENGTH_EXERCISES } from '../../lib/constants'
+import { SPORTS, STRENGTH_EXERCISES, exerciseLabel, matchExercise } from '../../lib/constants'
 import { emptyExercise, emptyHang, normalizeHang, isLegacyHangSet } from '../../lib/formState'
 import { GRIPS } from '../../lib/fingerLoad'
-import { getBodyweight } from '../../lib/prefs'
+import { getBodyweight, getCustomExercises, setCustomExercises } from '../../lib/prefs'
 
-// The strength + finger-training module. Both panels (lifts and campus/
-// hangboard) are always available behind a tab toggle, so a combined workout
-// - finger and strength in one gym visit, or blocks inside an indoor climb -
-// is logged as one session as you go. Time fields carve the minutes that
-// belong to the *other* sport(s) out of the session's duration:
+// The strength + finger-training module. Two panels (lifts, and campus/
+// hangboard), each switched on by tapping it, so a combined workout - finger
+// and strength in one gym visit, or blocks inside an indoor climb - is logged
+// as one session as you go. Both start closed: most indoor climbs have
+// neither, and a form that opens on "add your lifts" asks a question nobody
+// asked. A panel that already holds something (editing, or a prefill from the
+// coach) opens by itself, because hiding logged sets behind a tap looks like
+// they were lost.
+//
+// Time fields carve the minutes that belong to the *other* sport(s) out of the
+// session's duration, and sit inside their panel:
 //   • indoor climbing  → strength + finger time fields (rest stays climbing)
 //   • strength session → a finger time field (rest stays strength)
 //   • finger session   → a strength time field (rest stays finger)
@@ -17,68 +23,142 @@ import { getBodyweight } from '../../lib/prefs'
 // strength_minutes, finger_minutes }).
 export default function StrengthFields({ form, updateExtra }) {
   const e = form.extra || {}
-  const restLabel = SPORTS[form.sport]?.label.toLowerCase() || 'session'
-  const [tab, setTab] = useState(form.sport === 'finger' ? 'finger' : 'strength')
+  const finger = e.finger || { campus: false, hangboard: [] }
+  const liftCount = (e.strength || []).length
+  const fingerCount = (finger.hangboard || []).length + (finger.campus ? 1 : 0)
+  const [open, setOpen] = useState(() => ({
+    strength: liftCount > 0 || Number(e.strength_minutes) > 0,
+    finger: fingerCount > 0 || !!finger.pockets || Number(e.finger_minutes) > 0,
+  }))
+  const toggle = (key) => setOpen((o) => ({ ...o, [key]: !o[key] }))
+
+  const panels = [
+    { key: 'strength', label: '🏋 Strength', count: liftCount },
+    { key: 'finger', label: '🤏 Finger', count: fingerCount },
+  ]
 
   return (
     <div className="stack">
-      {form.sport !== 'strength' && (
-        <Field
-          label="Time on strength"
-          hint={`Counted as strength. The rest of the session stays ${restLabel} time.`}
-        >
-          <NumberField
-            value={e.strength_minutes ?? ''}
-            onChange={(v) => updateExtra({ strength_minutes: v })}
-            placeholder="0"
-            unit="min"
-            step="5"
-          />
-        </Field>
-      )}
-      {form.sport !== 'finger' && (
-        <Field
-          label="Time on finger training"
-          hint={`Counted as finger training. The rest of the session stays ${restLabel} time.`}
-        >
-          <NumberField
-            value={e.finger_minutes ?? ''}
-            onChange={(v) => updateExtra({ finger_minutes: v })}
-            placeholder="0"
-            unit="min"
-            step="5"
-          />
-        </Field>
+      {/* Toggles, not tabs: both can be open at once. Closing one hides it
+          and keeps what is in it, and the count says it is still there. */}
+      <div className="segmented" style={{ '--cols': 2 }}>
+        {panels.map((p) => (
+          <button
+            key={p.key}
+            type="button"
+            className={`seg-btn ${open[p.key] ? 'is-active' : ''}`}
+            aria-pressed={open[p.key]}
+            onClick={() => toggle(p.key)}
+          >
+            <span>
+              {p.label}
+              {p.count > 0 ? ` · ${p.count}` : ''}
+            </span>
+          </button>
+        ))}
+      </div>
+      {!open.strength && !open.finger && (
+        <p className="muted small">Tap what you did to log it.</p>
       )}
 
-      <Segmented
-        options={[
-          { key: 'strength', label: '🏋 Strength' },
-          { key: 'finger', label: '🤏 Finger' },
-        ]}
-        value={tab}
-        onChange={setTab}
-        columns={2}
-      />
-
-      {tab === 'strength' ? (
-        <StrengthPanel exercises={e.strength || []} updateExtra={updateExtra} />
-      ) : (
-        <FingerPanel finger={e.finger || { campus: false, hangboard: [] }} updateExtra={updateExtra} />
+      {open.strength && (
+        <StrengthPanel
+          exercises={e.strength || []}
+          minutes={form.sport !== 'strength' ? e.strength_minutes ?? '' : null}
+          restLabel={SPORTS[form.sport]?.label.toLowerCase() || 'session'}
+          updateExtra={updateExtra}
+        />
+      )}
+      {open.finger && (
+        <FingerPanel
+          finger={finger}
+          minutes={form.sport !== 'finger' ? e.finger_minutes ?? '' : null}
+          restLabel={SPORTS[form.sport]?.label.toLowerCase() || 'session'}
+          updateExtra={updateExtra}
+        />
       )}
     </div>
   )
 }
 
-// Lifts: multiple exercises, each with sets · reps · weight.
-function StrengthPanel({ exercises, updateExtra }) {
+// The minutes of the session that belong to this panel's sport. Null means
+// the session is that sport, so there is nothing to carve out.
+function PanelMinutes({ label, sportLabel, restLabel, value, onChange }) {
+  if (value === null) return null
+  return (
+    <Field
+      label={label}
+      hint={`Counted as ${sportLabel}. The rest of the session stays ${restLabel} time.`}
+    >
+      <NumberField value={value} onChange={onChange} placeholder="0" unit="min" step="5" />
+    </Field>
+  )
+}
+
+const NEW_EXERCISE = '__new__'
+
+// Lifts: multiple exercises, each with sets · reps · weight. The list is the
+// built-ins plus your own; "Your own…" adds one there and then, and it stays
+// on the list for next time.
+function StrengthPanel({ exercises, minutes, restLabel, updateExtra }) {
+  const [customs, setCustoms] = useState(getCustomExercises)
+  // The row whose exercise is being typed in, and what has been typed.
+  const [naming, setNaming] = useState(null)
+  const [name, setName] = useState('')
+
   const setEx = (i, patch) =>
     updateExtra({ strength: exercises.map((x, idx) => (idx === i ? { ...x, ...patch } : x)) })
   const addEx = () => updateExtra({ strength: [...exercises, emptyExercise()] })
-  const removeEx = (i) => updateExtra({ strength: exercises.filter((_, idx) => idx !== i) })
+  const removeEx = (i) => {
+    if (naming === i) setNaming(null)
+    updateExtra({ strength: exercises.filter((_, idx) => idx !== i) })
+  }
+
+  const choose = (i, value) => {
+    if (value === NEW_EXERCISE) {
+      setNaming(i)
+      setName('')
+      return
+    }
+    setEx(i, { exercise: value })
+  }
+
+  const saveName = (i) => {
+    const key = matchExercise(name, customs)
+    if (!key) return
+    const known = STRENGTH_EXERCISES.some((o) => o.key === key) || customs.includes(key)
+    if (!known) {
+      const next = [...customs, key]
+      setCustomExercises(next)
+      setCustoms(next)
+    }
+    setEx(i, { exercise: key })
+    setNaming(null)
+  }
+
+  // An exercise on a session that is on neither list (removed since, or
+  // logged before this list existed) still has to show as what it was.
+  const optionsFor = (current) => {
+    const opts = [
+      ...STRENGTH_EXERCISES.map((o) => ({ key: o.key, label: o.label })),
+      ...customs.map((c) => ({ key: c, label: c })),
+    ]
+    if (current && !opts.some((o) => o.key === current)) {
+      opts.push({ key: current, label: exerciseLabel(current) })
+    }
+    return opts
+  }
 
   return (
     <div className="stack">
+      <PanelMinutes
+        label="Time on strength"
+        sportLabel="strength"
+        restLabel={restLabel}
+        value={minutes}
+        onChange={(v) => updateExtra({ strength_minutes: v })}
+      />
+
       {exercises.length === 0 && <p className="muted">No exercises yet. Add the lifts you did.</p>}
 
       {exercises.map((ex, i) => (
@@ -96,13 +176,44 @@ function StrengthPanel({ exercises, updateExtra }) {
           </div>
 
           <Field label="Exercise">
-            <select value={ex.exercise} onChange={(ev) => setEx(i, { exercise: ev.target.value })}>
-              {STRENGTH_EXERCISES.map((o) => (
-                <option key={o.key} value={o.key}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+            {naming === i ? (
+              <div className="wr-row">
+                <input
+                  type="text"
+                  value={name}
+                  maxLength={60}
+                  autoFocus
+                  placeholder="e.g. Bench press"
+                  onChange={(ev) => setName(ev.target.value)}
+                  onKeyDown={(ev) => {
+                    if (ev.key === 'Enter') {
+                      ev.preventDefault()
+                      saveName(i)
+                    }
+                  }}
+                />
+                <button type="button" className="btn btn-secondary" onClick={() => setNaming(null)}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={!name.trim()}
+                  onClick={() => saveName(i)}
+                >
+                  Add
+                </button>
+              </div>
+            ) : (
+              <select value={ex.exercise} onChange={(ev) => choose(i, ev.target.value)}>
+                {optionsFor(ex.exercise).map((o) => (
+                  <option key={o.key} value={o.key}>
+                    {o.label}
+                  </option>
+                ))}
+                <option value={NEW_EXERCISE}>＋ Your own…</option>
+              </select>
+            )}
           </Field>
 
           <div className="three-col">
@@ -145,7 +256,7 @@ function StrengthPanel({ exercises, updateExtra }) {
 }
 
 // Finger training: a campus choice and a list of hangboard exercises.
-function FingerPanel({ finger, updateExtra }) {
+function FingerPanel({ finger, minutes, restLabel, updateExtra }) {
   const hangs = finger.hangboard || []
   const bodyweight = getBodyweight()
   const setFinger = (patch) => updateExtra({ finger: { ...finger, ...patch } })
@@ -159,6 +270,14 @@ function FingerPanel({ finger, updateExtra }) {
 
   return (
     <div className="stack">
+      <PanelMinutes
+        label="Time on finger training"
+        sportLabel="finger training"
+        restLabel={restLabel}
+        value={minutes}
+        onChange={(v) => updateExtra({ finger_minutes: v })}
+      />
+
       <Field label="Campus">
         <Segmented
           options={[

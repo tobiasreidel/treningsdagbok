@@ -97,7 +97,9 @@ export default function CoachPlanField({ form, updateExtra }) {
 
   // Back-dated sessions can't be compared to "today's plan" - just ask which
   // library sessions it was, which is the part the coach can actually use.
-  if (!isToday) {
+  // Nor can a session on a day you are ill: the plan for it is rest, so there
+  // is no planned session it could have been.
+  if (!isToday || plan?.key === 'sick') {
     return (
       <div className="stack">
         <Field

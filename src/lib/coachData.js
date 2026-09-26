@@ -1,5 +1,5 @@
 import { fetchSessions } from './sessions'
-import { fetchInjuries } from './health'
+import { fetchInjuries, fetchIllnesses } from './health'
 import { fetchIcuFitnessData } from './fitness'
 import { fetchCoachProfile, fetchGoals } from './coachProfile'
 import { fetchWellness, fetchOstrc } from './wellness'
@@ -22,7 +22,7 @@ import { todayISO } from './format'
 // stats page both hold a list already) to skip the round-trip.
 export async function loadCoachInputs({ sessions = null } = {}) {
   const haveSessions = Array.isArray(sessions)
-  const [s, inj, fit, prof, gls, well, ost, ft, pt] = await Promise.allSettled([
+  const [s, inj, fit, prof, gls, well, ost, ft, pt, ill] = await Promise.allSettled([
     haveSessions ? Promise.resolve(sessions) : fetchSessions(),
     fetchInjuries(),
     fetchIcuFitnessData(),
@@ -32,6 +32,7 @@ export async function loadCoachInputs({ sessions = null } = {}) {
     fetchOstrc(),
     fetchFingerTests(),
     fetchPhysicalTests(),
+    fetchIllnesses(),
   ])
   const val = (r, fb) => (r.status === 'fulfilled' ? r.value : fb)
   // A missing coach_profile table means "not set up", not "a profile that
@@ -50,6 +51,7 @@ export async function loadCoachInputs({ sessions = null } = {}) {
     ostrc: val(ost, []),
     fingerTests: val(ft, []),
     physicalTests: val(pt, []),
+    illnesses: val(ill, []),
   }
 }
 
@@ -65,13 +67,14 @@ export function readoutFrom(inputs, opts = {}) {
     ostrc: inputs.ostrc,
     fingerTests: inputs.fingerTests,
     physicalTests: inputs.physicalTests,
+    illnesses: inputs.illnesses,
     pick: getSessionPick(todayISO()),
     ...opts,
   })
 }
 
 // Empty inputs, so a component can render its loading state against the same
-// shape instead of juggling nine separate useStates.
+// shape instead of juggling ten separate useStates.
 export const EMPTY_COACH_INPUTS = {
   sessions: [],
   injuries: [],
@@ -82,6 +85,7 @@ export const EMPTY_COACH_INPUTS = {
   ostrc: [],
   fingerTests: [],
   physicalTests: [],
+  illnesses: [],
 }
 
 // ---- logging a prescribed session -------------------------------------------

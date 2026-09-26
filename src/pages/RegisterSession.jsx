@@ -4,6 +4,7 @@ import { Segmented, useOnline } from '../components/ui'
 import DetailsFields from '../components/form/DetailsFields'
 import RoutesEditor from '../components/form/RoutesEditor'
 import StrengthFields from '../components/form/StrengthFields'
+import ClimbTypePicker from '../components/form/ClimbTypePicker'
 import NotesPhoto from '../components/form/NotesPhoto'
 import NotesField from '../components/form/NotesField'
 import CoachPlanField, { COACH_SPORTS } from '../components/form/CoachPlanField'
@@ -143,12 +144,16 @@ export default function RegisterSession() {
           <section className="stack">
             <div>
               <h2 className="step-q">Type</h2>
-              <Segmented
-                options={SUBTYPES[form.sport]}
-                value={form.subtype}
-                onChange={(v) => update({ subtype: v })}
-                columns={Math.min(SUBTYPES[form.sport]?.length || 2, 3)}
-              />
+              {form.sport === 'climbing' ? (
+                <ClimbTypePicker form={form} update={update} />
+              ) : (
+                <Segmented
+                  options={SUBTYPES[form.sport]}
+                  value={form.subtype}
+                  onChange={(v) => update({ subtype: v })}
+                  columns={Math.min(SUBTYPES[form.sport]?.length || 2, 3)}
+                />
+              )}
             </div>
             {form.sport === 'climbing' && (
               <div>

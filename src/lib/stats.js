@@ -11,7 +11,7 @@ import {
   differenceInCalendarDays,
 } from 'date-fns'
 import { asDate } from './format'
-import { normaliseSession } from './sessionShape'
+import { normaliseSession, climbDisciplines, routeSubtype } from './sessionShape'
 import { getBodyweight } from './prefs'
 import { formatGrade, isEbike } from './constants'
 
@@ -185,9 +185,13 @@ export function sportHoursSplit(arr, sport) {
 }
 
 // ---- climbing breakdowns ---------------------------------------------------
+// A session that was both counts once for each: it was a bouldering session
+// and a rope session, and dropping either would under-count it.
 export function disciplineSplit(climbing) {
   const m = { bouldering: 0, sport: 0, trad: 0 }
-  for (const s of climbing) if (m[s.subtype] != null) m[s.subtype] += 1
+  for (const s of climbing) {
+    for (const d of climbDisciplines(s)) if (m[d] != null) m[d] += 1
+  }
   return m
 }
 
@@ -213,7 +217,7 @@ export function gradePyramid(climbing) {
   for (const s of climbing) {
     for (const r of s.routes || []) {
       if (r.grade) {
-        const label = formatGrade(r.grade, s.subtype)
+        const label = formatGrade(r.grade, routeSubtype(r, s))
         counts[label] = (counts[label] || 0) + 1
       }
     }

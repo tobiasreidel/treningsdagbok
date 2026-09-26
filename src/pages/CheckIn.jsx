@@ -17,6 +17,8 @@ import {
   isSubstantial,
   areaLabel,
 } from '../lib/wellness'
+import { fetchIllnesses } from '../lib/health'
+import IllnessPanel from '../components/IllnessPanel'
 import { todayISO, formatDayShort } from '../lib/format'
 import { format, subDays } from 'date-fns'
 
@@ -31,6 +33,7 @@ export default function CheckIn() {
   const [day, setDay] = useState(null)
   const [ostrc, setOstrc] = useState([])
   const [history, setHistory] = useState([])
+  const [illnesses, setIllnesses] = useState([])
   const [tab, setTab] = useState('today')
   const [error, setError] = useState(null)
   const [flash, setFlash] = useState(null)
@@ -38,14 +41,16 @@ export default function CheckIn() {
 
   const load = useCallback(async () => {
     try {
-      const [d, o, h] = await Promise.all([
+      const [d, o, h, ill] = await Promise.all([
         getWellnessDay(todayISO()),
         fetchOstrc(),
         fetchWellness(30).catch(() => []),
+        fetchIllnesses().catch(() => []),
       ])
       setDay(d || {})
       setOstrc(o)
       setHistory(h)
+      setIllnesses(ill)
     } catch (err) {
       setError(err.message || 'Could not load')
       setDay({})
@@ -108,6 +113,7 @@ export default function CheckIn() {
         />
 
         {tab === 'today' ? (
+          <>
           <section className="card settings-card stack">
             <h2 className="step-q">How are you today?</h2>
             <p className="muted small">
@@ -130,6 +136,15 @@ export default function CheckIn() {
             ))}
             {error && <p className="auth-error">{error}</p>}
           </section>
+
+          <section className="card settings-card stack">
+            <h2 className="step-q">Feeling ill?</h2>
+            <IllnessPanel
+              illnesses={illnesses}
+              onChanged={() => fetchIllnesses().then(setIllnesses).catch(() => {})}
+            />
+          </section>
+          </>
         ) : tab === 'week' ? (
           <OstrcSection rows={ostrc} onSaved={load} />
         ) : (

@@ -8,11 +8,13 @@
 import { supabase, currentUserId } from './supabase'
 import { fetchSessions } from './sessions'
 import { todayISO } from './format'
+import { climbDisciplines } from './sessionShape'
 
 // Every table the app writes for a user. Missing ones (a migration that was
 // never run) are skipped rather than failing the whole export.
 const TABLES = [
   'injuries',
+  'illnesses',
   'period_days',
   'wellness_days',
   'ostrc_reports',
@@ -65,7 +67,8 @@ export async function buildExport() {
 const CSV_COLUMNS = [
   ['date', (s) => s.date],
   ['sport', (s) => s.sport],
-  ['subtype', (s) => s.subtype],
+  // "bouldering+sport" for a session that was both.
+  ['subtype', (s) => climbDisciplines(s).join('+') || s.subtype],
   ['location', (s) => s.location],
   ['duration_min', (s) => s.duration],
   ['feeling', (s) => s.feeling],

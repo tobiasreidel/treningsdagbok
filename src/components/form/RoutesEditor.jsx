@@ -1,17 +1,26 @@
-import { Field, ChipSelect } from '../ui'
-import { SEND_TYPES, gradesFor, formatGrade } from '../../lib/constants'
-import { emptyRoute } from '../../lib/formState'
+import { Field, ChipSelect, Segmented } from '../ui'
+import { SEND_TYPES, SUBTYPES, gradesFor, formatGrade } from '../../lib/constants'
+import { emptyRoute, formDisciplines } from '../../lib/formState'
 
-// Step 4 (outdoor climbing only): log individual routes / boulders.
+// Step 4 (outdoor climbing only): log individual routes / boulders. In a
+// session with more than one discipline each climb says which it was, since
+// that decides its grade scale.
 export default function RoutesEditor({ form, update }) {
   const routes = form.routes || []
-  const grades = gradesFor(form.subtype)
+  const disciplines = formDisciplines(form)
+  const mixed = disciplines.length > 1
+  const kindOf = (route) => (mixed && disciplines.includes(route.subtype) ? route.subtype : form.subtype)
 
   const setRoute = (idx, patch) => {
     const next = routes.map((r, i) => (i === idx ? { ...r, ...patch } : r))
     update({ routes: next })
   }
-  const addRoute = () => update({ routes: [...routes, emptyRoute()] })
+  // A new row takes the discipline of the one before it: a crag day is a run
+  // of boulders, then a run of routes, not an alternation.
+  const addRoute = () => {
+    const last = routes[routes.length - 1]
+    update({ routes: [...routes, emptyRoute(mixed ? kindOf(last || {}) : null)] })
+  }
   const removeRoute = (idx) => update({ routes: routes.filter((_, i) => i !== idx) })
 
   return (
@@ -20,7 +29,9 @@ export default function RoutesEditor({ form, update }) {
         <p className="muted">No routes yet. Add the climbs you did, one by one.</p>
       )}
 
-      {routes.map((route, idx) => (
+      {routes.map((route, idx) => {
+        const kind = kindOf(route)
+        return (
         <div className="route-card" key={idx}>
           <div className="route-card-head">
             <span className="route-num">#{idx + 1}</span>
@@ -34,6 +45,15 @@ export default function RoutesEditor({ form, update }) {
             </button>
           </div>
 
+          {mixed && (
+            <Segmented
+              options={SUBTYPES.climbing.filter((t) => disciplines.includes(t.key))}
+              value={kind}
+              onChange={(v) => setRoute(idx, { subtype: v, grade: null })}
+              columns={disciplines.length}
+            />
+          )}
+
           <Field label="Name" optional>
             <input
               type="text"
@@ -45,11 +65,11 @@ export default function RoutesEditor({ form, update }) {
 
           <Field label="Grade">
             <select
-              value={formatGrade(route.grade, form.subtype) || ''}
+              value={formatGrade(route.grade, kind) || ''}
               onChange={(e) => setRoute(idx, { grade: e.target.value || null })}
             >
               <option value="">Grade</option>
-              {grades.map((g) => (
+              {gradesFor(kind).map((g) => (
                 <option key={g} value={g}>
                   {g}
                 </option>
@@ -66,7 +86,8 @@ export default function RoutesEditor({ form, update }) {
             />
           </Field>
         </div>
-      ))}
+        )
+      })}
 
       <button type="button" className="btn btn-secondary btn-block" onClick={addRoute}>
         + Add route

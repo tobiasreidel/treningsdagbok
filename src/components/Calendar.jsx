@@ -34,7 +34,8 @@ const MAX_INJURY_MARKS = 3 // one bandage per injury, capped so the corner fits
 // off) draw a small blood drop in a day's top-right corner - full for logged
 // days, pale for the predicted next period. `injuryDays` (a Map of ISO date ->
 // injury count, or null) marks injured days with one bandage per active injury
-// in the top-left corner.
+// in the top-left corner, and `illnessDays` (a Set of ISO dates, or null) puts
+// a 🤒 in front of them on days you were ill.
 export default function Calendar({
   monthRef,
   sessions,
@@ -45,6 +46,7 @@ export default function Calendar({
   periodDays,
   predictedDays,
   injuryDays,
+  illnessDays,
 }) {
   // Count sessions per sport on each day (splitting climb + strength blocks).
   const byDay = {}
@@ -99,6 +101,7 @@ export default function Calendar({
             ? SPORTS.flatMap((sport) => Array(counts[sport] || 0).fill(sport)).slice(0, MAX_DOTS)
             : []
           const injuryCount = injuryDays?.get(key) || 0
+          const sick = !!illnessDays?.has(key)
           const dim = !isSameMonth(day, monthRef)
           return (
             <button
@@ -112,12 +115,16 @@ export default function Calendar({
               ) : predictedDays?.has(key) ? (
                 <span className="cal-drop predicted">🩸</span>
               ) : null}
-              {injuryCount > 0 && (
+              {(injuryCount > 0 || sick) && (
                 <span
                   className="cal-injury"
-                  aria-label={`Injured${injuryCount > 1 ? ` (${injuryCount})` : ''}`}
+                  aria-label={[
+                    sick ? 'Ill' : null,
+                    injuryCount > 0 ? `Injured${injuryCount > 1 ? ` (${injuryCount})` : ''}` : null,
+                  ].filter(Boolean).join(', ')}
                 >
-                  {'🩹'.repeat(Math.min(injuryCount, MAX_INJURY_MARKS))}
+                  {sick ? '🤒' : ''}
+                  {'🩹'.repeat(Math.min(injuryCount, MAX_INJURY_MARKS - (sick ? 1 : 0)))}
                 </span>
               )}
               <span className="cal-daynum">{format(day, 'd')}</span>
@@ -141,6 +148,7 @@ export default function Calendar({
         ))}
         {periodDays && <span>🩸 Period (pale = expected)</span>}
         {injuryDays?.size > 0 && <span>🩹 Injured</span>}
+        {illnessDays?.size > 0 && <span>🤒 Sick</span>}
       </div>
     </div>
   )

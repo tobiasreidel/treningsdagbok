@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
-import { SPORTS, FEELING_LABELS, formatGrade, subtypeWord } from '../lib/constants'
+import { SPORTS, FEELING_LABELS } from '../lib/constants'
+import { normaliseSession, subtypeLabel } from '../lib/sessionShape'
 import {
   asDate,
   formatDay,
@@ -58,7 +59,8 @@ function matchesQuery(s, q) {
     s.notes,
     s.subtype,
     // The stored key is "ebike"; the word on screen is "e-bike". Both match.
-    subtypeWord(s.subtype),
+    // A session of boulders and routes matches either.
+    subtypeLabel(s),
     s.location,
     ...(s.routes || []).flatMap((r) => [r.name, r.grade]),
   ]
@@ -317,7 +319,10 @@ function Entry({ session: s, period, open, onToggle, onOpenFull }) {
 
 function Expanded({ session: s, onOpenFull }) {
   const tiles = detailTiles(s)
-  const grades = s.extra?.grades || []
+  // Every discipline's, each in its own scale: 6C and 6c are different grades.
+  const grades = Object.entries(normaliseSession(s).gradesBy).flatMap(([d, list]) =>
+    list.map((g) => ({ d, g })),
+  )
   return (
     <div className="log-entry-body">
       {tiles.length > 0 && (
@@ -336,9 +341,9 @@ function Expanded({ session: s, onOpenFull }) {
 
       {grades.length > 0 && (
         <div className="chips">
-          {grades.map((g) => (
-            <span className="chip is-active" key={g}>
-              {formatGrade(g, s.subtype)}
+          {grades.map(({ d, g }) => (
+            <span className="chip is-active" key={`${d}-${g}`}>
+              {g}
             </span>
           ))}
         </div>
@@ -368,7 +373,7 @@ function Expanded({ session: s, onOpenFull }) {
 
 // Sub-label shown beside the sport: subtype + (for climbing) indoor/outdoor.
 function labelFor(s) {
-  const parts = [subtypeWord(s.subtype) || SPORTS[s.sport]?.label]
+  const parts = [subtypeLabel(s) || SPORTS[s.sport]?.label]
   if (s.sport === 'climbing' && s.location) {
     parts.push(s.location === 'indoor' ? 'indoor' : 'outdoor')
   }

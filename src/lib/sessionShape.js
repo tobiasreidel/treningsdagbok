@@ -21,7 +21,7 @@
 // Writes stamp `extra.schema_version`. Absent means v3 or older, which is a
 // rule we can state once here instead of guessing at each call site.
 import { normalizeHang } from './formState'
-import { formatGrade } from './constants'
+import { formatGrade, subtypeWord, SUBTYPES } from './constants'
 
 export const SCHEMA_VERSION = 4
 
@@ -121,8 +121,11 @@ export function normaliseSession(row, { bodyweight = 0 } = {}) {
     pump: num(e.pump) || null,
     trainingLoad: num(e.training_load) || null,
     // Grades worked, formatted for the session's own scale. Indoor sessions log
-    // these instead of routes, and they are a real difficulty signal.
+    // these instead of routes, and they are a real difficulty signal. These
+    // are the first discipline's; `gradesBy` has every discipline's.
     grades: (e.grades || []).map((g) => formatGrade(g, row.subtype)).filter(Boolean),
+    disciplines: climbDisciplines(row),
+    gradesBy: gradesByDiscipline(row),
     // Indoor stand-in for the outdoor route log: how many attempts were within
     // a grade of the limit. Nothing else in an indoor session reveals this.
     nearLimitAttempts: finite(e.near_limit_attempts) ? num(e.near_limit_attempts) : null,
@@ -149,6 +152,51 @@ export function normaliseSession(row, { bodyweight = 0 } = {}) {
   return shape
 }
 
+// A climbing session can be more than one discipline: bouldering, then some
+// routes. `subtype` is the first one chosen, and every consumer that only
+// knows about one keeps reading it; `extra.disciplines` lists them all, in the
+// order they were picked, when there is more than one. Grades are per
+// discipline because the scales are: 6C and 6c are different grades.
+//   extra.grades        the first discipline's
+//   extra.other_grades  { sport: ['6c', '7a'], ... } for the rest
+const CLIMB_SUBTYPES = SUBTYPES.climbing.map((t) => t.key)
+
+export function climbDisciplines(row) {
+  if (!row || row.sport !== 'climbing') return row?.subtype ? [row.subtype] : []
+  const listed = Array.isArray(row.extra?.disciplines)
+    ? row.extra.disciplines.filter((d) => CLIMB_SUBTYPES.includes(d))
+    : []
+  const all = row.subtype ? [row.subtype, ...listed.filter((d) => d !== row.subtype)] : listed
+  return [...new Set(all)]
+}
+
+function gradesByDiscipline(row) {
+  const e = row.extra || {}
+  const out = {}
+  const put = (d, list) => {
+    const g = (list || []).map((x) => formatGrade(x, d)).filter(Boolean)
+    if (g.length) out[d] = g
+  }
+  if (row.subtype) put(row.subtype, e.grades)
+  for (const d of climbDisciplines(row)) {
+    if (d !== row.subtype) put(d, e.other_grades?.[d])
+  }
+  return out
+}
+
+// Which discipline one logged route or boulder was. A route row carries its
+// own when the session had more than one; otherwise it is the session's.
+export function routeSubtype(route, row) {
+  return route?.subtype || row?.subtype || null
+}
+
+// "bouldering + sport", or the one subtype word, for list rows and headers.
+export function subtypeLabel(row) {
+  const d = climbDisciplines(row)
+  if (row?.sport === 'climbing' && d.length > 1) return d.join(' + ')
+  return subtypeWord(row?.subtype)
+}
+
 function exerciseIdsOf(coach) {
   if (!coach) return []
   if (Array.isArray(coach.exercises)) return coach.exercises
@@ -160,7 +208,7 @@ function emptyShape() {
     version: SCHEMA_VERSION,
     date: null, sport: null, subtype: null, location: null,
     rpe: null, duration: null, fingerRpe: null, pump: null, trainingLoad: null,
-    grades: [], nearLimitAttempts: null, timeOfDay: null, hour: null,
+    grades: [], disciplines: [], gradesBy: {}, nearLimitAttempts: null, timeOfDay: null, hour: null,
     campus: '', pockets: false, hangboard: [], strength: [],
     strengthMinutes: null, fingerMinutes: null, coach: null,
     exerciseIds: [], testIds: [], outcome: null, painArea: null,

@@ -9,6 +9,7 @@ import {
   hangPrescription,
   COACH_MODELS,
   SESSION_TYPES,
+  ILLNESS_VOLUME,
   readinessGateHint,
 } from '../lib/coach'
 import {
@@ -38,8 +39,11 @@ import {
 import { getCoachModel, setCoachModel, getSessionPick, setSessionPick } from '../lib/prefs'
 import { formatDayShort, formatDuration, asDate, todayISO } from '../lib/format'
 import { format } from 'date-fns'
-import { SPORTS, subtypeWord } from '../lib/constants'
+import { SPORTS } from '../lib/constants'
+import { subtypeLabel } from '../lib/sessionShape'
 import SignalBlock from '../components/SignalBlock'
+import IllnessPanel from '../components/IllnessPanel'
+import { openIllness } from '../lib/health'
 
 // The full training-coach view: today's session start to finish, the signals
 // behind it, the week it sits in against what was logged, the block that week
@@ -244,6 +248,16 @@ export default function Coach() {
           </button>
         )}
 
+        {(readout.illness || openIllness(inputs.illnesses)) && (
+          <section className="card settings-card stack">
+            <h2 className="step-q">
+              {readout.illness?.state === 'returning' ? 'Back from illness' : 'You’re ill'}
+            </h2>
+            <p className="muted small">{illnessNote(readout.illness)}</p>
+            <IllnessPanel illnesses={inputs.illnesses} onChanged={load} entry="none" />
+          </section>
+        )}
+
         {problems.length > 0 && (
           <section className="card settings-card stack">
             <h2 className="step-q">Something to work around</h2>
@@ -312,6 +326,7 @@ export default function Coach() {
               because {suggestion.headline.toLowerCase()}.
             </p>
           )}
+          {suggestion.key !== 'sick' && (
           <div className="coach-spec">
             <SpecRow
               label="Intensity"
@@ -322,6 +337,7 @@ export default function Coach() {
               }
             />
           </div>
+          )}
           {suggestion.tierDrop > 0 && (
             <p className="muted small">
               Same session, dialled down. You keep the training intent instead of being
@@ -342,13 +358,15 @@ export default function Coach() {
               you fitter; plenty can make you tired.
             </p>
           )}
-          {!suggestion.deloadWeek && !suggestion.taperWeek && suggestion.volumeMult !== 1 && (
+          {!suggestion.deloadWeek && !suggestion.taperWeek && suggestion.volumeMult !== 1 && suggestion.key !== 'sick' && (
             <p className="muted small">
-              {week.block.label} week of the block: volume at about{' '}
-              {Math.round(suggestion.volumeMult * 100)}%. {week.block.note}
+              {suggestion.illness
+                ? `${suggestion.illness.state === 'ill' ? 'With a cold' : 'On the way back from illness'}: volume at about ${Math.round(suggestion.volumeMult * 100)}%, whatever week of the block it is.`
+                : `${week.block.label} week of the block: volume at about ${Math.round(suggestion.volumeMult * 100)}%. ${week.block.note}`}
             </p>
           )}
 
+          {suggestion.key !== 'sick' && (
           <div className="coach-spec">
             {suggestion.grades && (
               <SpecRow
@@ -367,6 +385,7 @@ export default function Coach() {
             <SpecRow label="Rest" value={suggestion.type.rest} />
             <SpecRow label="Target RPE" value={suggestion.type.rpe} />
           </div>
+          )}
 
           {/* The primary action is logging the session on the card. Once
               today is logged the card is a preview of the next session, and
@@ -477,6 +496,8 @@ export default function Coach() {
               ))}
             </div>
           )}
+
+          {!readout.illness && <IllnessPanel illnesses={inputs.illnesses} onChanged={load} entry="link" />}
         </section>
 
         {/* ---- signals ---- */}
@@ -703,7 +724,8 @@ export default function Coach() {
           <h2 className="step-q">This week</h2>
           <p className="muted small">
             <strong>{blockLabel}</strong> · {week.sessions} session{week.sessions === 1 ? '' : 's'} a week
-            {week.done > 0 || week.planned > 0 ? ` · ${week.done} of ${week.planned} done` : ''}.
+            {week.done > 0 || week.planned > 0 ? ` · ${week.done} of ${week.planned} done` : ''}
+            {week.sickDays > 0 ? ` · ${week.sickDays} day${week.sickDays === 1 ? '' : 's'} ill` : ''}.
             {' '}{week.block.note}
           </p>
           <p className="muted small">Tap a session to see what it involves. Logged days open the session.</p>
@@ -736,6 +758,15 @@ export default function Coach() {
               {week.dropped.length === 1 ? 's' : ''} this week: a missed day means fewer days left, and the
               least important session is the one that goes. Two hard days back to back to
               make up for one is how people get hurt.
+            </p>
+          )}
+          {(week.sickDays > 0 || suggestion.illness) && (
+            <p className="muted small">
+              A day you were ill is not a missed day: its session is let go, not moved, so the
+              first days back are never the ones making up for it.
+              {suggestion.illness?.state === 'ill'
+                ? ' The days ahead stay as planned until you are well again, and then the way back replaces them.'
+                : ''}
             </p>
           )}
           {week.deloadNow && (
@@ -824,6 +855,13 @@ export default function Coach() {
           </ol>
           {block.mode === 'cycle' && (
             <>
+              {readout.newBlockAfterIllness && (
+                <p className="muted small">
+                  You were ill for {readout.illness.sickDays} days, most of a training week. A
+                  new block from this Monday starts you at settle-in again instead of carrying
+                  on from where the illness left the old one.
+                </p>
+              )}
               {!block.anchored && (
                 <p className="muted small">
                   Counted from your first logged session. Start a new block and it counts
@@ -862,15 +900,17 @@ export default function Coach() {
               )}
             </div>
             <p className="muted small">
-              {review.deload
-                ? 'That was a deload week, so fewer sessions was the point. '
-                : review.planned > 0 && review.done >= review.planned
-                  ? 'Every planned session done. '
-                  : review.missedHard
-                    ? 'The hard session was the one that went missing. That is the one to protect: when a week gets short, drop the filler first. '
-                    : review.missedKeys.length
-                      ? 'Missing a filler session is fine. Consistency over months beats a perfect week. '
-                      : ''}
+              {review.sickDays > 0
+                ? `You were ill for ${review.sickDays} day${review.sickDays === 1 ? '' : 's'}, so fewer sessions was right. `
+                : review.deload
+                  ? 'That was a deload week, so fewer sessions was the point. '
+                  : review.planned > 0 && review.done >= review.planned
+                    ? 'Every planned session done. '
+                    : review.missedHard
+                      ? 'The hard session was the one that went missing. That is the one to protect: when a week gets short, drop the filler first. '
+                      : review.missedKeys.length
+                        ? 'Missing a filler session is fine. Consistency over months beats a perfect week. '
+                        : ''}
               This week is a {week.block.label.toLowerCase()} week
               {week.deloadNow ? '' : `, volume at about ${Math.round(week.block.volumeMult * 100)}%`}.
               {suggestion.hang?.target?.rule === 'progress' ? ' The hangboard load goes up 2.5%.' : ''}
@@ -971,6 +1011,12 @@ export default function Coach() {
             findings.
           </p>
           <p className="muted small">
+            With illness, no training with a fever or with symptoms below the neck is close
+            to consensus. Easy training with a cold is a rule of thumb doctors use (the
+            “neck check”), not a trial result. How gradually you come back (as many days
+            as you were ill, the first half easy) is picked, not a finding.
+          </p>
+          <p className="muted small">
             There is deliberately no injury-risk percentage here. Predicting injury for one
             person isn’t something sports science can currently do, and a number would only
             make it look like it can.
@@ -1000,6 +1046,8 @@ export default function Coach() {
 // What today is in the week, before what to do about it. A rest day that
 // reads as a training day is the plan contradicting the calendar.
 function DayStatus({ suggestion }) {
+  // The illness card above already says what today is.
+  if (suggestion.dayStatus === 'sick') return null
   if (suggestion.dayStatus === 'training') {
     if (!suggestion.carriedFrom) return null
     return (
@@ -1028,10 +1076,36 @@ function DayStatus({ suggestion }) {
   }
   return (
     <p className="coach-status">
-      ✓ Every planned session this week is logged. Anything more is a bonus, and easy is
-      the right kind.
+      {suggestion.weekForgiven
+        ? '✓ Nothing left this week: the sessions you were ill for are let go, not crammed in. Anything more is a bonus, and easy is the right kind.'
+        : '✓ Every planned session this week is logged. Anything more is a bonus, and easy is the right kind.'}
     </p>
   )
+}
+
+// The illness and the way back from it, in a sentence or two. The numbers
+// are the engine's (illnessStatus); this only says them.
+function illnessNote(illness) {
+  if (!illness) return null
+  if (illness.state === 'ill') {
+    const doctor = illness.long ? ` ${illness.days} days is long enough to see a doctor about.` : ''
+    if (illness.symptoms === 'head') {
+      return `Above the neck only, so easy movement is fine if you feel up to it. Stop if you feel worse, and change it here if it moves to your chest or brings a fever.${doctor}`
+    }
+    return `On the first day you feel well, say so here, and the coach brings you back gradually.${doctor}`
+  }
+  const days = `${illness.sickDays} day${illness.sickDays === 1 ? '' : 's'}`
+  const after =
+    illness.worst === 'fever'
+      ? `After ${days} with a fever`
+      : illness.worst === 'head'
+        ? `After ${days} with a cold`
+        : `After ${days} ill`
+  const volume = `about ${Math.round(ILLNESS_VOLUME * 100)}% of the usual volume`
+  if (!illness.easy) {
+    return `${after}: the plan as written, a notch easier and at ${volume}, until ${formatDayShort(illness.until)}.`
+  }
+  return `${after}: short, easy sessions until ${formatDayShort(illness.easyUntil)}, then the plan a notch easier and at ${volume} until ${formatDayShort(illness.until)}. If it comes back, log it again.`
 }
 
 // What the level actually changes, said plainly - it decides how hard the week
@@ -1069,7 +1143,7 @@ function loggedLabel(s) {
   if (named.length === 2) return named.map((e) => e.id).join(' + ') + ` · ${named[0].name} +1`
   if (named.length > 2) return `${named.map((e) => e.id).join(' + ')} · ${named.length} sessions`
   const parts = [SPORTS[s.sport]?.label]
-  if (s.subtype) parts.push(subtypeWord(s.subtype))
+  if (s.subtype) parts.push(subtypeLabel(s))
   return parts.filter(Boolean).join(' · ')
 }
 
@@ -1103,12 +1177,13 @@ function BlockTimeline({ blocks }) {
 function PlanDay({ d, profile, limits, suggestion, goalStyle, tests, sessions, onOpenSession }) {
   const [open, setOpen] = useState(false)
   const logged = d.logged.length > 0
-  const expandable = !d.done && !d.rest && !!d.type && !d.missed
+  const expandable = !d.done && !d.rest && !!d.type && !d.missed && !d.sick
   const cls = [
     'coach-week-day',
     d.rest && !logged ? 'is-rest' : '',
     d.done ? 'is-logged' : '',
     d.missed ? 'is-missed' : '',
+    d.sick && !logged ? 'is-sick' : '',
     d.next && !d.isToday ? 'is-next' : '',
     d.isToday ? 'is-today' : '',
   ]
@@ -1137,6 +1212,18 @@ function PlanDay({ d, profile, limits, suggestion, goalStyle, tests, sessions, o
             ›
           </span>
         </>
+      ) : d.sick ? (
+        <>
+          <span className="coach-week-emoji">🤒</span>
+          <span className="coach-week-label">
+            Sick
+            {d.forgave && (
+              <span className="muted small coach-week-as">
+                {' '}· {SESSION_TYPES[d.forgave]?.label.toLowerCase() || 'session'} let go
+              </span>
+            )}
+          </span>
+        </>
       ) : d.missed ? (
         <>
           <span className="coach-week-emoji">{SESSION_TYPES[d.templateKey]?.emoji || '·'}</span>
@@ -1158,6 +1245,11 @@ function PlanDay({ d, profile, limits, suggestion, goalStyle, tests, sessions, o
             {d.type.label}
             {d.carriedFrom && (
               <span className="muted small coach-week-as"> · from {format(asDate(d.carriedFrom), 'EEE')}</span>
+            )}
+            {d.illness && !d.adjusted && (
+              <span className="muted small coach-week-as">
+                {d.illness === 'easy' ? ' · after illness' : ' · a notch easier'}
+              </span>
             )}
           </span>
         </>
@@ -1248,7 +1340,7 @@ function PlanDayDetail({ d, profile, limits, suggestion, goalStyle, tests, sessi
         minutes: Number(profile?.session_minutes) || null,
         durationMult: d.durationMult,
         reduced: d.reduced,
-        sets: exercises[0] ? hangPrescription(exercises[0], profile, tests, sessions, { volumeMult: d.durationMult })?.sets ?? null : null,
+        sets: exercises[0] ? hangPrescription(exercises[0], profile, tests, sessions, { volumeMult: d.durationMult, hold: !!d.illness })?.sets ?? null : null,
         profile,
         discipline: d.discipline,
         injuredRegions: suggestion.injuredRegions,
@@ -1269,7 +1361,9 @@ function PlanDayDetail({ d, profile, limits, suggestion, goalStyle, tests, sessi
         <SpecRow
           label="Volume"
           value={
-            d.reduced
+            d.illness
+              ? `${d.type.volume}, at about ${Math.round(d.durationMult * 100)}% on the way back from illness`
+              : d.reduced
               ? `${d.type.volume}, at about ${Math.round((d.durationMult || 0.5) * 100)}%, ${d.taper ? 'this is the taper' : "it's a deload"}`
               : d.durationMult !== 1
                 ? `${d.type.volume}, at about ${Math.round(d.durationMult * 100)}% this week`

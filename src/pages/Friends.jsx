@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { HBars } from '../components/charts'
-import { SPORTS, subtypeWord } from '../lib/constants'
+import { SPORTS } from '../lib/constants'
+import { normaliseSession, subtypeLabel } from '../lib/sessionShape'
 import { lastNDaysRange, inRange, formatDayShort, formatDuration } from '../lib/format'
 import { fetchSessions } from '../lib/sessions'
 import { loadConnections, friendsFeed } from '../lib/friends'
@@ -82,13 +83,13 @@ function summary(s) {
   }
   // Outdoor climbs carry a route log; indoor ones may have "grades worked".
   const nRoutes = s.routes?.length || 0
-  const grades = s.extra?.grades || []
+  const grades = Object.values(normaliseSession(s).gradesBy).flat()
   const climbs = nRoutes
     ? `${nRoutes} route${nRoutes === 1 ? '' : 's'}`
     : grades.length
       ? `${grades.length} grades`
       : null
-  return [subtypeWord(s.subtype), formatDuration(d), climbs].filter(Boolean).join(' · ')
+  return [subtypeLabel(s), formatDuration(d), climbs].filter(Boolean).join(' · ')
 }
 
 // Each entry opens the friend's session read-only - RLS only ever returns

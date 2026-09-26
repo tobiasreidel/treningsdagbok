@@ -1,5 +1,5 @@
 import { describe, it, expect, afterAll, vi } from 'vitest'
-import { format, subDays } from 'date-fns'
+import { format, subDays, addDays } from 'date-fns'
 import { hangTarget, priorSessions, scaledSets, PROGRESS_STEP } from './progression'
 import { buildSessionSheet } from './sessionSheet'
 import {
@@ -11,6 +11,9 @@ import {
   gradeRange,
   coachReadout,
   blockWeekFor,
+  illnessStatus,
+  ILLNESS_VOLUME,
+  PHASE_DURATION,
 } from './coach'
 import { EXERCISE_MAP } from './exercises'
 
@@ -100,6 +103,13 @@ describe('hang progression', () => {
     expect(top.kg).toBe(90)
     expect(top.rule).toBe('capped')
     expect(top.note).toMatch(/retest/i)
+  })
+
+  it('holds the load on the way back from an illness', () => {
+    const t = hangTarget(F1, [f1(3, 82, { outcome: 'nailed' }), f1(10, 82, { outcome: 'done' })], profile, max, { hold: true })
+    expect(t.rule).toBe('repeat')
+    expect(t.kg).toBe(82)
+    expect(t.note).toMatch(/illness/)
   })
 
   it('keeps hangs in the lower half of the range with finger injury history', () => {
@@ -298,5 +308,149 @@ describe('who gets what', () => {
     expect(today.key).toBe(r.suggestion.key)
     expect(r.week.block.label).toBeTruthy()
     expect(r.review.planned).toBeGreaterThan(0)
+  })
+})
+
+describe('illness', () => {
+  const ahead = (n) => format(addDays(new Date(), n), 'yyyy-MM-dd')
+  const ill = (started, ended, worst, symptoms = worst) => ({ id: `${started}-${worst}`, started, ended, symptoms, worst })
+  const boulder = (date) => ({ date, sport: 'climbing', subtype: 'bouldering', location: 'indoor', duration: 90, rpe: 7, extra: {} })
+  const keys = ['limit', 'fingerMaintenance', 'volume']
+  const monday = '2026-09-21'
+  const history = [boulder(iso(9)), boulder(iso(7)), boulder(iso(4))]
+  const readout = (illnesses, { sessions = history, injuries = [] } = {}) =>
+    coachReadout(sessions, injuries, null, { profile, goals: [], wellness: [], ostrc: [], fingerTests: [], physicalTests: [], illnesses })
+
+  it('reads an open episode as ill today, whatever came before it', () => {
+    const st = illnessStatus([ill(iso(10), iso(8), 'fever'), ill(iso(1), null, 'head')])
+    expect(st.state).toBe('ill')
+    expect(st.symptoms).toBe('head')
+    expect(st.days).toBe(2)
+  })
+
+  it('comes back from a fever over as many days as it lasted, the first half easy', () => {
+    // Four days ill, the last of them yesterday.
+    const rows = [ill(iso(4), iso(1), 'fever', 'head')]
+    expect(illnessStatus(rows)).toMatchObject({ state: 'returning', phase: 'easy', dayBack: 1, total: 4, easy: 2 })
+    expect(illnessStatus(rows, ahead(1)).phase).toBe('easy')
+    expect(illnessStatus(rows, ahead(2)).phase).toBe('build')
+    expect(illnessStatus(rows, ahead(3)).phase).toBe('build')
+    expect(illnessStatus(rows, ahead(4))).toBe(null)
+  })
+
+  it('never comes back from a fever in fewer than three days', () => {
+    expect(illnessStatus([ill(iso(1), iso(1), 'fever')])).toMatchObject({ total: 3, easy: 2 })
+  })
+
+  it('runs the plan a notch easier after a cold, with no easy days', () => {
+    expect(illnessStatus([ill(iso(2), iso(1), 'head')])).toMatchObject({ phase: 'build', total: 2, easy: 0 })
+    expect(illnessStatus([ill(iso(10), iso(1), 'head')]).total).toBe(3)
+  })
+
+  it('caps the way back at two weeks', () => {
+    expect(illnessStatus([ill(iso(31), iso(1), 'body')]).total).toBe(14)
+  })
+
+  it('lets a sick day take its session with it instead of calling it missed', () => {
+    const s = weekSchedule({
+      sessions: [boulder('2026-09-14')], keys, daySlots: [1, 3, 6], weekStart: monday, hardKey: 'limit',
+      sickDates: new Set(['2026-09-21']),
+    })
+    expect(s.days[0].sick).toBe(true)
+    expect(s.days[0].missed).toBe(false)
+    expect(s.days[0].forgave).toBe('limit')
+    // Not carried onto the first day back, and nothing drops for it.
+    expect(s.todayKey).toBe('fingerMaintenance')
+    expect(s.todayDay.carriedFrom).toBe(null)
+    expect(s.dropped).toEqual([])
+    expect(s.forgiven).toBe(1)
+  })
+
+  it('gives up today as soon as you are ill today', () => {
+    const s = weekSchedule({
+      sessions: [boulder('2026-09-14'), boulder('2026-09-21')], keys, daySlots: [1, 3, 6], weekStart: monday, hardKey: 'limit',
+      sickDates: new Set(['2026-09-23']),
+    })
+    expect(s.todaySick).toBe(true)
+    expect(s.todayKey).toBe(null)
+    expect(s.restDay).toBe(false)
+    expect(s.days[5].key).toBe('volume')
+  })
+
+  it('counts a session logged on a sick day as done, not as sick', () => {
+    const s = weekSchedule({
+      sessions: [boulder('2026-09-14'), boulder('2026-09-21')], keys, daySlots: [1, 3, 6], weekStart: monday, hardKey: 'limit',
+      sickDates: new Set(['2026-09-21']),
+    })
+    expect(s.days[0].done).toBe(true)
+    expect(s.days[0].sick).toBe(false)
+  })
+
+  it('rests you with a fever, above an open injury', () => {
+    const r = readout([ill(iso(1), null, 'fever')], {
+      injuries: [{ id: 'i1', region: 'shoulder', started: iso(20), ended: null }],
+    })
+    expect(r.suggestion.key).toBe('sick')
+    expect(r.suggestion.dayStatus).toBe('sick')
+    expect(r.suggestion.exercises).toEqual([])
+    expect(r.suggestion.sheet.parts).toEqual([])
+    expect(r.suggestion.adjusted).toBe(false)
+    expect(r.suggestion.reasons[0]).toMatchObject({ changed: true })
+    expect(r.suggestion.reasons[0].text).toMatch(/Fever since/)
+    expect(r.week.find((d) => d.isToday).sick).toBe(true)
+  })
+
+  it('keeps a cold to easy movement', () => {
+    const r = readout([ill(iso(1), null, 'head')])
+    expect(r.suggestion.key).toBe('deload')
+    expect(r.suggestion.reasons[0].text).toMatch(/^Cold since/)
+    // Short, not only easy.
+    expect(r.suggestion.volumeMult).toBeLessThanOrEqual(PHASE_DURATION.deload)
+  })
+
+  it('lets an injury\'s mobility day outrank a cold, and still says there is one', () => {
+    const r = readout([ill(iso(1), null, 'head')], {
+      injuries: [{ id: 'i1', region: 'fingers', started: iso(20), ended: null }],
+    })
+    expect(r.suggestion.key).toBe('mobility')
+    expect(r.suggestion.reasons.some((x) => /^Cold since/.test(x.text))).toBe(true)
+  })
+
+  it('eases back in, and the week view says so for the days ahead', () => {
+    // Six days of fever, the last of them Monday: Tuesday to Thursday easy,
+    // Friday to Sunday a notch easier.
+    const r = readout([ill(iso(7), iso(2), 'fever')], { sessions: [boulder(iso(9))] })
+    expect(r.suggestion.key).toBe('deload')
+    expect(r.suggestion.headline).toMatch(/Easing back/)
+    const byDate = new Map(r.week.map((d) => [d.date, d]))
+    expect(byDate.get('2026-09-21').sick).toBe(true)
+    expect(byDate.get('2026-09-21').missed).toBe(false)
+    expect(byDate.get('2026-09-26').illness).toBe('build')
+    expect(byDate.get('2026-09-26').second).toBe(null)
+    // Only Monday of the six falls in this week.
+    expect(r.week.sickDays).toBe(1)
+    // Most of a training week gone: worth a new block.
+    expect(r.newBlockAfterIllness).toBe(true)
+  })
+
+  it('does not call a week emptied by illness complete', () => {
+    // A cold on Monday let that session go; Tuesday and today used up the
+    // other two. Nothing is owed, but not every planned session was logged.
+    const r = readout([ill(iso(2), iso(2), 'head')], {
+      sessions: [boulder(iso(9)), boulder(iso(1)), boulder(iso(0))],
+    })
+    expect(r.suggestion.dayStatus).toBe('complete')
+    expect(r.suggestion.weekForgiven).toBe(1)
+    expect(r.suggestion.headline).toBe('Nothing left this week')
+    expect(r.suggestion.reasons.some((x) => /Every planned session/.test(x.text))).toBe(false)
+  })
+
+  it('runs the planned session a notch easier in the second half of the way back', () => {
+    // Two days of fever ending the day before yesterday: day three of three.
+    const r = readout([ill(iso(4), iso(3), 'fever')])
+    expect(r.suggestion.illness.phase).toBe('build')
+    expect(r.suggestion.tierDrop).toBeGreaterThanOrEqual(1)
+    expect(r.suggestion.reasons.some((x) => x.changed && /a notch easier/.test(x.text))).toBe(true)
+    expect(r.suggestion.volumeMult).toBeLessThanOrEqual(ILLNESS_VOLUME)
   })
 })

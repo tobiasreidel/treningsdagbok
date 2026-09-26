@@ -11,6 +11,11 @@ export const CHANGELOG = [
     date: '2026-09-26',
     title: 'A plan a coach could have written',
     changes: [
+      'Log when you’re ill, from the check-in, the coach or your profile. Sick days get a 🤒 on the calendar.',
+      'Ill, the coach rests you (with a cold, easy movement at most) and eases you back in after. A sick day isn’t a missed one.',
+      'Add your own strength exercises while logging. They stay on the list, and Settings is where you remove one.',
+      'Strength and finger start closed in the log: tap the one you did, or both.',
+      'A climb can be bouldering and rope in one session: tap both, and each gets its own grades.',
       'Today is a whole session: warm-up, the main work, what follows it and a ten-minute finisher, fitted to how long your sessions are.',
       'Hangboard loads move by rule: two sessions to plan at a load and the next adds 2.5%, a cut-short one holds it, pain drops it.',
       'The week runs Monday to Sunday against what you logged. A missed hard session moves to your next day and the least important one drops.',

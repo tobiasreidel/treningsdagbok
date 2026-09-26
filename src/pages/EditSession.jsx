@@ -4,6 +4,7 @@ import { Segmented } from '../components/ui'
 import DetailsFields from '../components/form/DetailsFields'
 import RoutesEditor from '../components/form/RoutesEditor'
 import StrengthFields from '../components/form/StrengthFields'
+import ClimbTypePicker from '../components/form/ClimbTypePicker'
 import NotesPhoto from '../components/form/NotesPhoto'
 import CoachPlanField, { COACH_SPORTS } from '../components/form/CoachPlanField'
 import { sessionToForm, isOutdoorClimbing, usesStrengthModule } from '../lib/formState'
@@ -138,12 +139,16 @@ export default function EditSession() {
         {SUBTYPES[form.sport] && (
           <section>
             <h2 className="step-q">Type</h2>
-            <Segmented
-              options={SUBTYPES[form.sport]}
-              value={form.subtype}
-              onChange={(v) => update({ subtype: v })}
-              columns={Math.min(SUBTYPES[form.sport]?.length || 2, 3)}
-            />
+            {form.sport === 'climbing' ? (
+              <ClimbTypePicker form={form} update={update} />
+            ) : (
+              <Segmented
+                options={SUBTYPES[form.sport]}
+                value={form.subtype}
+                onChange={(v) => update({ subtype: v })}
+                columns={Math.min(SUBTYPES[form.sport]?.length || 2, 3)}
+              />
+            )}
           </section>
         )}
 

@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { SPORTS, SEND_TYPES, FEELING_LABELS, exerciseLabel, formatGrade, subtypeWord } from '../lib/constants'
+import { SPORTS, SEND_TYPES, FEELING_LABELS, exerciseLabel, formatGrade } from '../lib/constants'
+import { normaliseSession, subtypeLabel, routeSubtype } from '../lib/sessionShape'
 import { formatDay, formatDuration, pacePerKm, pacePer100m } from '../lib/format'
 import {
   getSession,
@@ -118,7 +119,7 @@ export default function SessionDetail() {
   const isSwimming = session.sport === 'swimming'
   const isEndurance = isCycling || isRunning || isSwimming
 
-  const subtitleParts = [subtypeWord(session.subtype)]
+  const subtitleParts = [subtypeLabel(session)]
   if (isCycling && e.indoor) subtitleParts.push('indoor')
   if (session.sport === 'climbing' && session.location) subtitleParts.push(session.location)
   const subtitle = subtitleParts.filter(Boolean).join(' · ')
@@ -219,7 +220,10 @@ export default function SessionDetail() {
     if (num(e.calories)) tiles.push({ label: 'Calories', value: Math.round(e.calories), sub: 'kcal' })
   }
 
-  const grades = e.grades || []
+  // Per discipline: a session that was boulders and routes shows both lists,
+  // each in its own scale.
+  const gradesBy = normaliseSession(session).gradesBy
+  const gradeLists = Object.entries(gradesBy)
   const routes = session.routes || []
   const exercises = e.strength || []
   const finger = e.finger || {}
@@ -394,18 +398,20 @@ export default function SessionDetail() {
         </div>
       )}
 
-      {grades.length > 0 && (
-        <div className="detail-block">
-          <h2 className="section-title">Grades worked</h2>
+      {gradeLists.map(([d, list]) => (
+        <div className="detail-block" key={d}>
+          <h2 className="section-title">
+            {gradeLists.length > 1 ? `Grades worked · ${d}` : 'Grades worked'}
+          </h2>
           <div className="chips">
-            {grades.map((g) => (
+            {list.map((g) => (
               <span className="chip is-active" key={g}>
-                {formatGrade(g, session.subtype)}
+                {g}
               </span>
             ))}
           </div>
         </div>
-      )}
+      ))}
 
       {routes.length > 0 && (
         <div className="detail-block">
@@ -415,7 +421,7 @@ export default function SessionDetail() {
               <div className="route-line" key={i}>
                 <span className="route-line-name">{r.name || `Route ${i + 1}`}</span>
                 <span className="route-line-meta">
-                  {r.grade && <strong>{formatGrade(r.grade, session.subtype)}</strong>}
+                  {r.grade && <strong>{formatGrade(r.grade, routeSubtype(r, session))}</strong>}
                   {r.send_type && <span className="route-send">{sendLabel(r.send_type)}</span>}
                 </span>
               </div>

@@ -6,6 +6,7 @@ import { avgSpeedFrom, pacePerKm, pacePer100m } from '../../lib/format'
 import { getGearSports } from '../../lib/prefs'
 import { fetchGearItems, GEAR_NOUN } from '../../lib/gear'
 import { TIMES_OF_DAY } from '../../lib/sessionShape'
+import { formDisciplines } from '../../lib/formState'
 
 const num = (v) => Number(v) || 0
 
@@ -543,22 +544,38 @@ function CyclingFields({ form, updateExtra }) {
   )
 }
 
+// One grade list per discipline, because the scales are: a session that was
+// boulders and then routes has a 6C and a 6c that mean different things.
+const GRADES_LABEL = { bouldering: 'Boulder grades', sport: 'Sport grades', trad: 'Trad grades' }
+
 function ClimbingFields({ form, updateExtra }) {
   const e = form.extra || {}
-  // Match selection against the canonical case for the subtype so grades saved
-  // before the boulder=UPPERCASE convention still light up (and re-save fixed).
-  const grades = (e.grades || []).map((g) => formatGrade(g, form.subtype))
+  const disciplines = formDisciplines(form)
+  const mixed = disciplines.length > 1
   return (
-    <Field
-      label="Grades worked"
-      hint="French grades"
-      optional
-    >
-      <Chips
-        options={gradesFor(form.subtype)}
-        value={grades}
-        onChange={(next) => updateExtra({ grades: next, grading_system: 'french' })}
-      />
-    </Field>
+    <>
+      {disciplines.map((d, i) => {
+        const first = i === 0
+        // Match selection against the canonical case for the subtype so grades
+        // saved before the boulder=UPPERCASE convention still light up (and
+        // re-save fixed).
+        const stored = first ? e.grades : e.other_grades?.[d]
+        const grades = (stored || []).map((g) => formatGrade(g, d))
+        const set = (next) =>
+          first
+            ? updateExtra({ grades: next, grading_system: 'french' })
+            : updateExtra({ other_grades: { ...(e.other_grades || {}), [d]: next }, grading_system: 'french' })
+        return (
+          <Field
+            key={d}
+            label={mixed ? GRADES_LABEL[d] : 'Grades worked'}
+            hint={first ? 'French grades' : null}
+            optional
+          >
+            <Chips options={gradesFor(d)} value={grades} onChange={set} />
+          </Field>
+        )
+      })}
+    </>
   )
 }

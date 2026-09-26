@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Field, Segmented } from '../components/ui'
-import { SPORTS } from '../lib/constants'
+import { SPORTS, STRENGTH_EXERCISES, matchExercise } from '../lib/constants'
 import { getSettings, saveSettings, fetchActivities, activitySport } from '../lib/intervals'
 import { getShareSetting, setShareSetting } from '../lib/friends'
 import { fetchSessions } from '../lib/sessions'
@@ -20,6 +20,8 @@ import {
   setLogPeriod,
   getGearSports,
   setGearSports,
+  getCustomExercises,
+  setCustomExercises,
   getCoachEnabled,
   setCoachEnabled,
   GEAR_SPORTS,
@@ -439,6 +441,8 @@ export default function Settings() {
           )}
         </section>
 
+        {enabledSports.includes('strength') && <StrengthExercisesCard />}
+
         <section className="card settings-card stack">
           <h2 className="step-q">Gear</h2>
           <p className="muted small">
@@ -774,5 +778,70 @@ function ThemePicker({ value, onChange }) {
         </button>
       ))}
     </div>
+  )
+}
+
+// Your own strength exercises, next to the built-in ones in the log. Added
+// from the log itself as you go; this is where a typo gets removed. Removing
+// one only takes it off the list: sessions store the name, so the ones it was
+// logged on keep it.
+function StrengthExercisesCard() {
+  const [names, setNames] = useState(getCustomExercises)
+  const [name, setName] = useState('')
+
+  const save = (next) => {
+    setCustomExercises(next)
+    setNames(getCustomExercises())
+  }
+  const add = () => {
+    const key = matchExercise(name, names)
+    setName('')
+    if (!key || STRENGTH_EXERCISES.some((e) => e.key === key) || names.includes(key)) return
+    save([...names, key])
+  }
+
+  return (
+    <section className="card settings-card stack">
+      <h2 className="step-q">Strength exercises</h2>
+      <p className="muted small">
+        Built in: {STRENGTH_EXERCISES.map((e) => e.label).join(', ')}. Add your own here or while
+        logging. Removing one keeps it on the sessions it was logged on.
+      </p>
+      {names.length > 0 && (
+        <div className="toggle-list">
+          {names.map((n) => (
+            <div className="injury-row" key={n}>
+              <span className="injury-note">{n}</span>
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label={`Remove ${n}`}
+                onClick={() => save(names.filter((x) => x !== n))}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="wr-row">
+        <input
+          type="text"
+          value={name}
+          maxLength={60}
+          placeholder="e.g. Bench press"
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              add()
+            }
+          }}
+        />
+        <button type="button" className="btn btn-secondary" disabled={!name.trim()} onClick={add}>
+          + Add
+        </button>
+      </div>
+    </section>
   )
 }

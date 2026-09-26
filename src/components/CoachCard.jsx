@@ -5,6 +5,7 @@ import { isProfileComplete } from '../lib/coachProfile'
 import { hasLoggedToday } from '../lib/wellness'
 import { formatDayShort } from '../lib/format'
 import SignalBlock from './SignalBlock'
+import IllnessPanel from './IllnessPanel'
 
 // Dashboard card shown when the Training coach is on (Settings → Training
 // coach). Reads only the sessions you already log. The summary lives here;
@@ -32,7 +33,7 @@ export default function CoachCard({ sessions, injuries }) {
     }
   }, [])
 
-  const { recovery, suggestion, readiness, goalPhase, week } = useMemo(
+  const { recovery, suggestion, readiness, goalPhase, week, illness } = useMemo(
     () => readoutFrom({ ...inputs, sessions, injuries }),
     [inputs, sessions, injuries],
   )
@@ -83,7 +84,11 @@ export default function CoachCard({ sessions, injuries }) {
         </p>
       )}
       {suggestion.dayStatus === 'complete' && (
-        <p className="coach-status">✓ Every planned session this week is logged.</p>
+        <p className="coach-status">
+          {suggestion.weekForgiven
+            ? '✓ Nothing left this week.'
+            : '✓ Every planned session this week is logged.'}
+        </p>
       )}
 
       <strong className="coach-suggest-title">
@@ -111,6 +116,11 @@ export default function CoachCard({ sessions, injuries }) {
             <span className="coach-reason" key={r.text}>{r.text}</span>
           ))}
         </div>
+      )}
+      {/* The reason line already says how long and what kind: here it only
+          needs the way out. */}
+      {illness?.state === 'ill' && (
+        <IllnessPanel illnesses={inputs.illnesses} entry="none" compact />
       )}
 
       <SignalBlock

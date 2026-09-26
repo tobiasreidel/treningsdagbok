@@ -50,6 +50,11 @@ were written in and applied by hand, not the dates. Anything from
 20260725000000_coach.sql              coach profile, goals, wellness, OSTRC
 20260727000000_coach_v4.sql           finger tests, physical tests, bodyweight
 20260728000000_coach_squad.sql        athlete-granted signal sharing + squad
+20260728010000_hangboard_sets.sql     hangboard sets out of the JSON blob
+20260730000000_user_prefs.sql         settings on the account
+20260926000000_coach_v5.sql           session length, weaknesses, block start
+20260926120000_illness.sql            illness log
+20260926130000_route_subtype.sql      a climb's own discipline in a mixed session
 ```
 
 ## Writing a new one

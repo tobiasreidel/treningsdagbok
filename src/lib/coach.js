@@ -13,7 +13,7 @@
 import { addDays, differenceInCalendarDays, format, subDays, startOfWeek } from 'date-fns'
 import { asDate, todayISO, formatDayShort } from './format'
 import { BOULDER_GRADES, ROUTE_GRADES, SPORTS, formatGrade } from './constants'
-import { normaliseSession } from './sessionShape'
+import { normaliseSession, routeSubtype } from './sessionShape'
 import { fitnessSeries, sessionLoad } from './stats'
 import {
   EXERCISE_MAP,
@@ -23,6 +23,7 @@ import {
 } from './exercises'
 import { primaryGoal, daysUntil } from './coachProfile'
 import { activeProblems } from './wellness'
+import { illnessDays } from './health'
 import { setIntensity, usableMaxTotal, maxTotalFor, prescribeHang } from './fingerLoad'
 import { painAborts, asymmetries } from './fingerTests'
 import { hangTarget, scaledSets } from './progression'
@@ -72,19 +73,24 @@ export function currentLimit(sessions, subtype, stated, location) {
   const today = new Date()
   let best = stated ? gradeIndex(stated, subtype) : -1
   for (const s of sessions) {
-    if (s.sport !== 'climbing' || s.subtype !== subtype) continue
+    if (s.sport !== 'climbing') continue
+    // A session of boulders and then routes counts toward both limits, each
+    // from its own climbs and its own grades.
+    const n = normaliseSession(s)
+    if (!n.disciplines.includes(subtype)) continue
     // Indoor and outdoor grades are different scales in practice, so a limit
     // for one context is never inferred from sessions in the other.
     if (location && s.location !== location) continue
     if (differenceInCalendarDays(today, asDate(s.date)) > MAX_GRADE_LOOKBACK_DAYS) continue
     for (const r of s.routes || []) {
+      if (routeSubtype(r, s) !== subtype) continue
       const i = gradeIndex(r.grade, subtype)
       if (i > best) best = i
     }
     // "Grades worked" chips are how an indoor session records difficulty: the
     // route log is outdoor-only, so without these an indoor limit could only
     // ever come from the stated profile grade.
-    for (const g of normaliseSession(s).grades) {
+    for (const g of n.gradesBy[subtype] || []) {
       const i = gradeIndex(g, subtype)
       if (i > best) best = i
     }
@@ -432,10 +438,13 @@ export function fingerDose(s, limits, profile, tests = []) {
 
   // --- climbing attempts near the limit ------------------------------------
   if (s.sport === 'climbing') {
-    const limit = limitFor(limits, s.subtype, s.location)
     let nearLimitAttempts = 0
     for (const r of s.routes || []) {
-      const i = gradeIndex(r.grade, s.subtype)
+      // Judged against its own discipline's limit: a 7a route is not a 7A
+      // boulder, in a session that had both.
+      const kind = routeSubtype(r, s)
+      const limit = limitFor(limits, kind, s.location)
+      const i = gradeIndex(r.grade, kind)
       if (i < 0 || !limit || limit.idx < 0) continue
       const gap = limit.idx - i
       const attempts = Math.max(1, num(r.attempts))
@@ -510,7 +519,7 @@ export function fingerDose(s, limits, profile, tests = []) {
   // finger work for three days. Kept in step with the cut above: at finger RPE
   // 6 this used to promote an ordinary hard bouldering session straight to
   // maximal, which was the same miscalibration one rule further on.
-  if (s.sport === 'climbing' && s.subtype === 'bouldering' && num(s.rpe) >= 8 && rf >= 7) {
+  if (s.sport === 'climbing' && n.disciplines.includes('bouldering') && num(s.rpe) >= 8 && rf >= 7) {
     tier = higherTier(tier, 'maximal')
   }
   // Any climbing at all is at least light finger contact.
@@ -1275,6 +1284,15 @@ export const SESSION_TYPES = {
     volume: 'Short: ~30–40 min on the wall, plus mobility', rest: 'As needed',
     rpe: '≤4', fingerCost: 'low', grades: [-6, -4],
   },
+  // Not a session: the one day the plan has nothing to offer but rest. It has
+  // no exercises on purpose, because even mobility is the wrong answer to a
+  // fever.
+  sick: {
+    key: 'sick', label: 'Rest and get well', emoji: '🛌',
+    goal: 'Sleep, drink, eat. Training waits until you are well',
+    effort: 'None', volume: 'None', rest: '-',
+    rpe: '-', fingerCost: 'none', grades: null,
+  },
 }
 
 // Fraction of the week's training days a deload keeps. Reduced volume with
@@ -1329,6 +1347,9 @@ export const TYPE_GRID = {
   mobility: { cat: { boulder: 'mobility', rope: 'mobility' }, tier: 1 },
   mental: { cat: { boulder: 'mental', rope: 'mental' }, tier: 1 },
   deload: { cat: { boulder: 'lowIntBoulder', rope: 'lowIntBoulder' }, tier: 2 },
+  // A category no exercise belongs to, so a sick day resolves to no exercises
+  // rather than falling through to the volume default.
+  sick: { cat: { boulder: 'rest', rope: 'rest' }, tier: 1 },
 }
 
 export function gridFor(typeKey, discipline) {
@@ -1937,9 +1958,10 @@ function weekKeys(pos, goal, emphasis, model, trainingDays, wk, level, avoidHard
 //   weekStart     Monday, ISO
 //   flexible      weekdays were guessed, not stated: no day is called missed,
 //                 and today always gets the next session owed
+//   sickDates     ISO dates logged as ill (see illnessDays)
 export function weekSchedule({
   sessions, keys, disciplines = null, daySlots, weekStart, today = todayISO(),
-  flexible = false, hardKey = null, activeFrom = null, hardDates = null,
+  flexible = false, hardKey = null, activeFrom = null, hardDates = null, sickDates = null,
 }) {
   const byDate = new Map()
   const isPlanSession = (s) => PLAN_SPORTS.includes(s.sport)
@@ -1977,6 +1999,8 @@ export function weekSchedule({
       done: false,
       did: null,
       missed: false,
+      sick: false,
+      forgave: null,
       carriedFrom: null,
       extra: false,
     })
@@ -1990,9 +2014,22 @@ export function weekSchedule({
   // Days already gone (and today, once it has been trained) consume what they
   // did. A session that says which plan type it was consumes that; otherwise
   // the day's own slot; otherwise the earliest thing still owed.
+  //
+  // A day lost to illness is neither of those. It takes its own session with
+  // it rather than calling it missed, so the session does not move onto the
+  // first day back: the first day back is easy (see illnessStatus), and two
+  // hard days crammed into the rest of the week is the worst way to return.
+  // Today counts as soon as you are ill today, not only once it is over.
   const consumed = []
   for (const d of days) {
-    if (!(d.isPast || (d.isToday && d.trained))) continue
+    const sick = !!sickDates?.has(d.date) && !d.trained
+    if (!(d.isPast || (d.isToday && (d.trained || sick)))) continue
+    if (sick) {
+      d.sick = true
+      const idx = d.slotIdx >= 0 ? owed.findIndex((o) => o.slot === d.slotIdx) : -1
+      if (idx >= 0) d.forgave = owed.splice(idx, 1)[0].key
+      continue
+    }
     if (d.trained) {
       const stated = d.logged
         .map((s) => s.extra?.coach?.type)
@@ -2020,7 +2057,7 @@ export function weekSchedule({
   // important session is the one that drops. Either way a hard finger day
   // never lands straight after another one when something else is owed.
   const ahead = days.filter(
-    (d) => !d.done && (d.date > today || d.isToday) && (d.slotIdx >= 0 || (flexible && d.isToday)),
+    (d) => !d.done && !d.sick && (d.date > today || d.isToday) && (d.slotIdx >= 0 || (flexible && d.isToday)),
   )
   const short = owed.length > ahead.length
   const queue = [...owed].sort((a, b) =>
@@ -2061,7 +2098,8 @@ export function weekSchedule({
     todayDay,
     todayKey: todayDay?.done ? null : todayDay?.key || null,
     todayDone: !!todayDay?.done,
-    restDay: !!todayDay && !todayDay.done && !todayDay.key,
+    todaySick: !!todayDay?.sick,
+    restDay: !!todayDay && !todayDay.done && !todayDay.sick && !todayDay.key,
     nextUp,
     // Still owed with nowhere to go: the sessions the week loses. Only worth
     // saying when a missed day is why; a week joined on a Wednesday has not
@@ -2071,6 +2109,9 @@ export function weekSchedule({
     planned: keys.filter(Boolean).length,
     done: days.filter((d) => d.done && !d.extra).length,
     extra: days.filter((d) => d.extra).length,
+    sickDays: days.filter((d) => d.sick).length,
+    // Planned sessions the week gave up to illness.
+    forgiven: days.filter((d) => d.forgave).length,
     flexible,
   }
 }
@@ -2090,7 +2131,7 @@ function hardFingerDates(sessions, limits, profile, fingerTests, weekStart) {
 }
 
 // Today's planned session, from the week it sits in.
-function plannedType(sessions, model, daysPerWeek, goals, level, profile, { limits = null, fingerTests = [] } = {}) {
+function plannedType(sessions, model, daysPerWeek, goals, level, profile, { limits = null, fingerTests = [], sickDates = null } = {}) {
   const pos = cyclePosition(sessions, profile)
   const gp = goalPhase(goals)
   const goal = primaryGoal(goals)
@@ -2110,6 +2151,7 @@ function plannedType(sessions, model, daysPerWeek, goals, level, profile, { limi
     hardKey: week.hardKey,
     activeFrom: profile?.plan_started_on || null,
     hardDates: limits ? hardFingerDates(sessions, limits, profile, fingerTests, weekStart) : null,
+    sickDates,
   })
 
   // What today is, and therefore what the card is about:
@@ -2117,13 +2159,19 @@ function plannedType(sessions, model, daysPerWeek, goals, level, profile, { limi
   //   done      today's is logged: the card previews the next one owed
   //   rest      a rest day: the card previews the next one, for the athlete
   //             who is going anyway
+  //   sick      you are ill today: the illness rule decides the card, and
+  //             today's session is given up rather than owed
   //   complete  nothing left owed this week: easy movement, and say so
   let key = schedule.todayKey
   let discipline = schedule.todayDay?.discipline || null
   let dayStatus = 'training'
   const nextUp = schedule.nextUp
   if (!key) {
-    if (!nextUp) {
+    if (schedule.todaySick) {
+      dayStatus = 'sick'
+      key = nextUp?.key || 'mobility'
+      discipline = nextUp?.discipline || null
+    } else if (!nextUp) {
       dayStatus = 'complete'
       key = 'mobility'
     } else {
@@ -2147,6 +2195,7 @@ function plannedType(sessions, model, daysPerWeek, goals, level, profile, { limi
     nextUp: nextUp ? { date: nextUp.date, key: nextUp.key } : null,
     carriedFrom: dayStatus === 'training' ? schedule.todayDay?.carriedFrom || null : null,
     dropped: schedule.dropped,
+    forgiven: schedule.forgiven,
     block: week.block,
     swap: week.swap,
     // Everything the week view needs, so it cannot disagree with the card.
@@ -2158,7 +2207,7 @@ function plannedType(sessions, model, daysPerWeek, goals, level, profile, { limi
 // was missed and where it went, what is still to come, plus the block the
 // week sits in and a look at next week. Built from the same schedule the
 // daily suggestion used, so the two cannot disagree.
-export function weekPlan(sessions, model, goals, profile, suggestion) {
+export function weekPlan(sessions, model, goals, profile, suggestion, illnesses = []) {
   const { planner, block } = suggestion
   const { schedule, layout, week, weekStart, trainingDays } = planner
   const n = planner.sessions
@@ -2176,11 +2225,24 @@ export function weekPlan(sessions, model, goals, profile, suggestion) {
       adjusted = true
       key = suggestion.key
     }
+    // The days coming back from an illness, by the same rule the card uses,
+    // so Thursday says now what the card will say on Thursday. Only once the
+    // illness is over: while it is open nobody knows when the return starts.
+    const back = !isTraining || d.done
+      ? null
+      : d.isToday
+        ? suggestion.illness
+        : d.date > today
+          ? illnessStatus(illnesses, d.date)
+          : null
+    const illness = back?.state === 'returning' ? back.phase : null
+    if (illness === 'easy' && !d.isToday) key = 'deload'
     const di = doubleSlots.indexOf(d.slotIdx)
     // No doubles in a deload or taper week - both cut total work, and a taper
-    // that keeps its doubles is not a taper.
+    // that keeps its doubles is not a taper. None on the way back from an
+    // illness either.
     const secondKey =
-      isTraining && !d.done && di >= 0 && !week.deload && !week.taper
+      isTraining && !d.done && di >= 0 && !week.deload && !week.taper && !illness
         ? SECOND_SESSION_TYPES[di % SECOND_SESSION_TYPES.length]
         : null
     return {
@@ -2188,8 +2250,10 @@ export function weekPlan(sessions, model, goals, profile, suggestion) {
       key,
       type: key ? SESSION_TYPES[key] : null,
       didType: d.did ? SESSION_TYPES[d.did] : null,
-      rest: !isTraining && !d.done,
+      rest: !isTraining && !d.done && !d.sick,
       adjusted,
+      // 'easy' or 'build' on a day coming back from an illness.
+      illness,
       second: secondKey ? { key: secondKey, type: SESSION_TYPES[secondKey] } : null,
       next: false,
       deload: week.deload,
@@ -2198,7 +2262,7 @@ export function weekPlan(sessions, model, goals, profile, suggestion) {
       // a taper week (every session) and in a deload week for the quality
       // session it keeps. The mobility/easy slots are already light.
       reduced: (week.taper || week.deload) && !!key && key !== 'mobility' && key !== 'deload',
-      durationMult: block.volumeMult,
+      durationMult: illness ? Math.min(block.volumeMult, illnessVolume(back)) : block.volumeMult,
       phaseLabel: week.phaseLabel,
       blockLabel: week.deload ? 'Deload' : week.phaseLabel,
     }
@@ -2238,6 +2302,8 @@ export function weekPlan(sessions, model, goals, profile, suggestion) {
     planned: schedule.planned,
     done: schedule.done,
     extra: schedule.extra,
+    sickDays: schedule.sickDays,
+    forgiven: schedule.forgiven,
     missed: schedule.missed.map((d) => ({ date: d.date, key: d.templateKey })),
     dropped: schedule.dropped,
     // Days the plan has stopped putting hard sessions on, because nothing has
@@ -2258,7 +2324,7 @@ export function weekPlan(sessions, model, goals, profile, suggestion) {
 // Last week, planned against done. A coach's Monday message: what you did,
 // what you missed, and what that means for this week. Nothing here learns
 // anything; it counts.
-export function weekReview(sessions, model, daysPerWeek, goals, profile, limits, fingerTests = []) {
+export function weekReview(sessions, model, daysPerWeek, goals, profile, limits, fingerTests = [], sickDates = null) {
   const level = experienceLevel(profile)
   const pos = cyclePosition(sessions, profile)
   const goal = primaryGoal(goals)
@@ -2278,6 +2344,7 @@ export function weekReview(sessions, model, daysPerWeek, goals, profile, limits,
     today: format(thisMonday, 'yyyy-MM-dd'),
     flexible: !layout.weekdaysKnown,
     hardKey: week.hardKey,
+    sickDates,
   })
   const mondayISO = format(thisMonday, 'yyyy-MM-dd')
   const inWeek = (sessions || []).filter((s) => s.date >= weekStart && s.date < mondayISO)
@@ -2302,6 +2369,8 @@ export function weekReview(sessions, model, daysPerWeek, goals, profile, limits,
     extra: schedule.extra,
     missedKeys,
     missedHard: missedKeys.some((k) => SESSION_TYPES[k]?.fingerCost === 'high'),
+    sickDays: schedule.sickDays,
+    forgiven: schedule.forgiven,
     sessions: inWeek.length,
     minutes,
     hardFingerDays: hardDays.size,
@@ -2396,7 +2465,7 @@ function categoryOverused(sessions, typeKey, discipline) {
 // plus the one number inside that range this session should use, worked out
 // from how the last sessions went (progression.js), and the set count for
 // this week of the block.
-export function hangPrescription(exercise, profile, tests, sessions = [], { volumeMult = 1 } = {}) {
+export function hangPrescription(exercise, profile, tests, sessions = [], { volumeMult = 1, hold = false } = {}) {
   const int = exercise?.intensity
   if (!int || int.anchor !== 'pctMaxTotal') return null
   const grip = int.grip && int.grip !== 'rotating' ? int.grip : 'halfcrimp'
@@ -2410,6 +2479,7 @@ export function hangPrescription(exercise, profile, tests, sessions = [], { volu
   if (!p) return null
   const target = hangTarget(exercise, sessions, profile, max.kg, {
     conservative: fingerHistoryConservative(profile),
+    hold,
   })
   const targetAdded = target && bw > 0 ? target.kg - bw : null
   return {
@@ -2700,6 +2770,93 @@ export function phaseTimeline(goals, sessions, model, profile = null) {
 }
 
 // ---------------------------------------------------------------------------
+// illness
+// ---------------------------------------------------------------------------
+// Two rules here are close to consensus. No training with a fever: it costs
+// performance, and training through a viral infection is the textbook route
+// to myocarditis. And the same for symptoms below the neck (chest, stomach,
+// aching muscles), which are the body telling you the infection is systemic.
+// Above the neck only, easy training is usually fine. That is the "neck
+// check", a clinical rule of thumb rather than a trial result, and it always
+// comes with "stop if you feel worse".
+//
+// How gradually to come back is picked, not found. It is the rule coaches give
+// by hand: as many days back as you were ill, the first half of them easy, at
+// least two after an illness below the neck and three after a fever, never
+// more than two weeks. After a cold the plan simply runs a notch easier for up
+// to three days.
+export const ILLNESS_RETURN = {
+  head: { min: 1, max: 3, easyShare: 0 },
+  body: { min: 2, max: 14, easyShare: 0.5 },
+  fever: { min: 3, max: 14, easyShare: 0.5 },
+}
+// How much of a session an illness leaves. An easy day (a cold, the first half
+// of the way back) is short, the deload's length, because easy movement that
+// runs to seventy minutes is not easy. The rest of the way back runs at a
+// block's settle-in volume (BLOCK_WEEKS[0]), never at a push week's: the first
+// week back is a first week.
+export const ILLNESS_VOLUME = 0.85
+
+export function illnessVolume(status) {
+  if (!status) return null
+  if (status.state === 'ill' || status.phase === 'easy') return PHASE_DURATION.deload
+  return ILLNESS_VOLUME
+}
+// Ill for longer than this is a doctor's question, not an app's.
+export const ILLNESS_DOCTOR_DAYS = 14
+// Most of a training week gone. The block you were in has lost the weeks that
+// were building it, and a new block from Monday starts you at settle-in instead
+// of landing you in a push week.
+export const ILLNESS_NEW_BLOCK_DAYS = 5
+
+// Where the illness log leaves a given day: ill, on the way back, or nothing
+// (null). Pure over the rows, so the card and the week view ask the same
+// question of the same data for different dates.
+export function illnessStatus(illnesses, asOf = todayISO()) {
+  const rows = (illnesses || []).filter((r) => r?.started && r.started <= asOf)
+  const current = rows
+    .filter((r) => !r.ended || r.ended >= asOf)
+    .sort((a, b) => b.started.localeCompare(a.started))[0]
+  if (current) {
+    const days = differenceInCalendarDays(asDate(asOf), asDate(current.started)) + 1
+    return {
+      state: 'ill',
+      symptoms: current.symptoms,
+      worst: current.worst || current.symptoms,
+      since: current.started,
+      days,
+      long: days > ILLNESS_DOCTOR_DAYS,
+      row: current,
+    }
+  }
+  const last = rows.filter((r) => r.ended).sort((a, b) => b.ended.localeCompare(a.ended))[0]
+  if (!last) return null
+  const worst = last.worst || last.symptoms
+  const rule = ILLNESS_RETURN[worst] || ILLNESS_RETURN.body
+  const sickDays = differenceInCalendarDays(asDate(last.ended), asDate(last.started)) + 1
+  const total = clamp(sickDays, rule.min, rule.max)
+  const easy = Math.ceil(total * rule.easyShare)
+  // 1 is the first day back.
+  const dayBack = differenceInCalendarDays(asDate(asOf), asDate(last.ended))
+  if (dayBack > total) return null
+  const dayAt = (n) => format(addDays(asDate(last.ended), n), 'yyyy-MM-dd')
+  return {
+    state: 'returning',
+    phase: dayBack <= easy ? 'easy' : 'build',
+    dayBack,
+    total,
+    easy,
+    // The last easy day, and the last day of the return.
+    easyUntil: easy ? dayAt(easy) : null,
+    until: dayAt(total),
+    sickDays,
+    worst,
+    ended: last.ended,
+    row: last,
+  }
+}
+
+// ---------------------------------------------------------------------------
 // the daily decision
 // ---------------------------------------------------------------------------
 
@@ -2721,8 +2878,9 @@ export function suggestSession(sessions, ctx) {
   const {
     recovery, readinessState, trend, monotony, injuries, problems, limits,
     model, daysPerWeek, goals, profile, level, fingerTests = [], pick = null,
+    illness = null, sickDates = null,
   } = ctx
-  const plan = plannedType(sessions, model, daysPerWeek, goals, level, profile, { limits, fingerTests })
+  const plan = plannedType(sessions, model, daysPerWeek, goals, level, profile, { limits, fingerTests, sickDates })
   const planned = SESSION_TYPES[plan.key]
   // Reasons carry whether they actually changed the prescription. A chip that
   // describes a signal which did not influence today's session is decoration,
@@ -2794,7 +2952,27 @@ export function suggestSession(sessions, ctx) {
   // no fast exit and simply repeated itself daily.
   const chronicHardBlock = recovery.chronicLevel === 'very-high' && recovery.days7 > 0
 
-  if (substantial.length) {
+  // Illness first, above pain and injury: a fever rules out the rehab session
+  // too. A cold only rules out hard work, so an injury's mobility day, which
+  // is lighter still, keeps its place above it; the cold is then said as a
+  // note instead.
+  const ill = illness?.state === 'ill' ? illness : null
+  const returning = illness?.state === 'returning' ? illness : null
+  const sickSince = ill ? formatDayShort(ill.since) : null
+  let illnessRuled = false
+
+  if (ill && ill.symptoms !== 'head') {
+    key = 'sick'
+    tone = 'caution'
+    headline = 'You are ill'
+    addReason(
+      ill.symptoms === 'fever'
+        ? `Fever since ${sickSince}: no training until it has gone`
+        : `Sick since ${sickSince}, below the neck: no training`,
+      true,
+    )
+    illnessRuled = true
+  } else if (substantial.length) {
     // A developing overuse problem, caught by the weekly questionnaire before
     // it becomes a declared injury.
     key = 'mobility'
@@ -2809,6 +2987,25 @@ export function suggestSession(sessions, ctx) {
     headline = 'Rehab or easy day'
     const regions = openInjuries.map((i) => i.region).filter(Boolean)
     addReason(regions.length ? `Open injury: ${regions.join(', ')}` : 'Open injury in your log', true)
+  } else if (ill) {
+    // A cold, above the neck only. Easy movement at most, never the hard
+    // session, and the day is optional.
+    key = 'deload'
+    tone = 'caution'
+    headline = 'You have a cold'
+    addReason(`Cold since ${sickSince}: easy movement at most, and stop if you feel worse`, true)
+    illnessRuled = true
+  } else if (returning && returning.phase === 'easy') {
+    key = 'deload'
+    tone = 'easy'
+    headline = 'Easing back after illness'
+    addReason(
+      returning.easyUntil === todayISO()
+        ? 'Back from illness: last easy day, then a notch easier'
+        : `Back from illness: easy days until ${formatDayShort(returning.easyUntil)}`,
+      true,
+    )
+    illnessRuled = true
   } else if (varietyCapped) {
     key = 'technique'
     tone = 'moderate'
@@ -2864,6 +3061,16 @@ export function suggestSession(sessions, ctx) {
     addReason('Half the volume, same intensity')
   } else {
     // --- soft rules: same session, lower tier. They stack. ----------------
+    // The second half of the way back from an illness: the plan as written, a
+    // notch easier. The whole body, not only the fingers, so any cost counts,
+    // but a session already at the bottom tier (mobility, mental) has nothing
+    // to ease, and saying it eased would be noise.
+    if (returning && (TYPE_GRID[key]?.tier ?? 1) > 1) {
+      tierDrop += 1
+      softReasons.push(`Back from illness: a notch easier until ${formatDayShort(returning.until)}`)
+      tone = 'moderate'
+      illnessRuled = true
+    }
     if (fingersBusy && anyFingerCost) {
       tierDrop += 2
       softReasons.push(loadedReason(recovery, false))
@@ -2913,7 +3120,13 @@ export function suggestSession(sessions, ctx) {
     if (readinessState?.enough) addReason(`Readiness ${readinessState.index}`)
   }
 
-  if (monotony?.enough && monotony.flag && key !== 'deload') {
+  // An illness a higher rule outranked is still worth saying, and so is one
+  // that has gone on long enough to need more than rest.
+  if (ill && !illnessRuled) addReason(`Cold since ${sickSince}, so keep it easy`)
+  if (returning && !illnessRuled) addReason(`Back from illness until ${formatDayShort(returning.until)}`)
+  if (ill?.long) addReason(`Sick for ${ill.days} days: worth seeing a doctor`)
+
+  if (monotony?.enough && monotony.flag && key !== 'deload' && key !== 'sick') {
     addReason('Monotony high, so vary the stimulus')
   }
 
@@ -2945,11 +3158,17 @@ export function suggestSession(sessions, ctx) {
     }
     addReason('Today is logged. This is what comes next')
   } else if (plan.dayStatus === 'complete') {
+    // A week emptied by illness is not a week completed, and saying every
+    // session is logged would be untrue.
     if (neutral) {
-      headline = 'Week complete'
+      headline = plan.forgiven ? 'Nothing left this week' : 'Week complete'
       tone = 'planned'
     }
-    addReason('Every planned session this week is logged. Move, stretch, and let it sink in')
+    addReason(
+      plan.forgiven
+        ? 'Nothing left this week: what you were ill for is let go, not made up'
+        : 'Every planned session this week is logged. Move, stretch, and let it sink in',
+    )
   }
 
   const discipline = plan.discipline || plan.emphasis?.goal?.discipline || null
@@ -2978,19 +3197,22 @@ export function suggestSession(sessions, ctx) {
 
   // How much of the session this week of the block asks for. A taper or a
   // deload is a reduction; the loading weeks ramp.
-  const volumeMult = plan.taper
+  const blockVolume = plan.taper
     ? PHASE_DURATION.taper
     : plan.deload
       ? PHASE_DURATION.deload
       : plan.block?.volumeMult ?? 1
-  const hang = hangPrescription(chosen, profile, fingerTests, sessions, { volumeMult })
+  const cap = illnessVolume(illness)
+  const volumeMult = cap != null ? Math.min(blockVolume, cap) : blockVolume
+  const hang = hangPrescription(chosen, profile, fingerTests, sessions, { volumeMult, hold: !!illness })
   // The whole session, fitted to the time the athlete has.
   const sheet = buildSessionSheet({
     typeKey: key,
     main: chosen,
     minutes: Number(profile?.session_minutes) || null,
     durationMult: volumeMult,
-    reduced: !!(plan.taper || plan.deload),
+    // No second block on the way back from an illness either.
+    reduced: !!(plan.taper || plan.deload || ill || returning),
     sets: hang?.sets ?? scaledSets(chosen, volumeMult),
     profile,
     discipline,
@@ -3032,10 +3254,14 @@ export function suggestSession(sessions, ctx) {
     emphasis: plan.emphasis || null,
     plannedKey: plan.key,
     plannedLabel: planned.label,
-    adjusted: key !== plan.key && !plan.weekDone,
+    // Not on a sick day: the plan's key is then tomorrow's session, and "your
+    // plan called for" it today would be untrue.
+    adjusted: key !== plan.key && !plan.weekDone && plan.dayStatus !== 'sick',
     deloadWeek: !!plan.deload,
     taperWeek: !!plan.taper,
     dayStatus: plan.dayStatus,
+    // Planned sessions this week given up to illness.
+    weekForgiven: plan.forgiven || 0,
     restDay: !!plan.restDay,
     doneToday: !!plan.doneToday,
     weekDone: !!plan.weekDone,
@@ -3048,6 +3274,8 @@ export function suggestSession(sessions, ctx) {
     youth,
     youthWatch,
     injuredRegions,
+    // Ill today, on the way back, or null (see illnessStatus).
+    illness,
     planner: plan.planner,
   }
 }
@@ -3067,6 +3295,7 @@ export function coachReadout(sessions, injuries, icuWellness, opts = {}) {
   const {
     model = 'undulating', profile = null, goals = [],
     wellness = [], ostrc = [], fingerTests = [], physicalTests = [], pick = null,
+    illnesses = [],
   } = opts
   const daysPerWeek = profile?.sessions_week
     ? clamp(profile.sessions_week, MIN_SESSIONS_WEEK, MAX_SESSIONS_WEEK)
@@ -3091,22 +3320,36 @@ export function coachReadout(sessions, injuries, icuWellness, opts = {}) {
     week_start: t.tested_on,
   }))
   const problems = [...activeProblems(ostrc), ...aborts, ...painOutcomes(sessions)]
+  const illness = illnessStatus(illnesses)
+  const sickDates = illnessDays(illnesses)
 
   const suggestion = suggestSession(sessions, {
     recovery, readinessState, trend, monotony, injuries, problems, limits,
-    model, daysPerWeek, goals, profile, level, fingerTests, pick,
+    model, daysPerWeek, goals, profile, level, fingerTests, pick, illness, sickDates,
   })
 
+  const block = currentBlock(goals, sessions, profile)
   return {
     recovery, trend, monotony, readiness: readinessState, form, suggestion, limits,
     problems, daysPerWeek, level, goalPhase: suggestion.goalPhase,
     hangTest: hangTestAge(profile),
     maxTotal: maxTotalFor(profile, fingerTests),
     asymmetry: asymmetries(fingerTests, physicalTests),
-    week: weekPlan(sessions, model, goals, profile, suggestion),
-    block: currentBlock(goals, sessions, profile),
-    review: weekReview(sessions, model, daysPerWeek, goals, profile, limits, fingerTests),
+    week: weekPlan(sessions, model, goals, profile, suggestion, illnesses),
+    block,
+    review: weekReview(sessions, model, daysPerWeek, goals, profile, limits, fingerTests, sickDates),
+    illness,
+    newBlockAfterIllness: newBlockAfterIllness(illness, block, profile),
   }
+}
+
+// Whether to suggest starting a new block on the way back from a long
+// illness. Only in the repeating cycle: a countdown's weeks are fixed by the
+// date. And not once a block has already been started since it began.
+function newBlockAfterIllness(illness, block, profile) {
+  if (illness?.state !== 'returning' || block.mode !== 'cycle') return false
+  if (illness.sickDays < ILLNESS_NEW_BLOCK_DAYS) return false
+  return !(profile?.plan_started_on && profile.plan_started_on >= illness.row.started)
 }
 
 // A session that ended in pain is a problem for the week that follows, the

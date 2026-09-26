@@ -1,4 +1,5 @@
-import { SPORTS, subtypeWord } from '../lib/constants'
+import { SPORTS } from '../lib/constants'
+import { subtypeLabel } from '../lib/sessionShape'
 import { formatDay, formatDuration } from '../lib/format'
 import { cycleInfoFor } from '../lib/health'
 import { PendingBadge } from './ui'
@@ -16,6 +17,7 @@ export default function DaySheet({
   readOnly,
   periodEnabled,
   isPeriodDay,
+  isSickDay,
   cycle,
   onTogglePeriod,
 }) {
@@ -35,6 +37,7 @@ export default function DaySheet({
           <strong>
             {formatDay(date)}
             {periodEnabled && isPeriodDay && <span className="period-drop"> 🩸</span>}
+            {isSickDay && <span aria-label="Ill"> 🤒</span>}
           </strong>
           <button className="icon-btn" onClick={onClose} aria-label="Close">
             ✕
@@ -94,7 +97,7 @@ export default function DaySheet({
 
 function labelFor(s) {
   const parts = [SPORTS[s.sport]?.label]
-  if (s.subtype) parts.push(subtypeWord(s.subtype))
+  if (s.subtype) parts.push(subtypeLabel(s))
   if (s.sport === 'climbing' && s.location) parts.push(s.location === 'indoor' ? 'indoor' : 'outdoor')
   return parts.filter(Boolean).join(' · ')
 }

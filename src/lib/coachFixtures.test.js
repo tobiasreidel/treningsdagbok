@@ -200,10 +200,19 @@ function summarise(readout) {
     sheet: s.sheet.parts.map((p) => `${p.role} ${p.id} ${p.minutes}m`).join(' | ') + ` = ${s.sheet.total}/${s.sheet.budget}${s.sheet.cut ? ' cut' : ''}`,
     reasons: s.reasons.map((r) => `${r.changed ? '*' : '-'} ${r.text}`),
     // The week as planned against logged: one letter per day, Mon to Sun.
-    //   done ✓, missed ✗, today !, planned session ·, rest _
+    //   done ✓, missed ✗, ill +, today !, planned session ·, rest _
     week: `${w.block.label} · ` + w.map((d) =>
-      d.done ? '✓' : d.missed ? '✗' : d.isToday ? (d.key ? '!' : '_') : d.key ? '·' : '_',
+      d.done ? '✓' : d.missed ? '✗' : d.sick ? '+' : d.isToday ? (d.key ? '!' : '_') : d.key ? '·' : '_',
     ).join('') + ` · ${w.map((d) => d.key || (d.done ? d.did : null) || '-').join(',')}`,
+    // Only when there is one, so the fixtures without an illness keep their
+    // snapshots byte for byte.
+    ...(readout.illness
+      ? {
+          illness: readout.illness.state === 'ill'
+            ? `ill · ${readout.illness.symptoms} · day ${readout.illness.days}`
+            : `returning · ${readout.illness.phase} · day ${readout.illness.dayBack} of ${readout.illness.total}`,
+        }
+      : {}),
     recovery: {
       state: readout.recovery.key,
       days7: readout.recovery.days7,
@@ -535,6 +544,33 @@ const FIXTURES = [
     profile: { ...PROFILES.indoor3, sessions_week: 4, preferred_days: [1, 2, 4, 6], injury_regions: ['fingers'], climbing_since: new Date().getFullYear() - 8, max_boulder_indoor: '7B+' },
     wellness: wellness(60),
     tests: [maxHangTest()],
+  },  // The three illness fixtures are the first athlete above plus an illness, so
+  // each diff against it is the illness and nothing else.
+  {
+    name: 'fever since yesterday',
+    sessions: weekly([1, 3, 6], 10, (d) => indoorBoulder(d, { grades: ['6C', '7A'] })),
+    profile: PROFILES.indoor3,
+    wellness: wellness(60),
+    tests: [maxHangTest()],
+    illnesses: [{ id: 'ill1', started: iso(1), ended: null, symptoms: 'fever', worst: 'fever' }],
+  },
+  {
+    name: 'a cold since Monday',
+    sessions: weekly([1, 3, 6], 10, (d) => indoorBoulder(d, { grades: ['6C', '7A'] }), { skip: [iso(2)] }),
+    profile: PROFILES.indoor3,
+    wellness: wellness(60),
+    tests: [maxHangTest()],
+    illnesses: [{ id: 'ill1', started: iso(2), ended: null, symptoms: 'head', worst: 'head' }],
+  },
+  {
+    // Friday to Monday with a fever that turned into a cold: the worst it got
+    // sets the way back, not how it ended.
+    name: 'second day back after four days of fever',
+    sessions: weekly([1, 3, 6], 10, (d) => indoorBoulder(d, { grades: ['6C', '7A'] }), { skip: [iso(2), iso(4)] }),
+    profile: PROFILES.indoor3,
+    wellness: wellness(60),
+    tests: [maxHangTest()],
+    illnesses: [{ id: 'ill1', started: iso(5), ended: iso(2), symptoms: 'head', worst: 'fever' }],
   },
 ]
 
@@ -548,6 +584,7 @@ describe('golden fixtures', () => {
         ostrc: f.ostrc || [],
         fingerTests: f.tests || [],
         physicalTests: f.physicalTests || [],
+        illnesses: f.illnesses || [],
       })
       expect(summarise(readout)).toMatchSnapshot()
     })

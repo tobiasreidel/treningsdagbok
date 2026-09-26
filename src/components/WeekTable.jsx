@@ -1,4 +1,5 @@
-import { SPORTS, subtypeWord } from '../lib/constants'
+import { SPORTS } from '../lib/constants'
+import { subtypeLabel } from '../lib/sessionShape'
 import { asDate, formatDayShort, formatDuration, lastNDaysRange } from '../lib/format'
 import { getHideRidesUnderKm } from '../lib/prefs'
 import { embeddedStrengthMinutes, embeddedFingerMinutes } from '../lib/stats'
@@ -87,7 +88,7 @@ export default function WeekTable({ sessions, onSelect, periodSet }) {
 }
 
 function labelFor(s) {
-  const parts = [subtypeWord(s.subtype) || SPORTS[s.sport]?.label]
+  const parts = [subtypeLabel(s) || SPORTS[s.sport]?.label]
   if (s.sport === 'climbing' && s.location) parts.push(s.location === 'indoor' ? 'in' : 'out')
   return parts.filter(Boolean).join(' · ')
 }

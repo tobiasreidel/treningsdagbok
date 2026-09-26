@@ -1,5 +1,46 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`golden fixtures > a cold since Monday 1`] = `
+{
+  "day": "sick",
+  "exercises": [
+    "B6",
+    "B12",
+    "B14",
+  ],
+  "grades": "6A–6B",
+  "hangKg": null,
+  "hangTarget": null,
+  "headline": "You have a cold",
+  "illness": "ill · head · day 3",
+  "level": "Intermediate",
+  "monotony": {
+    "gated": "frequency",
+  },
+  "planned": "volume",
+  "readiness": {
+    "index": 54,
+    "label": "Normal",
+    "sustained": [],
+  },
+  "reasons": [
+    "* Cold since 21 Sep: easy movement at most, and stop if you feel worse",
+  ],
+  "recovery": {
+    "chronic": "ok",
+    "days28": 0,
+    "days7": 0,
+    "state": "fresh",
+    "sustainedWeeks": 0,
+  },
+  "session": "deload · tier 2",
+  "sheet": "warmup WU1 10m | main B6 36m | finish T1+T4+T5 10m = 56/90",
+  "tone": "caution",
+  "trend": "easing",
+  "week": "Build · +++__·_ · -,-,-,-,-,volume,-",
+}
+`;
+
 exports[`golden fixtures > a planned session that ended in pain three days ago 1`] = `
 {
   "day": "training",
@@ -120,6 +161,43 @@ exports[`golden fixtures > elite boulderer, six days a week, campus available 1`
   "tone": "caution",
   "trend": "steady",
   "week": "Build · ✓✓!_··· · limit,powerEndurance,fingerMaintenance,-,fingerStrength,volume,power",
+}
+`;
+
+exports[`golden fixtures > fever since yesterday 1`] = `
+{
+  "day": "sick",
+  "exercises": [],
+  "grades": null,
+  "hangKg": null,
+  "hangTarget": null,
+  "headline": "You are ill",
+  "illness": "ill · fever · day 2",
+  "level": "Intermediate",
+  "monotony": {
+    "gated": "frequency",
+  },
+  "planned": "volume",
+  "readiness": {
+    "index": 54,
+    "label": "Normal",
+    "sustained": [],
+  },
+  "reasons": [
+    "* Fever since 22 Sep: no training until it has gone",
+  ],
+  "recovery": {
+    "chronic": "ok",
+    "days28": 0,
+    "days7": 0,
+    "state": "fresh",
+    "sustainedWeeks": 0,
+  },
+  "session": "sick · tier 1",
+  "sheet": " = 0/90",
+  "tone": "caution",
+  "trend": "easing",
+  "week": "Build · ✓++__·_ · limit,-,-,-,-,volume,-",
 }
 `;
 
@@ -921,6 +999,47 @@ exports[`golden fixtures > same climber, but every session is genuinely hard on 
   "tone": "go",
   "trend": "easing",
   "week": "Build · ✓_!__·_ · limit,-,fingerMaintenance,-,-,volume,-",
+}
+`;
+
+exports[`golden fixtures > second day back after four days of fever 1`] = `
+{
+  "day": "training",
+  "exercises": [
+    "B6",
+    "B12",
+    "B14",
+  ],
+  "grades": "6A–6B",
+  "hangKg": null,
+  "hangTarget": null,
+  "headline": "Easing back after illness",
+  "illness": "returning · easy · day 2 of 4",
+  "level": "Intermediate",
+  "monotony": {
+    "gated": "sparse",
+  },
+  "planned": "fingerMaintenance",
+  "readiness": {
+    "index": 54,
+    "label": "Normal",
+    "sustained": [],
+  },
+  "reasons": [
+    "* Back from illness: last easy day, then a notch easier",
+  ],
+  "recovery": {
+    "chronic": "ok",
+    "days28": 0,
+    "days7": 0,
+    "state": "fresh",
+    "sustainedWeeks": 0,
+  },
+  "session": "deload · tier 2",
+  "sheet": "warmup WU1 10m | main B6 36m | finish T1+T4+T5 10m = 56/90",
+  "tone": "easy",
+  "trend": "easing",
+  "week": "Build · +_!__·_ · -,-,deload,-,-,volume,-",
 }
 `;
 

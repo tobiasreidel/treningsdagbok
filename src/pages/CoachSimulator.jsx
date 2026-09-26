@@ -3,6 +3,7 @@ import { format, subDays } from 'date-fns'
 import { Field, Scale, Segmented, PillRow, useBack } from '../components/ui'
 import SignalBlock from '../components/SignalBlock'
 import { coachReadout } from '../lib/coach'
+import { illnessDays } from '../lib/health'
 import { SPORTS } from '../lib/constants'
 
 // A dev-only bench for the coach engine.
@@ -16,6 +17,24 @@ import { SPORTS } from '../lib/constants'
 // Not linked from anywhere in the app on purpose: /coach/simulator, typed.
 
 const iso = (daysAgo) => format(subDays(new Date(), daysAgo), 'yyyy-MM-dd')
+
+// A four-day illness in a few positions against today: during it, and on
+// either side of the easy days on the way back.
+const ILLNESS = [
+  { key: 'none', label: 'Well' },
+  { key: 'cold', label: 'Cold now' },
+  { key: 'fever', label: 'Fever now' },
+  { key: 'back1', label: 'Fever, day 1 back' },
+  { key: 'back3', label: 'Fever, day 3 back' },
+]
+
+function buildIllness(key) {
+  if (key === 'none') return []
+  if (key === 'cold') return [{ id: 'sim', started: iso(1), ended: null, symptoms: 'head', worst: 'head' }]
+  if (key === 'fever') return [{ id: 'sim', started: iso(2), ended: null, symptoms: 'fever', worst: 'fever' }]
+  const back = key === 'back1' ? 1 : 3
+  return [{ id: 'sim', started: iso(back + 3), ended: iso(back), symptoms: 'head', worst: 'fever' }]
+}
 
 const SHAPES = [
   { key: 'indoor', label: 'Indoor bouldering' },
@@ -106,6 +125,7 @@ export default function CoachSimulator() {
   const [fatigue, setFatigue] = useState(3)
   const [years, setYears] = useState(6)
   const [age, setAge] = useState(30)
+  const [illnessKey, setIllnessKey] = useState('none')
 
   const maxKg = 100
   const profile = useMemo(
@@ -125,10 +145,14 @@ export default function CoachSimulator() {
     [perWeek, years, age],
   )
 
-  const sessions = useMemo(
-    () => buildSessions({ shape, perWeek, weeks, fingerRpe, bodyRpe, duration, hangPct, maxKg }),
-    [shape, perWeek, weeks, fingerRpe, bodyRpe, duration, hangPct],
-  )
+  const illnesses = useMemo(() => buildIllness(illnessKey), [illnessKey])
+  // Nobody trains through the days they were ill, so the history doesn't
+  // either: a session on a sick day would count as done and hide the rule.
+  const sessions = useMemo(() => {
+    const sick = illnessDays(illnesses)
+    return buildSessions({ shape, perWeek, weeks, fingerRpe, bodyRpe, duration, hangPct, maxKg })
+      .filter((s) => !sick.has(s.date))
+  }, [shape, perWeek, weeks, fingerRpe, bodyRpe, duration, hangPct, illnesses])
   const wellness = useMemo(() => buildWellness({ weeks, sleep, fatigue }), [weeks, sleep, fatigue])
   const tests = useMemo(
     () => [
@@ -152,8 +176,9 @@ export default function CoachSimulator() {
         ostrc: [],
         fingerTests: tests,
         physicalTests: [],
+        illnesses,
       }),
-    [sessions, profile, wellness, tests],
+    [sessions, profile, wellness, tests, illnesses],
   )
   const { suggestion, recovery, readiness, trend, monotony, week } = readout
 
@@ -217,6 +242,9 @@ export default function CoachSimulator() {
           </Field>
           <Field label={`Fatigue, soreness, stress: ${fatigue}`}>
             <Scale min={1} max={5} value={fatigue} onChange={setFatigue} lowLabel="Fresh" highLabel="Wrecked" />
+          </Field>
+          <Field label="Illness">
+            <Segmented options={ILLNESS} value={illnessKey} onChange={setIllnessKey} columns={2} />
           </Field>
         </section>
 
@@ -310,11 +338,12 @@ export default function CoachSimulator() {
                 <div className={`coach-week-day ${d.rest ? 'is-rest' : ''} ${d.isToday ? 'is-today' : ''}`}>
                   <div className="coach-week-main">
                     <span className="coach-week-date">{format(new Date(d.date), 'EEE d')}</span>
-                    <span className="coach-week-emoji">{d.rest ? '😴' : d.type.emoji}</span>
+                    <span className="coach-week-emoji">{d.sick ? '🤒' : d.rest ? '😴' : d.type?.emoji || '·'}</span>
                     <span className="coach-week-label">
-                      {d.done ? `✓ ${d.didType?.label || 'logged'}` : d.missed ? '✗ missed' : d.rest ? 'Rest' : d.type.label}
+                      {d.done ? `✓ ${d.didType?.label || 'logged'}` : d.missed ? '✗ missed' : d.sick ? 'Sick' : d.rest ? 'Rest' : d.type?.label}
                       {d.reduced ? ' (reduced)' : ''}
                       {d.carriedFrom ? ' (carried)' : ''}
+                      {d.illness ? ` (back from illness: ${d.illness})` : ''}
                     </span>
                   </div>
                 </div>

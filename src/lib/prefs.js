@@ -36,6 +36,7 @@ const KEYS = {
   coachPick: 'coachPick',
   checkinPromptDay: 'checkinPromptDay',
   bodyweight: 'bodyweight',
+  customExercises: 'customExercises',
 }
 
 // Kept out of user_prefs: bodyweight is a mirror of
@@ -358,6 +359,29 @@ export function getSessionPick(day) {
 
 export function setSessionPick(day, id) {
   setPref(KEYS.coachPick, id ? { day, id } : null)
+}
+
+// ---- your own strength exercises (the log, Settings → Strength exercises) ---
+// Names, not keys. A session stores a custom exercise under its own name, so
+// it still reads right on another device, in an export, to a friend who has
+// never seen this list, and after it has been removed from it. The list only
+// decides what the log offers.
+export function getCustomExercises() {
+  const saved = getPref(KEYS.customExercises)
+  return Array.isArray(saved) ? saved.filter((n) => typeof n === 'string' && n.trim()) : []
+}
+
+export function setCustomExercises(names) {
+  const seen = new Set()
+  const kept = []
+  for (const raw of names || []) {
+    const name = String(raw || '').trim()
+    const id = name.toLowerCase()
+    if (!name || seen.has(id)) continue
+    seen.add(id)
+    kept.push(name)
+  }
+  setPref(KEYS.customExercises, kept.length ? kept : null)
 }
 
 // ---- gear logging (Settings → Gear, logging on Profile) --------------------

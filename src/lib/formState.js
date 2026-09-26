@@ -38,6 +38,7 @@ export function sessionToForm(s) {
       name: r.name ?? '',
       grade: r.grade ?? null,
       send_type: r.send_type ?? null,
+      subtype: r.subtype ?? null,
     })),
     photoFile: null,
     photoUrl: s.photo_url ?? null,
@@ -59,8 +60,44 @@ export function usesStrengthModule(form) {
   )
 }
 
-export function emptyRoute() {
-  return { name: '', grade: null, send_type: null }
+// A route or boulder. `subtype` is only set when the session had more than
+// one discipline; null reads as the session's own.
+export function emptyRoute(subtype = null) {
+  return { name: '', grade: null, send_type: null, subtype }
+}
+
+// The climbing disciplines on the form, first-picked first (see
+// climbDisciplines in sessionShape.js for the stored shape).
+export function formDisciplines(form) {
+  const listed = Array.isArray(form.extra?.disciplines) ? form.extra.disciplines : []
+  return [...new Set([form.subtype, ...listed].filter(Boolean))]
+}
+
+// Tap a discipline on or off. The first one picked is `subtype`, so grades
+// move with it: each discipline keeps its own list, whichever is first, and a
+// discipline tapped off takes its grades with it. A logged climb keeps the
+// discipline it was, spelt out once there are two, and loses its grade when
+// that discipline goes: a 7a route left behind would read as a 7A boulder.
+export function toggleDiscipline(form, key) {
+  const current = formDisciplines(form)
+  const next = current.includes(key) ? current.filter((d) => d !== key) : [...current, key]
+  const extra = { ...(form.extra || {}) }
+  const byD = { ...(extra.other_grades || {}) }
+  if (form.subtype) byD[form.subtype] = extra.grades || []
+  const first = next[0] || null
+  const others = {}
+  for (const d of next.slice(1)) if (byD[d]?.length) others[d] = byD[d]
+  extra.grades = first ? byD[first] || [] : []
+  if (Object.keys(others).length) extra.other_grades = others
+  else delete extra.other_grades
+  if (next.length > 1) extra.disciplines = next
+  else delete extra.disciplines
+  const routes = (form.routes || []).map((r) => {
+    const kind = current.length > 1 && current.includes(r.subtype) ? r.subtype : form.subtype
+    if (!next.includes(kind)) return { ...r, subtype: null, grade: null }
+    return { ...r, subtype: next.length > 1 ? kind : null }
+  })
+  return { subtype: first, extra, routes }
 }
 
 export function emptyExercise() {

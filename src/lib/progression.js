@@ -125,7 +125,9 @@ export function priorSessions(exercise, sessions, profile, { today = new Date() 
 //
 // Returns null when there is nothing to prescribe from (no max, or an exercise
 // not anchored on one).
-export function hangTarget(exercise, sessions, profile, maxTotal, { conservative = false, today = new Date() } = {}) {
+// `hold` is the way back from an illness: sessions before it went to plan, but
+// they were not this body, so the load they earned waits until you are back.
+export function hangTarget(exercise, sessions, profile, maxTotal, { conservative = false, hold = false, today = new Date() } = {}) {
   const int = exercise?.intensity
   if (!int || int.anchor !== 'pctMaxTotal' || !(maxTotal > 0)) return null
   const lo = int.lo
@@ -206,6 +208,14 @@ export function hangTarget(exercise, sessions, profile, maxTotal, { conservative
   const twoGood = prev && prev.score >= 0 && sameLoad(prev, last) && last.score + prev.score >= 1
   const threeSteady =
     prev && priors[2] && prev.score >= 0 && priors[2].score >= 0 && sameLoad(prev, last) && sameLoad(priors[2], last)
+  if ((twoGood || threeSteady) && hold) {
+    return {
+      ...base,
+      rule: 'repeat',
+      kg: clampKg(last.kg),
+      note: `Back from illness, so the load holds at ${Math.round(last.kg)} kg instead of going up. It moves again once you are back to normal.`,
+    }
+  }
   if (twoGood || threeSteady) {
     const kg = clampKg(last.kg * (1 + PROGRESS_STEP))
     if (kg <= Math.round(last.kg)) {

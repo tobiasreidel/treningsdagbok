@@ -3096,6 +3096,38 @@ textarea {
   flex: none;
 }
 
+/* ----- illness (check-in, coach, profile) ----- */
+.illness-panel {
+  gap: 10px;
+}
+.illness-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.illness-kinds {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.illness-kinds li.is-active {
+  color: var(--text);
+}
+.illness-link {
+  align-self: flex-start;
+}
+.coach-week-day.is-sick {
+  opacity: 0.6;
+  background: transparent;
+  border: 1px dashed var(--border);
+}
+
 /* Tiny drop marking a session that falls on a logged period day. */
 .period-drop {
   font-size: 0.72em;

@@ -25,8 +25,25 @@ export const STRENGTH_EXERCISES = [
   { key: 'shoulderpress', label: 'Shoulder press' },
 ]
 
+// A built-in is stored by key, your own exercises by name, so an unknown key
+// is its own label.
 export function exerciseLabel(key) {
   return STRENGTH_EXERCISES.find((e) => e.key === key)?.label || key
+}
+
+// What a typed name should be stored as: the built-in it means ("pull ups" is
+// Pull-ups), one of your own spelt differently ("bench Press" is the Bench
+// press you already have), or the new name itself. Two spellings of one lift
+// would be two lines in the stats, which is the thing to avoid.
+const squash = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9æøå]/g, '')
+
+export function matchExercise(name, customs = []) {
+  const typed = String(name || '').trim().replace(/\s+/g, ' ')
+  const id = squash(typed)
+  if (!id) return null
+  const builtIn = STRENGTH_EXERCISES.find((e) => squash(e.key) === id || squash(e.label) === id)
+  if (builtIn) return builtIn.key
+  return customs.find((c) => squash(c) === id) || typed.charAt(0).toUpperCase() + typed.slice(1)
 }
 
 export const SUBTYPES = {
