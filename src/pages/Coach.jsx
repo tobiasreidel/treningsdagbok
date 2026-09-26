@@ -426,12 +426,12 @@ export default function Coach() {
                   {sheet.cut ? ` ${sheet.cutNote}` : ''}
                 </p>
               )}
-              <ol className="sheet">
+              <ol className="session-sheet">
                 {sheet.parts.map((part, i) => (
-                  <li className={`sheet-part sheet-part-${part.role}`} key={`${part.role}-${part.id}-${i}`}>
-                    <div className="sheet-part-head">
-                      <span className="sheet-role">{part.label}</span>
-                      <span className="sheet-min">~{part.minutes} min</span>
+                  <li className={`session-part session-part-${part.role}`} key={`${part.role}-${part.id}-${i}`}>
+                    <div className="session-part-head">
+                      <span className="session-role">{part.label}</span>
+                      <span className="session-min">~{part.minutes} min</span>
                     </div>
                     {part.role === 'main' ? (
                       <ExerciseCard
@@ -447,15 +447,15 @@ export default function Coach() {
                         minutesOverride={part.minutes}
                       />
                     ) : (
-                      <div className="sheet-body">
-                        <span className="sheet-name">
+                      <div className="session-body">
+                        <span className="session-name">
                           {part.exercises ? part.exercises.map((e) => (
                             <span key={e.id}><span className="ex-id">{e.id}</span> {e.name}{' '}</span>
                           )) : (
                             <><span className="ex-id">{part.id}</span> {part.name}{part.required ? ' · required' : ''}</>
                           )}
                         </span>
-                        {part.how && <span className="muted small sheet-how">{part.how}</span>}
+                        {part.how && <span className="muted small session-how">{part.how}</span>}
                       </div>
                     )}
                   </li>
@@ -1381,7 +1381,7 @@ function PlanDayDetail({ d, profile, limits, suggestion, goalStyle, tests, sessi
           <ul className="coach-week-exlist">
             {sheet.parts.map((p, i) => (
               <li key={`${p.role}-${p.id}-${i}`}>
-                <span className="sheet-role">{p.label}</span>{' '}
+                <span className="session-role">{p.label}</span>{' '}
                 {p.exercises ? p.name : <><span className="ex-id">{p.id}</span> {p.name}</>}
                 <span className="muted small"> · ~{p.minutes} min</span>
               </li>

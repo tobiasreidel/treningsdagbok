@@ -23,7 +23,7 @@ export const CHANGELOG = [
       'Logging asks how it went: nailed it, as planned, cut short, or pain.',
       'About you asks how long a session is, what holds you back and where you have been injured. The plan tab lists what the coach is still guessing at.',
       'Beginners get a climbing week with no hangboard, and under-18s no finger training before two years of climbing.',
-      'Bug fixes: the week view and the Today card no longer disagree, and injury history is read rather than only stored.',
+      'Bug fixes: the week view and the Today card no longer disagree, injury history is read rather than only stored, and the day and check-in sheets have their margins back.',
     ],
   },
   {

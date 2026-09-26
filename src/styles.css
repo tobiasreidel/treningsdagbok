@@ -1777,6 +1777,8 @@ textarea {
 }
 .sheet-list {
   list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -2761,8 +2763,10 @@ textarea {
   background: var(--surface-2);
 }
 
-/* The session sheet: warm-up, main, then, finish, each with its minutes. */
-.sheet {
+/* The session sheet: warm-up, main, then, finish, each with its minutes.
+   Prefixed session-, not sheet-: `.sheet` is the bottom sheet, and reusing it
+   here stripped the padding off every one of them. */
+.session-sheet {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -2770,47 +2774,47 @@ textarea {
   flex-direction: column;
   gap: 8px;
 }
-.sheet-part {
+.session-part {
   display: flex;
   flex-direction: column;
   gap: 5px;
   padding-left: 10px;
   border-left: 3px solid var(--border);
 }
-.sheet-part-main {
+.session-part-main {
   border-left-color: var(--primary);
   padding-left: 0;
   border-left: none;
 }
-.sheet-part-head {
+.session-part-head {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   gap: 8px;
 }
-.sheet-role {
+.session-role {
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
-.sheet-min {
+.session-min {
   font-size: 0.72rem;
   font-weight: 600;
   color: var(--text-muted);
   white-space: nowrap;
 }
-.sheet-body {
+.session-body {
   display: flex;
   flex-direction: column;
   gap: 3px;
 }
-.sheet-name {
+.session-name {
   font-weight: 600;
   font-size: 0.88rem;
 }
-.sheet-how {
+.session-how {
   line-height: 1.4;
 }
 
